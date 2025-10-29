@@ -6,17 +6,26 @@ import { CreateFrameCommand } from '../commands/FrameCommands';
 import { FrameType, FrameData, ExportLanguage } from '../types';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
-import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { createDefaultAnchors } from '../utils/anchorUtils';
+import { ShortcutHelp } from './ShortcutHelp';
 import './Toolbar.css';
 
-export const Toolbar: React.FC = () => {
+interface ToolbarProps {
+  currentFilePath: string | null;
+  setCurrentFilePath: (path: string | null) => void;
+}
+
+export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFilePath }) => {
   const { selectedFrameId, project, setProject } = useProjectStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
-  const [currentFilePath, setCurrentFilePath] = React.useState<string | null>(null);
+  const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
 
-  // 启用键盘快捷键
-  useKeyboardShortcuts(currentFilePath);
+  // 监听 F1 快捷键事件
+  React.useEffect(() => {
+    const handleOpenHelp = () => setShowShortcutHelp(true);
+    window.addEventListener('openShortcutHelp', handleOpenHelp);
+    return () => window.removeEventListener('openShortcutHelp', handleOpenHelp);
+  }, []);
 
   const createFrame = (type: FrameType, name: string) => {
     const parentId = selectedFrameId || null;
@@ -207,6 +216,19 @@ export const Toolbar: React.FC = () => {
           <span>📤</span> TS
         </button>
       </div>
+
+      {/* 帮助 */}
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-btn" 
+          onClick={() => setShowShortcutHelp(true)}
+          title="查看快捷键 (F1)"
+        >
+          <span>❓</span> 帮助
+        </button>
+      </div>
+
+      <ShortcutHelp isOpen={showShortcutHelp} onClose={() => setShowShortcutHelp(false)} />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { UpdateFrameCommand } from '../commands/FrameCommands';
@@ -11,8 +11,13 @@ const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
 const MARGIN = 240; // 4:3区域边距
 
-export const Canvas: React.FC = () => {
-  const { project, selectedFrameId, selectFrame } = useProjectStore();
+export interface CanvasHandle {
+  setScale: (scale: number) => void;
+  centerCanvas: () => void;
+}
+
+export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
+  const { project, selectedFrameId, selectFrame, setProject } = useProjectStore();
   const { executeCommand } = useCommandStore();
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
@@ -24,6 +29,7 @@ export const Canvas: React.FC = () => {
   const [isDraggingFrame, setIsDraggingFrame] = React.useState(false);
   const [draggedFrameId, setDraggedFrameId] = React.useState<string | null>(null);
   const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 }); // 鼠标相对Frame的偏移
+  const [dragStartState, setDragStartState] = React.useState<{ x: number; y: number; anchors: any } | null>(null); // 拖拽开始时的状态
   
   // Frame 调整大小状态
   const [isResizing, setIsResizing] = React.useState(false);
@@ -31,6 +37,16 @@ export const Canvas: React.FC = () => {
   const [resizeDirection, setResizeDirection] = React.useState<ResizeDirection | null>(null);
   const [resizeStartPos, setResizeStartPos] = React.useState({ x: 0, y: 0 });
   const [resizeStartSize, setResizeStartSize] = React.useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [resizeStartAnchors, setResizeStartAnchors] = React.useState<any>(null); // 调整大小开始时的锚点
+
+  // 暴露给父组件的方法
+  useImperativeHandle(ref, () => ({
+    setScale: (newScale: number) => setScale(newScale),
+    centerCanvas: () => {
+      setOffset({ x: 0, y: 0 });
+      setScale(1);
+    }
+  }));
 
   // 处理缩放
   const handleWheel = (e: React.WheelEvent) => {
@@ -57,7 +73,7 @@ export const Canvas: React.FC = () => {
         y: e.clientY - panStart.y,
       });
     } else if (isDraggingFrame && draggedFrameId) {
-      // 拖拽 Frame
+      // 拖拽 Frame - 直接更新状态，不创建命令
       const frame = project.frames[draggedFrameId];
       if (!frame) return;
 
@@ -85,18 +101,21 @@ export const Canvas: React.FC = () => {
         frame.height
       );
 
-      // 更新 Frame 位置和锚点
-      const command = new UpdateFrameCommand(
-        draggedFrameId,
-        { 
-          x: newX,
-          y: newY,
-          anchors: updatedAnchors
+      // 直接更新状态，不通过命令系统
+      setProject({
+        ...project,
+        frames: {
+          ...project.frames,
+          [draggedFrameId]: {
+            ...frame,
+            x: newX,
+            y: newY,
+            anchors: updatedAnchors
+          }
         }
-      );
-      executeCommand(command);
+      });
     } else if (isResizing && resizeFrameId && resizeDirection) {
-      // 调整 Frame 大小
+      // 调整 Frame 大小 - 直接更新状态，不创建命令
       const frame = project.frames[resizeFrameId];
       if (!frame) return;
 
@@ -163,28 +182,129 @@ export const Canvas: React.FC = () => {
         newHeight
       );
 
-      // 更新 Frame
-      const command = new UpdateFrameCommand(
-        resizeFrameId,
-        { 
-          x: newX, 
-          y: newY, 
-          width: newWidth, 
-          height: newHeight,
-          anchors: updatedAnchors
+      // 直接更新状态，不通过命令系统
+      setProject({
+        ...project,
+        frames: {
+          ...project.frames,
+          [resizeFrameId]: {
+            ...frame,
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight,
+            anchors: updatedAnchors
+          }
         }
-      );
-      executeCommand(command);
+      });
     }
   };
 
   const handleMouseUp = () => {
+    // 拖拽结束时，创建命令记录到历史
+    if (isDraggingFrame && draggedFrameId && dragStartState) {
+      const currentFrame = project.frames[draggedFrameId];
+      if (currentFrame) {
+        // 只有当位置真的改变了才创建命令
+        if (currentFrame.x !== dragStartState.x || currentFrame.y !== dragStartState.y) {
+          // 保存当前的新值
+          const newX = currentFrame.x;
+          const newY = currentFrame.y;
+          const newAnchors = currentFrame.anchors;
+          
+          // 先恢复到初始状态
+          const { setProject } = useProjectStore.getState();
+          setProject({
+            ...project,
+            frames: {
+              ...project.frames,
+              [draggedFrameId]: {
+                ...currentFrame,
+                x: dragStartState.x,
+                y: dragStartState.y,
+                anchors: dragStartState.anchors
+              }
+            }
+          });
+          
+          // 延迟执行命令，确保状态已更新
+          setTimeout(() => {
+            const command = new UpdateFrameCommand(
+              draggedFrameId,
+              {
+                x: newX,
+                y: newY,
+                anchors: newAnchors
+              }
+            );
+            executeCommand(command);
+          }, 0);
+        }
+      }
+    }
+
+    // 调整大小结束时，创建命令记录到历史
+    if (isResizing && resizeFrameId && resizeStartAnchors) {
+      const currentFrame = project.frames[resizeFrameId];
+      if (currentFrame) {
+        // 检查是否真的改变了
+        const sizeChanged = 
+          currentFrame.x !== resizeStartSize.x ||
+          currentFrame.y !== resizeStartSize.y ||
+          currentFrame.width !== resizeStartSize.width ||
+          currentFrame.height !== resizeStartSize.height;
+        
+        if (sizeChanged) {
+          // 保存当前的新值
+          const newX = currentFrame.x;
+          const newY = currentFrame.y;
+          const newWidth = currentFrame.width;
+          const newHeight = currentFrame.height;
+          const newAnchors = currentFrame.anchors;
+          
+          // 先恢复到初始状态
+          const { setProject } = useProjectStore.getState();
+          setProject({
+            ...project,
+            frames: {
+              ...project.frames,
+              [resizeFrameId]: {
+                ...currentFrame,
+                x: resizeStartSize.x,
+                y: resizeStartSize.y,
+                width: resizeStartSize.width,
+                height: resizeStartSize.height,
+                anchors: resizeStartAnchors
+              }
+            }
+          });
+          
+          // 延迟执行命令，确保状态已更新
+          setTimeout(() => {
+            const command = new UpdateFrameCommand(
+              resizeFrameId,
+              {
+                x: newX,
+                y: newY,
+                width: newWidth,
+                height: newHeight,
+                anchors: newAnchors
+              }
+            );
+            executeCommand(command);
+          }, 0);
+        }
+      }
+    }
+
     setIsPanning(false);
     setIsDraggingFrame(false);
     setDraggedFrameId(null);
+    setDragStartState(null);
     setIsResizing(false);
     setResizeFrameId(null);
     setResizeDirection(null);
+    setResizeStartAnchors(null);
   };
 
   // Frame 的鼠标按下事件
@@ -208,6 +328,13 @@ export const Canvas: React.FC = () => {
       const offsetX = mouseWc3X - frame.x;
       const offsetY = mouseWc3Y - frame.y;
 
+      // 保存拖拽开始时的状态
+      setDragStartState({
+        x: frame.x,
+        y: frame.y,
+        anchors: JSON.parse(JSON.stringify(frame.anchors)) // 深拷贝
+      });
+
       setIsDraggingFrame(true);
       setDraggedFrameId(frameId);
       setDragOffset({ x: offsetX, y: offsetY });
@@ -220,6 +347,9 @@ export const Canvas: React.FC = () => {
     return (e: React.MouseEvent, direction: ResizeDirection) => {
       const frame = project.frames[frameId];
       if (!frame) return;
+
+      // 保存调整大小开始时的状态
+      setResizeStartAnchors(JSON.parse(JSON.stringify(frame.anchors))); // 深拷贝
 
       setIsResizing(true);
       setResizeFrameId(frameId);
@@ -362,4 +492,4 @@ export const Canvas: React.FC = () => {
       </div>
     </div>
   );
-};
+});
