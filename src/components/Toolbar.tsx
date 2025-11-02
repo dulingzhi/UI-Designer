@@ -3,8 +3,9 @@ import { nanoid } from 'nanoid';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { CreateFrameCommand } from '../commands/FrameCommands';
-import { AlignCommand, DistributeCommand } from '../commands/AlignCommands';
+import { AlignCommand, DistributeCommand, EqualSpacingCommand } from '../commands/AlignCommands';
 import { UnifySizeCommand } from '../commands/SizeCommands';
+import { ZIndexCommand } from '../commands/ZIndexCommands';
 import { FrameType, FrameData, ExportLanguage } from '../types';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
@@ -28,6 +29,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
     window.addEventListener('openShortcutHelp', handleOpenHelp);
     return () => window.removeEventListener('openShortcutHelp', handleOpenHelp);
   }, []);
+
+  // 层级管理
+  const handleZIndex = (action: 'moveUp' | 'moveDown' | 'bringToFront' | 'sendToBack') => {
+    if (selectedFrameId) {
+      executeCommand(new ZIndexCommand(selectedFrameId, action));
+    }
+  };
 
   const createFrame = (type: FrameType, name: string) => {
     const parentId = selectedFrameId || null;
@@ -271,6 +279,62 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
           title="统一大小"
         >
           <span>⊡</span> 同大小
+        </button>
+      </div>
+
+      {/* 等间距 */}
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-btn"
+          onClick={() => executeCommand(new EqualSpacingCommand(selectedFrameIds, 'horizontal'))}
+          disabled={selectedFrameIds.length < 3}
+          title="水平等间距"
+        >
+          <span>⇿</span> 等间距H
+        </button>
+        <button 
+          className="toolbar-btn"
+          onClick={() => executeCommand(new EqualSpacingCommand(selectedFrameIds, 'vertical'))}
+          disabled={selectedFrameIds.length < 3}
+          title="垂直等间距"
+        >
+          <span>⥮</span> 等间距V
+        </button>
+      </div>
+
+      {/* 层级管理 */}
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-btn"
+          onClick={() => handleZIndex('bringToFront')}
+          disabled={!selectedFrameId}
+          title="置顶"
+        >
+          <span>⬆</span> 置顶
+        </button>
+        <button 
+          className="toolbar-btn"
+          onClick={() => handleZIndex('moveUp')}
+          disabled={!selectedFrameId}
+          title="上移一层"
+        >
+          <span>↑</span> 上移
+        </button>
+        <button 
+          className="toolbar-btn"
+          onClick={() => handleZIndex('moveDown')}
+          disabled={!selectedFrameId}
+          title="下移一层"
+        >
+          <span>↓</span> 下移
+        </button>
+        <button 
+          className="toolbar-btn"
+          onClick={() => handleZIndex('sendToBack')}
+          disabled={!selectedFrameId}
+          title="置底"
+        >
+          <span>⬇</span> 置底
         </button>
       </div>
 

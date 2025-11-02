@@ -195,3 +195,95 @@ export class DistributeCommand implements Command {
     this.execute();
   }
 }
+
+// 等间距命令（让所有间距相等）
+export class EqualSpacingCommand implements Command {
+  private frameIds: string[];
+  private spacingType: DistributeType;
+  private oldPositions: Map<string, { x: number; y: number }> = new Map();
+
+  constructor(frameIds: string[], spacingType: DistributeType) {
+    this.frameIds = frameIds;
+    this.spacingType = spacingType;
+  }
+
+  execute(): void {
+    const store = useProjectStore.getState();
+    const frames = this.frameIds.map(id => store.getFrame(id)).filter(Boolean) as FrameData[];
+    
+    if (frames.length < 3) {
+      console.warn('[EqualSpacingCommand] Need at least 3 frames for equal spacing');
+      return;
+    }
+
+    // 保存原始位置
+    frames.forEach(frame => {
+      this.oldPositions.set(frame.id, { x: frame.x, y: frame.y });
+    });
+
+    if (this.spacingType === 'horizontal') {
+      // 水平等间距：计算平均间距
+      const sortedFrames = [...frames].sort((a, b) => a.x - b.x);
+      
+      // 计算所有现有间距
+      const gaps: number[] = [];
+      for (let i = 0; i < sortedFrames.length - 1; i++) {
+        const currentRight = sortedFrames[i].x + sortedFrames[i].width;
+        const nextLeft = sortedFrames[i + 1].x;
+        gaps.push(nextLeft - currentRight);
+      }
+      
+      // 计算平均间距
+      const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+      
+      // 重新分布控件，保持第一个控件不动
+      let currentX = sortedFrames[0].x;
+      sortedFrames.forEach((frame, index) => {
+        if (index === 0) {
+          currentX = frame.x + frame.width + avgGap;
+          return;
+        }
+        store.updateFrame(frame.id, { x: currentX });
+        currentX += frame.width + avgGap;
+      });
+    } else {
+      // 垂直等间距
+      const sortedFrames = [...frames].sort((a, b) => a.y - b.y);
+      
+      // 计算所有现有间距
+      const gaps: number[] = [];
+      for (let i = 0; i < sortedFrames.length - 1; i++) {
+        const currentTop = sortedFrames[i].y + sortedFrames[i].height;
+        const nextBottom = sortedFrames[i + 1].y;
+        gaps.push(nextBottom - currentTop);
+      }
+      
+      // 计算平均间距
+      const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+      
+      // 重新分布控件，保持第一个控件不动
+      let currentY = sortedFrames[0].y;
+      sortedFrames.forEach((frame, index) => {
+        if (index === 0) {
+          currentY = frame.y + frame.height + avgGap;
+          return;
+        }
+        store.updateFrame(frame.id, { y: currentY });
+        currentY += frame.height + avgGap;
+      });
+    }
+
+    console.log(`[EqualSpacingCommand] Applied equal spacing to ${frames.length} frames ${this.spacingType}ly`);
+  }
+
+  undo(): void {
+    const store = useProjectStore.getState();
+    this.oldPositions.forEach((pos, frameId) => {
+      store.updateFrame(frameId, { x: pos.x, y: pos.y });
+    });
+  }
+
+  redo(): void {
+    this.execute();
+  }
+}
