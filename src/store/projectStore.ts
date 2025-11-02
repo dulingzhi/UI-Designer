@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ProjectData, FrameData, TableArrayData, CircleArrayData } from '../types';
+import { createDefaultAnchors } from '../utils/anchorUtils';
 
 interface ProjectState {
   project: ProjectData;
@@ -52,7 +53,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   project: createDefaultProject(),
   selectedFrameId: null,
 
-  setProject: (project) => set({ project }),
+  setProject: (project) => {
+    // 修复所有控件的锚点
+    const fixedFrames: Record<string, FrameData> = {};
+    Object.entries(project.frames).forEach(([id, frame]) => {
+      // 确保每个控件都有锚点数组
+      if (!frame.anchors || frame.anchors.length === 0) {
+        fixedFrames[id] = {
+          ...frame,
+          anchors: createDefaultAnchors(frame.x, frame.y, frame.width, frame.height)
+        };
+        console.log(`[Store] Fixed missing anchors for frame: ${frame.name}`);
+      } else {
+        fixedFrames[id] = frame;
+      }
+    });
+    
+    set({ 
+      project: {
+        ...project,
+        frames: fixedFrames
+      }
+    });
+  },
   
   resetProject: () => set({ 
     project: createDefaultProject(),

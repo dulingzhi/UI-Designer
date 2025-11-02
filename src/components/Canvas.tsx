@@ -4,7 +4,7 @@ import { useCommandStore } from '../store/commandStore';
 import { UpdateFrameCommand } from '../commands/FrameCommands';
 import { FrameType } from '../types';
 import { ResizeHandles, ResizeDirection } from './ResizeHandles';
-import { updateAnchorsFromBounds } from '../utils/anchorUtils';
+import { updateAnchorsFromBounds, calculatePositionFromAnchors } from '../utils/anchorUtils';
 import './Canvas.css';
 
 const CANVAS_WIDTH = 1920;
@@ -18,7 +18,6 @@ export interface CanvasHandle {
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const { project, selectedFrameId, selectFrame, setProject } = useProjectStore();
-  const { executeCommand } = useCommandStore();
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
@@ -201,44 +200,33 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   };
 
   const handleMouseUp = () => {
-    // 拖拽结束时，创建命令记录到历史
+    // 拖拽结束时，创建命令记录到历史（不执行，因为状态已经在 mouseMove 中更新了）
     if (isDraggingFrame && draggedFrameId && dragStartState) {
       const currentFrame = project.frames[draggedFrameId];
       if (currentFrame) {
         // 只有当位置真的改变了才创建命令
         if (currentFrame.x !== dragStartState.x || currentFrame.y !== dragStartState.y) {
-          // 保存当前的新值
-          const newX = currentFrame.x;
-          const newY = currentFrame.y;
-          const newAnchors = currentFrame.anchors;
-          
-          // 先恢复到初始状态
-          const { setProject } = useProjectStore.getState();
-          setProject({
-            ...project,
-            frames: {
-              ...project.frames,
-              [draggedFrameId]: {
-                ...currentFrame,
-                x: dragStartState.x,
-                y: dragStartState.y,
-                anchors: dragStartState.anchors
-              }
+          // 创建命令并手动设置 previousState
+          const command = new UpdateFrameCommand(
+            draggedFrameId,
+            {
+              x: currentFrame.x,
+              y: currentFrame.y,
+              anchors: currentFrame.anchors
             }
+          );
+          // 手动设置之前的状态（因为 execute 已经在 mouseMove 中完成了）
+          (command as any).previousState = {
+            x: dragStartState.x,
+            y: dragStartState.y,
+            anchors: dragStartState.anchors
+          };
+          // 直接添加到历史栈，不执行 execute
+          const { undoStack } = useCommandStore.getState();
+          useCommandStore.setState({
+            undoStack: [...undoStack, command],
+            redoStack: [], // 清空重做栈
           });
-          
-          // 延迟执行命令，确保状态已更新
-          setTimeout(() => {
-            const command = new UpdateFrameCommand(
-              draggedFrameId,
-              {
-                x: newX,
-                y: newY,
-                anchors: newAnchors
-              }
-            );
-            executeCommand(command);
-          }, 0);
         }
       }
     }
@@ -255,44 +243,31 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           currentFrame.height !== resizeStartSize.height;
         
         if (sizeChanged) {
-          // 保存当前的新值
-          const newX = currentFrame.x;
-          const newY = currentFrame.y;
-          const newWidth = currentFrame.width;
-          const newHeight = currentFrame.height;
-          const newAnchors = currentFrame.anchors;
-          
-          // 先恢复到初始状态
-          const { setProject } = useProjectStore.getState();
-          setProject({
-            ...project,
-            frames: {
-              ...project.frames,
-              [resizeFrameId]: {
-                ...currentFrame,
-                x: resizeStartSize.x,
-                y: resizeStartSize.y,
-                width: resizeStartSize.width,
-                height: resizeStartSize.height,
-                anchors: resizeStartAnchors
-              }
+          // 创建命令
+          const command = new UpdateFrameCommand(
+            resizeFrameId,
+            {
+              x: currentFrame.x,
+              y: currentFrame.y,
+              width: currentFrame.width,
+              height: currentFrame.height,
+              anchors: currentFrame.anchors
             }
+          );
+          // 手动设置之前的状态
+          (command as any).previousState = {
+            x: resizeStartSize.x,
+            y: resizeStartSize.y,
+            width: resizeStartSize.width,
+            height: resizeStartSize.height,
+            anchors: resizeStartAnchors
+          };
+          // 直接添加到历史栈，不执行 execute
+          const { undoStack } = useCommandStore.getState();
+          useCommandStore.setState({
+            undoStack: [...undoStack, command],
+            redoStack: [], // 清空重做栈
           });
-          
-          // 延迟执行命令，确保状态已更新
-          setTimeout(() => {
-            const command = new UpdateFrameCommand(
-              resizeFrameId,
-              {
-                x: newX,
-                y: newY,
-                width: newWidth,
-                height: newHeight,
-                anchors: newAnchors
-              }
-            );
-            executeCommand(command);
-          }, 0);
         }
       }
     }
@@ -314,6 +289,14 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       
       const frame = project.frames[frameId];
       if (!frame) return;
+
+      // 检查是否有多个锚点 - 如果有则不允许拖动
+      const anchorCount = Object.keys(frame.anchors || {}).length;
+      if (anchorCount > 1) {
+        // 只选中,不允许拖动
+        selectFrame(frameId);
+        return;
+      }
 
       const canvasBounds = canvasRef.current?.getBoundingClientRect();
       if (!canvasBounds) return;
@@ -366,11 +349,22 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
     const isSelected = frameId === selectedFrameId;
     
+    // 检查是否使用相对锚点，如果是则重新计算位置
+    const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
+    const actualFrame = calculatedPos 
+      ? { ...frame, ...calculatedPos }
+      : frame;
+    
+    // 调试日志
+    if (calculatedPos) {
+      console.log(`[Canvas] Frame ${frame.name} uses relative anchors, calculated pos:`, calculatedPos);
+    }
+    
     // 计算实际位置（从底部左侧开始）
-    const left = (frame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN;
-    const bottom = (frame.y / 0.6) * CANVAS_HEIGHT;
-    const width = (frame.width / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
-    const height = (frame.height / 0.6) * CANVAS_HEIGHT;
+    const left = (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN;
+    const bottom = (actualFrame.y / 0.6) * CANVAS_HEIGHT;
+    const width = (actualFrame.width / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
+    const height = (actualFrame.height / 0.6) * CANVAS_HEIGHT;
 
     const style: React.CSSProperties = {
       position: 'absolute',

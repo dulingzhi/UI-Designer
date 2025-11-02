@@ -1,7 +1,7 @@
 import React from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { FrameType, FramePoint, ProjectData, FrameAnchor } from '../types';
-import { createDefaultAnchors, updateAnchorsFromBounds } from '../utils/anchorUtils';
+import { createDefaultAnchors, updateAnchorsFromBounds, calculateRelativeOffset, calculatePositionFromAnchors, detectAnchorConflicts } from '../utils/anchorUtils';
 import './PropertiesPanel.css';
 
 export const PropertiesPanel: React.FC = () => {
@@ -17,10 +17,23 @@ export const PropertiesPanel: React.FC = () => {
     );
   }
 
+  // 计算有效的位置和尺寸（考虑相对锚点）
+  const calculatedPos = calculatePositionFromAnchors(selectedFrame, project.frames);
+  const effectiveFrame = calculatedPos ? { ...selectedFrame, ...calculatedPos } : selectedFrame;
+  
+  // 检查是否有多个锚点决定尺寸
+  const hasMultipleAnchors = selectedFrame.anchors && selectedFrame.anchors.length > 1;
+  const hasDynamicSize = hasMultipleAnchors && calculatedPos !== null;
+
+  // 检测锚点冲突
+  const anchorConflicts = selectedFrame.anchors ? detectAnchorConflicts(selectedFrame.anchors) : 
+    { conflictingAnchors: [], conflictType: 'none' as const, description: '' };
+
   const handleChange = (field: string, value: any) => {
-    if (selectedFrameId) {
-      updateFrame(selectedFrameId, { [field]: value });
-    }
+    if (!selectedFrameId) return;
+    
+    // 更新字段
+    updateFrame(selectedFrameId, { [field]: value });
   };
 
   return (
@@ -80,7 +93,7 @@ export const PropertiesPanel: React.FC = () => {
             <input
               type="number"
               step="0.01"
-              value={selectedFrame.x}
+              value={effectiveFrame.x}
               onChange={(e) => {
                 const newX = parseFloat(e.target.value);
                 handleChange('x', newX);
@@ -92,6 +105,8 @@ export const PropertiesPanel: React.FC = () => {
                   selectedFrame.height
                 ));
               }}
+              disabled={hasDynamicSize}
+              title={hasDynamicSize ? "位置由锚点自动计算" : ""}
             />
           </div>
           <div className="form-group">
@@ -99,7 +114,7 @@ export const PropertiesPanel: React.FC = () => {
             <input
               type="number"
               step="0.01"
-              value={selectedFrame.y}
+              value={effectiveFrame.y}
               onChange={(e) => {
                 const newY = parseFloat(e.target.value);
                 handleChange('y', newY);
@@ -111,6 +126,8 @@ export const PropertiesPanel: React.FC = () => {
                   selectedFrame.height
                 ));
               }}
+              disabled={hasDynamicSize}
+              title={hasDynamicSize ? "位置由锚点自动计算" : ""}
             />
           </div>
         </div>
@@ -121,7 +138,7 @@ export const PropertiesPanel: React.FC = () => {
             <input
               type="number"
               step="0.01"
-              value={selectedFrame.width}
+              value={effectiveFrame.width}
               onChange={(e) => {
                 const newWidth = parseFloat(e.target.value);
                 handleChange('width', newWidth);
@@ -133,6 +150,8 @@ export const PropertiesPanel: React.FC = () => {
                   selectedFrame.height
                 ));
               }}
+              disabled={hasDynamicSize}
+              title={hasDynamicSize ? "尺寸由锚点自动计算" : ""}
             />
           </div>
           <div className="form-group">
@@ -140,7 +159,7 @@ export const PropertiesPanel: React.FC = () => {
             <input
               type="number"
               step="0.01"
-              value={selectedFrame.height}
+              value={effectiveFrame.height}
               onChange={(e) => {
                 const newHeight = parseFloat(e.target.value);
                 handleChange('height', newHeight);
@@ -152,6 +171,8 @@ export const PropertiesPanel: React.FC = () => {
                   newHeight
                 ));
               }}
+              disabled={hasDynamicSize}
+              title={hasDynamicSize ? "尺寸由锚点自动计算" : ""}
             />
           </div>
         </div>
@@ -171,23 +192,53 @@ export const PropertiesPanel: React.FC = () => {
       {/* 锚点管理 */}
       <section>
         <h4>锚点</h4>
+        
+        {/* 锚点冲突警告 */}
+        {anchorConflicts.conflictType !== 'none' && (
+          <div className="anchor-conflict-warning" style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffeaa7',
+            borderRadius: '4px',
+            padding: '8px',
+            marginBottom: '12px',
+            color: '#856404'
+          }}>
+            <strong>⚠️ 锚点冲突:</strong> {anchorConflicts.description}
+          </div>
+        )}
+        
         <div className="anchors-list">
-          {(selectedFrame.anchors || createDefaultAnchors(selectedFrame.x, selectedFrame.y, selectedFrame.width, selectedFrame.height)).map((anchor, index) => (
-            <div key={index} className="anchor-item">
-              <div className="anchor-header">
-                <strong>锚点 {index + 1}</strong>
-                {selectedFrame.anchors && selectedFrame.anchors.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newAnchors = selectedFrame.anchors!.filter((_, i) => i !== index);
-                      handleChange('anchors', newAnchors);
-                    }}
-                  >
-                    删除
-                  </button>
-                )}
-              </div>
+          {(selectedFrame.anchors || createDefaultAnchors(selectedFrame.x, selectedFrame.y, selectedFrame.width, selectedFrame.height)).map((anchor, index) => {
+            // 检查当前锚点是否在冲突列表中
+            const isConflicting = anchorConflicts.conflictingAnchors.includes(index);
+            
+            return (
+              <div 
+                key={index} 
+                className="anchor-item"
+                style={{
+                  backgroundColor: isConflicting ? '#ffebee' : undefined,
+                  border: isConflicting ? '1px solid #f44336' : undefined,
+                  borderRadius: '4px',
+                  padding: '8px'
+                }}
+              >
+                <div className="anchor-header">
+                  <strong style={{ color: isConflicting ? '#d32f2f' : undefined }}>
+                    锚点 {index + 1} {isConflicting && '⚠️'}
+                  </strong>
+                  {selectedFrame.anchors && selectedFrame.anchors.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newAnchors = selectedFrame.anchors!.filter((_, i) => i !== index);
+                        handleChange('anchors', newAnchors);
+                      }}
+                    >
+                      删除
+                    </button>
+                  )}
+                </div>
               
               <div className="form-group">
                 <label>锚点类型</label>
@@ -198,6 +249,7 @@ export const PropertiesPanel: React.FC = () => {
                     newAnchors[index] = { ...anchor, point: parseInt(e.target.value) };
                     handleChange('anchors', newAnchors);
                   }}
+                  style={{ borderColor: isConflicting ? '#f44336' : undefined }}
                 >
                   <option value={FramePoint.TOPLEFT}>左上角</option>
                   <option value={FramePoint.TOP}>顶部中心</option>
@@ -223,6 +275,7 @@ export const PropertiesPanel: React.FC = () => {
                       newAnchors[index] = { ...anchor, x: parseFloat(e.target.value) };
                       handleChange('anchors', newAnchors);
                     }}
+                    style={{ borderColor: isConflicting ? '#f44336' : undefined }}
                   />
                 </div>
                 <div className="form-group">
@@ -236,22 +289,81 @@ export const PropertiesPanel: React.FC = () => {
                       newAnchors[index] = { ...anchor, y: parseFloat(e.target.value) };
                       handleChange('anchors', newAnchors);
                     }}
+                    style={{ borderColor: isConflicting ? '#f44336' : undefined }}
                   />
                 </div>
               </div>
 
               <div className="form-group">
                 <label>相对于控件 (可选)</label>
-                <input
-                  type="text"
-                  placeholder="留空表示绝对定位"
+                <select
                   value={anchor.relativeTo || ''}
                   onChange={(e) => {
                     const newAnchors = [...(selectedFrame.anchors || [])];
-                    newAnchors[index] = { ...anchor, relativeTo: e.target.value || undefined };
+                    const relativeToValue = e.target.value || undefined;
+                    const wasAbsolute = !anchor.relativeTo; // 判断是否从绝对定位转换而来
+                    
+                    if (relativeToValue) {
+                      // 获取相对的目标控件
+                      const relativeFrame = project.frames[relativeToValue];
+                      if (relativeFrame) {
+                        // 默认相对锚点为 TOPLEFT
+                        const relativePoint = anchor.relativePoint !== undefined 
+                          ? anchor.relativePoint 
+                          : FramePoint.TOPLEFT;
+                        
+                        // 只在首次设置相对控件时自动计算偏移量
+                        if (wasAbsolute) {
+                          // 从绝对定位转换为相对定位，计算偏移量保持位置不变
+                          const offset = calculateRelativeOffset(
+                            selectedFrame,
+                            anchor,
+                            relativeFrame,
+                            relativePoint
+                          );
+                          
+                          newAnchors[index] = { 
+                            ...anchor, 
+                            relativeTo: relativeToValue,
+                            relativePoint: relativePoint,
+                            x: offset.x,
+                            y: offset.y
+                          };
+                          
+                          console.log(`[Anchor] Converting to relative: offset=(${offset.x.toFixed(3)}, ${offset.y.toFixed(3)})`);
+                        } else {
+                          // 只是切换相对的目标控件，保持当前偏移量不变
+                          newAnchors[index] = { 
+                            ...anchor, 
+                            relativeTo: relativeToValue,
+                            relativePoint: relativePoint
+                          };
+                          
+                          console.log(`[Anchor] Switching relative target, keeping offset=(${anchor.x.toFixed(3)}, ${anchor.y.toFixed(3)})`);
+                        }
+                      }
+                    } else {
+                      // 清空相对控件，保持当前的 x, y 值
+                      newAnchors[index] = { 
+                        ...anchor, 
+                        relativeTo: undefined,
+                        relativePoint: undefined
+                      };
+                    }
+                    
                     handleChange('anchors', newAnchors);
                   }}
-                />
+                  style={{ borderColor: isConflicting ? '#f44336' : undefined }}
+                >
+                  <option value="">绝对定位</option>
+                  {Object.values(project.frames)
+                    .filter(f => f.id !== selectedFrame.id) // 排除自己
+                    .map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} ({f.id})
+                      </option>
+                    ))}
+                </select>
               </div>
 
               {anchor.relativeTo && (
@@ -261,9 +373,18 @@ export const PropertiesPanel: React.FC = () => {
                     value={anchor.relativePoint ?? FramePoint.TOPLEFT}
                     onChange={(e) => {
                       const newAnchors = [...(selectedFrame.anchors || [])];
-                      newAnchors[index] = { ...anchor, relativePoint: parseInt(e.target.value) };
+                      const newRelativePoint = parseInt(e.target.value);
+                      
+                      // 只更新相对锚点类型，保持用户设置的偏移量不变
+                      newAnchors[index] = { 
+                        ...anchor, 
+                        relativePoint: newRelativePoint
+                      };
+                      
+                      console.log(`[Anchor] Changing relative point to ${FramePoint[newRelativePoint]}, keeping offset=(${anchor.x.toFixed(3)}, ${anchor.y.toFixed(3)})`);
                       handleChange('anchors', newAnchors);
                     }}
+                    style={{ borderColor: isConflicting ? '#f44336' : undefined }}
                   >
                     <option value={FramePoint.TOPLEFT}>左上角</option>
                     <option value={FramePoint.TOP}>顶部中心</option>
@@ -275,10 +396,41 @@ export const PropertiesPanel: React.FC = () => {
                     <option value={FramePoint.BOTTOM}>底部中心</option>
                     <option value={FramePoint.BOTTOMRIGHT}>右下角</option>
                   </select>
+                  
+                  <button
+                    type="button"
+                    style={{ marginTop: '8px', fontSize: '12px' }}
+                    onClick={() => {
+                      const newAnchors = [...(selectedFrame.anchors || [])];
+                      const relativeFrame = project.frames[anchor.relativeTo!];
+                      
+                      if (relativeFrame && anchor.relativePoint !== undefined) {
+                        // 重新计算相对偏移量，保持控件位置不变
+                        const offset = calculateRelativeOffset(
+                          selectedFrame,
+                          anchor,
+                          relativeFrame,
+                          anchor.relativePoint
+                        );
+                        
+                        newAnchors[index] = { 
+                          ...anchor, 
+                          x: offset.x,
+                          y: offset.y
+                        };
+                        
+                        console.log(`[Anchor] Recalculating offset: (${offset.x.toFixed(3)}, ${offset.y.toFixed(3)})`);
+                        handleChange('anchors', newAnchors);
+                      }
+                    }}
+                  >
+                    🔄 重新计算偏移
+                  </button>
                 </div>
               )}
             </div>
-          ))}
+          );
+        })}
         </div>
 
         <button
