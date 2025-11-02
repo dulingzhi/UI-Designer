@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useCommandStore } from '../store/commandStore';
+import { ChangeParentCommand } from '../commands/FrameCommands';
 import { FrameType } from '../types';
 import './ProjectTree.css';
 
@@ -15,6 +17,9 @@ export const ProjectTree: React.FC = () => {
   
   // 管理右键菜单
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; frameId: string } | null>(null);
+
+  // 管理"移动到"对话框
+  const [moveToDialog, setMoveToDialog] = useState<{ frameId: string } | null>(null);
 
   // 管理面板宽度调整
   const [width, setWidth] = useState(280);
@@ -92,6 +97,89 @@ export const ProjectTree: React.FC = () => {
       deleteFrame(frameId);
       setContextMenu(null);
     }
+  };
+
+  // 检查是否是后代节点（防止循环引用）
+  const isDescendant = (potentialDescendantId: string, ancestorId: string): boolean => {
+    let currentId: string | null = potentialDescendantId;
+    while (currentId) {
+      if (currentId === ancestorId) {
+        return true;
+      }
+      currentId = project.frames[currentId]?.parentId || null;
+    }
+    return false;
+  };
+
+  // 移动控件到新父控件
+  const handleMoveTo = (frameId: string, newParentId: string | null) => {
+    const frame = project.frames[frameId];
+    if (!frame) return;
+
+    // 不能移动到自己
+    if (frameId === newParentId) {
+      alert('不能将控件移动到自己！');
+      return;
+    }
+
+    // 不能移动到自己的后代节点
+    if (newParentId && isDescendant(newParentId, frameId)) {
+      alert('不能将控件移动到它的子控件中！');
+      return;
+    }
+
+    // 如果已经是同一个父控件，不需要移动
+    if (frame.parentId === newParentId) {
+      setMoveToDialog(null);
+      return;
+    }
+
+    // 使用命令模式更新父子关系
+    const command = new ChangeParentCommand(frameId, newParentId);
+    useCommandStore.getState().executeCommand(command);
+    
+    setMoveToDialog(null);
+  };
+
+  // 获取所有可以作为父控件的选项
+  const getParentOptions = (excludeFrameId: string): Array<{ id: string | null; name: string; level: number }> => {
+    const options: Array<{ id: string | null; name: string; level: number }> = [];
+    
+    // 添加根节点选项
+    options.push({
+      id: null,
+      name: project.originMode === 'gameui' ? 'GameUI (根节点)' : 
+            project.originMode === 'worldframe' ? 'WorldFrame (根节点)' : 'ConsoleUI (根节点)',
+      level: 0
+    });
+
+    // 递归添加所有控件
+    const addFrameOptions = (frameId: string, level: number) => {
+      const frame = project.frames[frameId];
+      if (!frame) return;
+
+      // 排除自己和自己的后代
+      if (frameId === excludeFrameId || isDescendant(frameId, excludeFrameId)) {
+        return;
+      }
+
+      options.push({
+        id: frameId,
+        name: frame.name,
+        level
+      });
+
+      // 递归添加子控件
+      frame.children.forEach(childId => {
+        addFrameOptions(childId, level + 1);
+      });
+    };
+
+    project.rootFrameIds.forEach(frameId => {
+      addFrameOptions(frameId, 1);
+    });
+
+    return options;
   };
 
   // 点击空白处关闭右键菜单
@@ -295,6 +383,15 @@ export const ProjectTree: React.FC = () => {
             <div 
               className="context-menu-item"
               onClick={() => {
+                setMoveToDialog({ frameId: contextMenu.frameId });
+                setContextMenu(null);
+              }}
+            >
+              📁 移动到...
+            </div>
+            <div 
+              className="context-menu-item"
+              onClick={() => {
                 // TODO: 添加子控件
                 console.log('Add child to', contextMenu.frameId);
                 setContextMenu(null);
@@ -308,6 +405,45 @@ export const ProjectTree: React.FC = () => {
               onClick={() => handleDelete(contextMenu.frameId)}
             >
               🗑️ 删除
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 移动到对话框 */}
+      {moveToDialog && (
+        <>
+          <div 
+            className="context-menu-overlay"
+            onClick={() => setMoveToDialog(null)}
+          />
+          <div className="move-to-dialog">
+            <div className="move-to-dialog-header">
+              <h4>移动控件</h4>
+              <button 
+                className="move-to-dialog-close"
+                onClick={() => setMoveToDialog(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="move-to-dialog-body">
+              <p>将 <strong>{project.frames[moveToDialog.frameId]?.name}</strong> 移动到：</p>
+              <div className="move-to-options">
+                {getParentOptions(moveToDialog.frameId).map(option => (
+                  <div
+                    key={option.id || 'root'}
+                    className="move-to-option"
+                    style={{ paddingLeft: `${option.level * 20 + 10}px` }}
+                    onClick={() => handleMoveTo(moveToDialog.frameId, option.id)}
+                  >
+                    <span className="move-to-option-icon">
+                      {option.level === 0 ? '🏠' : '📦'}
+                    </span>
+                    <span className="move-to-option-name">{option.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </>
