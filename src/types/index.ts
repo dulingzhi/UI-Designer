@@ -58,6 +58,7 @@ export interface FrameData {
   children: string[];
   tooltip: boolean;
   isRelative: boolean;
+  locked?: boolean;            // 是否锁定（锁定后不能移动/编辑/删除）
   
   // 锚点系统 - 用于代码导出
   anchors: FrameAnchor[];      // 支持多个锚点（通常使用TOPLEFT和BOTTOMRIGHT）

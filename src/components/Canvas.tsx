@@ -38,6 +38,11 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const [resizeStartSize, setResizeStartSize] = React.useState({ x: 0, y: 0, width: 0, height: 0 });
   const [resizeStartAnchors, setResizeStartAnchors] = React.useState<any>(null); // 调整大小开始时的锚点
 
+  // 框选状态
+  const [isBoxSelecting, setIsBoxSelecting] = React.useState(false);
+  const [boxSelectStart, setBoxSelectStart] = React.useState({ x: 0, y: 0 });
+  const [boxSelectEnd, setBoxSelectEnd] = React.useState({ x: 0, y: 0 });
+
   // 暴露给父组件的方法
   useImperativeHandle(ref, () => ({
     setScale: (newScale: number) => setScale(newScale),
@@ -62,6 +67,19 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       setIsPanning(true);
       setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
       e.preventDefault();
+    } else if (e.shiftKey && e.button === 0) {
+      // Shift+左键：开始框选
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (!canvasBounds) return;
+      
+      // 存储相对于画布容器的坐标
+      const relativeX = e.clientX - canvasBounds.left;
+      const relativeY = e.clientY - canvasBounds.top;
+      
+      setIsBoxSelecting(true);
+      setBoxSelectStart({ x: relativeX, y: relativeY });
+      setBoxSelectEnd({ x: relativeX, y: relativeY });
+      e.preventDefault();
     }
   };
 
@@ -71,6 +89,14 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         x: e.clientX - panStart.x,
         y: e.clientY - panStart.y,
       });
+    } else if (isBoxSelecting) {
+      // 更新框选区域（相对于画布容器）
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (!canvasBounds) return;
+      
+      const relativeX = e.clientX - canvasBounds.left;
+      const relativeY = e.clientY - canvasBounds.top;
+      setBoxSelectEnd({ x: relativeX, y: relativeY });
     } else if (isDraggingFrame && draggedFrameId) {
       // 拖拽 Frame - 直接更新状态，不创建命令
       const frame = project.frames[draggedFrameId];
@@ -272,6 +298,50 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       }
     }
 
+    // 框选结束时，选中框内的所有控件
+    if (isBoxSelecting) {
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (canvasBounds) {
+        // 计算选择框的边界（相对于画布容器的坐标）
+        const boxLeft = Math.min(boxSelectStart.x, boxSelectEnd.x);
+        const boxRight = Math.max(boxSelectStart.x, boxSelectEnd.x);
+        const boxTop = Math.min(boxSelectStart.y, boxSelectEnd.y);
+        const boxBottom = Math.max(boxSelectStart.y, boxSelectEnd.y);
+
+        // 检查每个控件是否在选择框内
+        const selectedIds: string[] = [];
+        Object.values(project.frames).forEach(frame => {
+          // 计算控件在画布上的位置（像素坐标）
+          const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
+          const actualFrame = calculatedPos ? { ...frame, ...calculatedPos } : frame;
+          
+          const frameLeft = (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN;
+          const frameBottom = (actualFrame.y / 0.6) * CANVAS_HEIGHT;
+          const frameWidth = (actualFrame.width / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
+          const frameHeight = (actualFrame.height / 0.6) * CANVAS_HEIGHT;
+          
+          // 转换为相对于画布容器的坐标（考虑缩放和偏移）
+          const frameRelativeLeft = frameLeft * scale + offset.x * scale;
+          const frameRelativeRight = frameRelativeLeft + frameWidth * scale;
+          const frameRelativeTop = (CANVAS_HEIGHT - (frameBottom + frameHeight)) * scale + offset.y * scale;
+          const frameRelativeBottom = frameRelativeTop + frameHeight * scale;
+
+          // 判断控件是否与选择框相交
+          if (frameRelativeRight >= boxLeft && frameRelativeLeft <= boxRight &&
+              frameRelativeBottom >= boxTop && frameRelativeTop <= boxBottom) {
+            selectedIds.push(frame.id);
+          }
+        });
+
+        // 更新选中的控件
+        if (selectedIds.length > 0) {
+          const store = useProjectStore.getState();
+          store.selectMultipleFrames(selectedIds);
+        }
+      }
+      setIsBoxSelecting(false);
+    }
+
     setIsPanning(false);
     setIsDraggingFrame(false);
     setDraggedFrameId(null);
@@ -289,6 +359,12 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       
       const frame = project.frames[frameId];
       if (!frame) return;
+
+      // 检查是否锁定
+      if (frame.locked) {
+        console.log('[Canvas] Frame is locked:', frame.name);
+        return;
+      }
 
       // 检查是否有多个锚点 - 如果有则不允许拖动
       const anchorCount = Object.keys(frame.anchors || {}).length;
@@ -330,6 +406,12 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     return (e: React.MouseEvent, direction: ResizeDirection) => {
       const frame = project.frames[frameId];
       if (!frame) return;
+
+      // 检查是否锁定
+      if (frame.locked) {
+        console.log('[Canvas] Frame is locked:', frame.name);
+        return;
+      }
 
       // 保存调整大小开始时的状态
       setResizeStartAnchors(JSON.parse(JSON.stringify(frame.anchors))); // 深拷贝
@@ -373,9 +455,11 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       bottom: `${bottom}px`,
       width: `${width}px`,
       height: `${height}px`,
-      border: isSelected ? '2px solid #f22613' : '1px solid #00e640',
+      border: frame.locked 
+        ? '2px dashed #888888' 
+        : isSelected ? '2px solid #f22613' : '1px solid #00e640',
       boxSizing: 'border-box',
-      cursor: 'pointer',
+      cursor: frame.locked ? 'not-allowed' : 'pointer',
       zIndex: frame.z,
       backgroundColor: getFrameBackgroundColor(frame.type),
       backgroundImage: frame.diskTexture ? `url(${frame.diskTexture})` : undefined,
@@ -386,6 +470,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       justifyContent: frame.horAlign === 'left' ? 'flex-start' : frame.horAlign === 'center' ? 'center' : 'flex-end',
       fontSize: `${(frame.textScale || 1) * 14}px`,
       pointerEvents: 'auto',
+      opacity: frame.locked ? 0.7 : 1,
     };
 
     return (
@@ -413,9 +498,26 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       >
         {frame.text && <span>{frame.text}</span>}
         
+        {/* 锁定图标 */}
+        {frame.locked && (
+          <div style={{
+            position: 'absolute',
+            top: '2px',
+            right: '2px',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#888888',
+            padding: '2px 4px',
+            fontSize: '12px',
+            borderRadius: '2px',
+            pointerEvents: 'none',
+          }}>
+            🔒
+          </div>
+        )}
+        
         {/* 调整大小手柄 */}
         <ResizeHandles
-          isSelected={isSelected}
+          isSelected={isSelected && !frame.locked}
           onResizeStart={handleResizeStart(frameId)}
         />
       </div>
@@ -484,8 +586,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             backgroundColor: '#1a1a1a',
           }}
           onMouseDown={(e) => {
-            // 只在非 Ctrl 左键点击时清空选择
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+            // 只在非 Ctrl、非 Shift 左键点击时清空选择
+            if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
               selectFrame(null);
             }
           }}
@@ -508,6 +610,23 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           
           {/* 渲染所有Frame（包括子控件），子控件也在画布根部独立渲染 */}
           {getAllFrameIds(project.rootFrameIds).map(frameId => renderFrame(frameId))}
+          
+          {/* 框选矩形 */}
+          {isBoxSelecting && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${Math.min(boxSelectStart.x, boxSelectEnd.x)}px`,
+                top: `${Math.min(boxSelectStart.y, boxSelectEnd.y)}px`,
+                width: `${Math.abs(boxSelectEnd.x - boxSelectStart.x)}px`,
+                height: `${Math.abs(boxSelectEnd.y - boxSelectStart.y)}px`,
+                border: '2px dashed #00e640',
+                backgroundColor: 'rgba(0, 230, 64, 0.1)',
+                pointerEvents: 'none',
+                zIndex: 10000,
+              }}
+            />
+          )}
         </div>
       </div>
 

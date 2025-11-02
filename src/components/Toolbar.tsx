@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { CreateFrameCommand } from '../commands/FrameCommands';
 import { AlignCommand, DistributeCommand } from '../commands/AlignCommands';
+import { UnifySizeCommand } from '../commands/SizeCommands';
 import { FrameType, FrameData, ExportLanguage } from '../types';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
@@ -242,6 +243,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
           title="垂直分布"
         >
           <span>↕</span> 垂直分布
+        </button>
+      </div>
+
+      {/* 统一大小 */}
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-btn"
+          onClick={() => executeCommand(new UnifySizeCommand(selectedFrameIds, 'width'))}
+          disabled={selectedFrameIds.length < 2}
+          title="统一宽度"
+        >
+          <span>↔</span> 同宽
+        </button>
+        <button 
+          className="toolbar-btn"
+          onClick={() => executeCommand(new UnifySizeCommand(selectedFrameIds, 'height'))}
+          disabled={selectedFrameIds.length < 2}
+          title="统一高度"
+        >
+          <span>↕</span> 同高
+        </button>
+        <button 
+          className="toolbar-btn"
+          onClick={() => executeCommand(new UnifySizeCommand(selectedFrameIds, 'both'))}
+          disabled={selectedFrameIds.length < 2}
+          title="统一大小"
+        >
+          <span>⊡</span> 同大小
         </button>
       </div>
 

@@ -77,6 +77,10 @@ export const useKeyboardShortcuts = (
             e.preventDefault();
             copyToClipboard('ts');
             break;
+          case 'a':
+            e.preventDefault();
+            handleSelectAll();
+            break;
         }
       }
 
@@ -90,6 +94,10 @@ export const useKeyboardShortcuts = (
           case 's':
             e.preventDefault();
             handleSaveAs();
+            break;
+          case 'a':
+            e.preventDefault();
+            handleInvertSelection();
             break;
           case 'j':
             e.preventDefault();
@@ -262,6 +270,24 @@ export const useKeyboardShortcuts = (
       // 粘贴到当前位置，稍微偏移
       executeCommand(new PasteFrameCommand(0.02, 0.02));
       console.log('✅ 已粘贴');
+    };
+
+    const handleSelectAll = () => {
+      // 获取所有控件ID
+      const allFrameIds = Object.keys(project.frames);
+      if (allFrameIds.length > 0) {
+        useProjectStore.getState().selectMultipleFrames(allFrameIds);
+        console.log(`✅ 已全选 ${allFrameIds.length} 个控件`);
+      }
+    };
+
+    const handleInvertSelection = () => {
+      const { selectedFrameIds } = useProjectStore.getState();
+      const allFrameIds = Object.keys(project.frames);
+      // 反选：选中未选中的，取消选中已选中的
+      const newSelection = allFrameIds.filter(id => !selectedFrameIds.includes(id));
+      useProjectStore.getState().selectMultipleFrames(newSelection);
+      console.log(`✅ 已反选，当前选中 ${newSelection.length} 个控件`);
     };
 
     const copyToClipboard = async (language: 'jass' | 'lua' | 'ts') => {

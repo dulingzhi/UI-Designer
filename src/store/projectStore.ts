@@ -25,6 +25,9 @@ interface ProjectState {
   selectMultipleFrames: (ids: string[]) => void; // 框选多个
   clearSelection: () => void;
   
+  // 锁定操作
+  toggleFrameLock: (id: string) => void;
+  
   // 剪贴板操作
   copyToClipboard: (frameId: string) => void;
   
@@ -260,6 +263,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   clearSelection: () => set({
     selectedFrameId: null,
     selectedFrameIds: []
+  }),
+
+  toggleFrameLock: (id) => set((state) => {
+    const frame = state.project.frames[id];
+    if (!frame) return state;
+    
+    return {
+      project: {
+        ...state.project,
+        frames: {
+          ...state.project.frames,
+          [id]: {
+            ...frame,
+            locked: !frame.locked
+          }
+        }
+      }
+    };
   }),
 
   copyToClipboard: (frameId) => {

@@ -88,6 +88,13 @@ export const ProjectTree: React.FC = () => {
     const frame = project.frames[frameId];
     if (!frame) return;
     
+    // 检查是否锁定
+    if (frame.locked) {
+      alert('该控件已锁定，无法删除。请先解锁。');
+      setContextMenu(null);
+      return;
+    }
+    
     const hasChildren = frame.children.length > 0;
     const confirmMsg = hasChildren 
       ? `确定要删除 "${frame.name}" 及其 ${frame.children.length} 个子控件吗？`
@@ -115,8 +122,14 @@ export const ProjectTree: React.FC = () => {
   const handleMoveTo = (frameId: string, newParentId: string | null) => {
     const frame = project.frames[frameId];
     if (!frame) return;
-
-    // 不能移动到自己
+    
+    // 检查是否锁定
+    if (frame.locked) {
+      alert('该控件已锁定，无法移动。请先解锁。');
+      setMoveToDialog(null);
+      return;
+    }
+        // 不能移动到自己
     if (frameId === newParentId) {
       alert('不能将控件移动到自己！');
       return;
@@ -291,7 +304,10 @@ export const ProjectTree: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="tree-node-name">{frame.name}</span>
+            <>
+              {frame.locked && <span style={{ marginRight: '4px', opacity: 0.6 }}>🔒</span>}
+              <span className="tree-node-name">{frame.name}</span>
+            </>
           )}
           
           {hasChildren && (
@@ -398,6 +414,17 @@ export const ProjectTree: React.FC = () => {
               }}
             >
               ➕ 添加子控件
+            </div>
+            <div className="context-menu-divider" />
+            <div 
+              className="context-menu-item"
+              onClick={() => {
+                const { toggleFrameLock } = useProjectStore.getState();
+                toggleFrameLock(contextMenu.frameId);
+                setContextMenu(null);
+              }}
+            >
+              {project.frames[contextMenu.frameId]?.locked ? '🔓 解锁' : '🔒 锁定'}
             </div>
             <div className="context-menu-divider" />
             <div 
