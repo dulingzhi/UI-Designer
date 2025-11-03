@@ -12,9 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "wc3-ui-designer",
-        "width": 800,
-        "height": 600
+        "title": "WC3 UI Designer",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 768,
+        "center": true
       }
     ],
     "security": {

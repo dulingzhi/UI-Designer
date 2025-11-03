@@ -1,13 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './MenuBar.css';
 import { AboutDialog } from './AboutDialog';
+import { useProjectStore } from '../store/projectStore';
+import { useCommandStore } from '../store/commandStore';
+import { saveProject, loadProject, loadProjectFromPath } from '../utils/fileOperations';
+import { AlignCommand, DistributeCommand } from '../commands/AlignCommands';
+import { ZIndexCommand } from '../commands/ZIndexCommands';
 
 interface MenuBarProps {
   currentFilePath: string | null;
   setCurrentFilePath: (path: string | null) => void;
-  onNewFile?: () => void;
-  onSave?: () => void;
-  onSaveAs?: () => void;
+  canvasRef?: React.RefObject<{ 
+    setScale: (s: number | ((prev: number) => number)) => void; 
+    centerCanvas: () => void;
+    toggleGrid: () => void;
+    toggleAnchors: () => void;
+    getScale: () => number;
+  } | null>;
+  onToggleGrid?: () => void;
+  onToggleAnchors?: () => void;
+  showProjectTree: boolean;
+  setShowProjectTree: (show: boolean) => void;
+  showPropertiesPanel: boolean;
+  setShowPropertiesPanel: (show: boolean) => void;
 }
 
 interface MenuItem {
@@ -22,14 +37,21 @@ interface MenuItem {
 export const MenuBar: React.FC<MenuBarProps> = ({
   currentFilePath,
   setCurrentFilePath,
-  onNewFile,
-  onSave,
-  onSaveAs
+  canvasRef,
+  onToggleGrid,
+  onToggleAnchors,
+  showProjectTree,
+  setShowProjectTree,
+  showPropertiesPanel,
+  setShowPropertiesPanel
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const menuBarRef = useRef<HTMLDivElement>(null);
+  
+  const { project, setProject, selectedFrameId, selectedFrameIds, clipboard, copyToClipboard } = useProjectStore();
+  const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
 
   // 加载最近打开的文件
   useEffect(() => {
@@ -70,6 +92,22 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [activeMenu]);
 
+  // 快捷键：Ctrl+1 切换项目树，Ctrl+2 切换属性面板
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '1') {
+        e.preventDefault();
+        setShowProjectTree(!showProjectTree);
+      } else if (e.ctrlKey && e.key === '2') {
+        e.preventDefault();
+        setShowPropertiesPanel(!showPropertiesPanel);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showProjectTree, showPropertiesPanel, setShowProjectTree, setShowPropertiesPanel]);
+
   const handleMenuClick = (menuName: string) => {
     setActiveMenu(activeMenu === menuName ? null : menuName);
   };
@@ -81,10 +119,25 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     setActiveMenu(null);
   };
 
-  const handleOpenRecent = (filePath: string) => {
-    setCurrentFilePath(filePath);
-    addToRecentFiles(filePath);
-    setActiveMenu(null);
+  const handleOpenRecent = async (filePath: string) => {
+    try {
+      const result = await loadProjectFromPath(filePath);
+      if (result) {
+        setProject(result.project);
+        setCurrentFilePath(result.path);
+        addToRecentFiles(result.path);
+      }
+    } catch (error) {
+      alert(`加载文件失败: ${error}\n文件路径: ${filePath}`);
+      // 从最近列表中移除失败的文件
+      setRecentFiles((prev) => {
+        const updated = prev.filter((f) => f !== filePath);
+        localStorage.setItem('recentFiles', JSON.stringify(updated));
+        return updated;
+      });
+    } finally {
+      setActiveMenu(null);
+    }
   };
 
   const handleClearRecent = () => {
@@ -93,24 +146,190 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     setActiveMenu(null);
   };
 
+  // 文件操作
+  const handleNewProject = () => {
+    if (confirm('创建新项目将清除当前项目，是否继续？')) {
+      setProject({
+        libraryName: 'UILib',
+        originMode: 'gameui',
+        hideGameUI: false,
+        hideHeroBar: false,
+        hideMiniMap: false,
+        hideResources: false,
+        hideButtonBar: false,
+        hidePortrait: false,
+        hideChat: false,
+        appInterface: '',
+        frames: {},
+        rootFrameIds: [],
+        tableArrays: [],
+        circleArrays: [],
+        exportVersion: 'reforged',
+      });
+      setCurrentFilePath(null);
+    }
+  };
+
+  const handleOpen = async () => {
+    try {
+      const result = await loadProject();
+      if (result) {
+        setProject(result.project);
+        setCurrentFilePath(result.path);
+        addToRecentFiles(result.path);
+      }
+    } catch (error) {
+      alert('加载失败: ' + error);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const path = await saveProject(project, currentFilePath || undefined);
+      if (path) {
+        setCurrentFilePath(path);
+        addToRecentFiles(path);
+      }
+    } catch (error) {
+      alert('保存失败: ' + error);
+    }
+  };
+
+  const handleSaveAs = async () => {
+    try {
+      const path = await saveProject(project);
+      if (path) {
+        setCurrentFilePath(path);
+        addToRecentFiles(path);
+      }
+    } catch (error) {
+      alert('保存失败: ' + error);
+    }
+  };
+
+  // 编辑操作
+  const handleCopy = () => {
+    if (selectedFrameId) {
+      copyToClipboard(selectedFrameId);
+    }
+  };
+
+  const handlePaste = () => {
+    if (clipboard) {
+      // 生成新的ID并粘贴控件
+      const generateNewId = (baseName: string): string => {
+        let counter = 1;
+        let newId = baseName;
+        while (project.frames[newId]) {
+          newId = `${baseName}_copy${counter}`;
+          counter++;
+        }
+        return newId;
+      };
+
+      const pasteFrameRecursive = (frame: any, parentId?: string): string => {
+        const newId = generateNewId(frame.name);
+        const newFrame = {
+          ...frame,
+          name: newId,
+          parentId: parentId,
+          // 偏移位置，避免完全重叠
+          x: frame.x + 0.02,
+          y: frame.y + 0.02,
+          children: [] as string[],
+        };
+
+        // 先添加当前frame
+        project.frames[newId] = newFrame;
+
+        // 递归处理子控件
+        if (frame.children && Array.isArray(frame.children)) {
+          const childIds = frame.children.map((child: any) => 
+            pasteFrameRecursive(child, newId)
+          );
+          newFrame.children = childIds;
+        }
+
+        return newId;
+      };
+
+      const newRootId = pasteFrameRecursive(clipboard);
+      if (!clipboard.parentId) {
+        project.rootFrameIds.push(newRootId);
+      }
+      
+      setProject({ ...project });
+      // 选中新粘贴的控件
+      const { selectFrame } = useProjectStore.getState();
+      selectFrame(newRootId);
+    }
+  };
+
+  const handleDelete = () => {
+    if (selectedFrameIds.length > 0) {
+      if (confirm(`确定要删除选中的 ${selectedFrameIds.length} 个控件吗？`)) {
+        selectedFrameIds.forEach(id => {
+          const frame = project.frames[id];
+          if (frame) {
+            delete project.frames[id];
+            project.rootFrameIds = project.rootFrameIds.filter(rid => rid !== id);
+          }
+        });
+        setProject({ ...project });
+      }
+    }
+  };
+
+  // 视图操作
+  const handleZoomIn = () => {
+    canvasRef?.current?.setScale((prev) => Math.min(5, prev * 1.2));
+  };
+
+  const handleZoomOut = () => {
+    canvasRef?.current?.setScale((prev) => Math.max(0.1, prev / 1.2));
+  };
+
+  const handleResetZoom = () => {
+    canvasRef?.current?.setScale(1);
+  };
+
+  const handleCenterCanvas = () => {
+    canvasRef?.current?.centerCanvas();
+  };
+
+  // 对齐操作
+  const handleAlign = (type: 'left' | 'right' | 'top' | 'bottom' | 'centerH' | 'centerV') => {
+    if (selectedFrameIds.length > 0) {
+      executeCommand(new AlignCommand(selectedFrameIds, type));
+    }
+  };
+
+  const handleDistribute = (direction: 'horizontal' | 'vertical') => {
+    if (selectedFrameIds.length > 1) {
+      executeCommand(new DistributeCommand(selectedFrameIds, direction));
+    }
+  };
+
+  // 层级操作
+  const handleZIndex = (action: 'moveUp' | 'moveDown' | 'bringToFront' | 'sendToBack') => {
+    if (selectedFrameId) {
+      executeCommand(new ZIndexCommand(selectedFrameId, action));
+    }
+  };
+
+
   // 菜单定义
   const menus: Record<string, MenuItem[]> = {
     file: [
       {
         label: '新建',
         shortcut: 'Ctrl+N',
-        action: () => {
-          onNewFile?.();
-          setCurrentFilePath(null);
-        }
+        action: handleNewProject
       },
       {
         label: '打开',
         shortcut: 'Ctrl+O',
-        action: () => {
-          // TODO: 实现文件打开对话框
-          console.log('Open file dialog');
-        }
+        action: handleOpen
       },
       {
         label: '最近打开',
@@ -132,13 +351,13 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '保存',
         shortcut: 'Ctrl+S',
-        action: onSave,
+        action: handleSave,
         disabled: !currentFilePath
       },
       {
         label: '另存为',
         shortcut: 'Ctrl+Shift+S',
-        action: onSaveAs
+        action: handleSaveAs
       },
       { separator: true },
       {
@@ -160,75 +379,83 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '撤销',
         shortcut: 'Ctrl+Z',
-        action: () => console.log('Undo')
+        action: undo,
+        disabled: !canUndo
       },
       {
         label: '重做',
         shortcut: 'Ctrl+Y',
-        action: () => console.log('Redo')
+        action: redo,
+        disabled: !canRedo
       },
       { separator: true },
       {
         label: '剪切',
         shortcut: 'Ctrl+X',
-        action: () => console.log('Cut')
+        action: () => {
+          handleCopy();
+          handleDelete();
+        },
+        disabled: !selectedFrameId
       },
       {
         label: '复制',
         shortcut: 'Ctrl+C',
-        action: () => console.log('Copy')
+        action: handleCopy,
+        disabled: !selectedFrameId
       },
       {
         label: '粘贴',
         shortcut: 'Ctrl+V',
-        action: () => console.log('Paste')
+        action: handlePaste,
+        disabled: !clipboard
       },
       {
         label: '删除',
         shortcut: 'Delete',
-        action: () => console.log('Delete')
+        action: handleDelete,
+        disabled: selectedFrameIds.length === 0
       },
       { separator: true },
       {
         label: '全选',
         shortcut: 'Ctrl+A',
-        action: () => console.log('Select All')
+        action: () => {
+          // TODO: 实现全选
+          console.log('Select All');
+        }
       }
     ],
     view: [
       {
         label: '缩放',
         submenu: [
-          { label: '放大', shortcut: 'Ctrl++', action: () => console.log('Zoom in') },
-          { label: '缩小', shortcut: 'Ctrl+-', action: () => console.log('Zoom out') },
-          { label: '重置缩放', shortcut: 'Ctrl+0', action: () => console.log('Reset zoom') },
+          { label: '放大', shortcut: 'Ctrl++', action: handleZoomIn },
+          { label: '缩小', shortcut: 'Ctrl+-', action: handleZoomOut },
+          { label: '重置缩放', shortcut: 'Ctrl+0', action: handleResetZoom },
           { separator: true },
-          { label: '适应窗口', shortcut: 'Ctrl+9', action: () => console.log('Fit window') }
+          { label: '适应窗口', shortcut: 'Ctrl+9', action: handleCenterCanvas }
         ]
       },
       { separator: true },
       {
         label: '显示网格',
-        action: () => console.log('Toggle grid')
+        action: onToggleGrid
       },
       {
-        label: '显示标尺',
-        action: () => console.log('Toggle ruler')
-      },
-      {
-        label: '显示参考线',
-        action: () => console.log('Toggle guides')
+        label: '显示锚点',
+        action: onToggleAnchors
       },
       { separator: true },
       {
-        label: '项目树',
+        label: showProjectTree ? '✓ 项目树' : '项目树',
         shortcut: 'Ctrl+1',
-        action: () => console.log('Toggle project tree')
+        action: () => setShowProjectTree(!showProjectTree)
       },
       {
-        label: '属性面板',
+        label: showPropertiesPanel ? '✓ 属性面板' : '属性面板',
         shortcut: 'Ctrl+2',
-        action: () => console.log('Toggle properties')
+        action: () => setShowPropertiesPanel(!showPropertiesPanel)
       },
       {
         label: '模板面板',
@@ -251,20 +478,30 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '对齐',
         submenu: [
-          { label: '左对齐', action: () => console.log('Align left') },
-          { label: '居中对齐', action: () => console.log('Align center') },
-          { label: '右对齐', action: () => console.log('Align right') },
+          { label: '左对齐', action: () => handleAlign('left'), disabled: selectedFrameIds.length === 0 },
+          { label: '水平居中', action: () => handleAlign('centerH'), disabled: selectedFrameIds.length === 0 },
+          { label: '右对齐', action: () => handleAlign('right'), disabled: selectedFrameIds.length === 0 },
           { separator: true },
-          { label: '顶部对齐', action: () => console.log('Align top') },
-          { label: '垂直居中', action: () => console.log('Align middle') },
-          { label: '底部对齐', action: () => console.log('Align bottom') }
+          { label: '顶部对齐', action: () => handleAlign('top'), disabled: selectedFrameIds.length === 0 },
+          { label: '垂直居中', action: () => handleAlign('centerV'), disabled: selectedFrameIds.length === 0 },
+          { label: '底部对齐', action: () => handleAlign('bottom'), disabled: selectedFrameIds.length === 0 }
         ]
       },
       {
         label: '分布',
         submenu: [
-          { label: '水平分布', action: () => console.log('Distribute horizontal') },
-          { label: '垂直分布', action: () => console.log('Distribute vertical') }
+          { label: '水平分布', action: () => handleDistribute('horizontal'), disabled: selectedFrameIds.length < 2 },
+          { label: '垂直分布', action: () => handleDistribute('vertical'), disabled: selectedFrameIds.length < 2 }
+        ]
+      },
+      { separator: true },
+      {
+        label: '层级',
+        submenu: [
+          { label: '置于顶层', action: () => handleZIndex('bringToFront'), disabled: !selectedFrameId },
+          { label: '上移一层', action: () => handleZIndex('moveUp'), disabled: !selectedFrameId },
+          { label: '下移一层', action: () => handleZIndex('moveDown'), disabled: !selectedFrameId },
+          { label: '置于底层', action: () => handleZIndex('sendToBack'), disabled: !selectedFrameId }
         ]
       },
       { separator: true },
@@ -283,7 +520,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '快捷键',
         shortcut: 'Ctrl+/',
-        action: () => console.log('Shortcuts')
+        action: () => {
+          // 触发快捷键帮助
+          window.dispatchEvent(new Event('openShortcutHelp'));
+        }
       },
       { separator: true },
       {

@@ -4,14 +4,36 @@ import { FrameType, FramePoint, ProjectData, FrameAnchor } from '../types';
 import { createDefaultAnchors, updateAnchorsFromBounds, calculateRelativeOffset, calculatePositionFromAnchors, detectAnchorConflicts } from '../utils/anchorUtils';
 import './PropertiesPanel.css';
 
-export const PropertiesPanel: React.FC = () => {
+interface PropertiesPanelProps {
+  onClose: () => void;
+}
+
+export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => {
   const { project, selectedFrameId, updateFrame } = useProjectStore();
   const selectedFrame = selectedFrameId ? project.frames[selectedFrameId] : null;
+
+  // 阻止number输入框的滚轮事件冒泡，避免滚动属性面板
+  const handleNumberInputWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    // 可选：如果输入框没有焦点，也阻止默认行为
+    if (document.activeElement !== e.currentTarget) {
+      e.preventDefault();
+    }
+  };
 
   if (!selectedFrame) {
     return (
       <div className="properties-panel">
-        <h3>通用设置</h3>
+        <div className="properties-panel-header">
+          <h3>通用设置</h3>
+          <button 
+            className="properties-panel-close"
+            onClick={onClose}
+            title="关闭属性面板"
+          >
+            ✕
+          </button>
+        </div>
         <GeneralSettings />
       </div>
     );
@@ -38,7 +60,16 @@ export const PropertiesPanel: React.FC = () => {
 
   return (
     <div className="properties-panel">
-      <h3>属性面板</h3>
+      <div className="properties-panel-header">
+        <h3>属性面板</h3>
+        <button 
+          className="properties-panel-close"
+          onClick={onClose}
+          title="关闭属性面板"
+        >
+          ✕
+        </button>
+      </div>
       
       {/* 基本信息 */}
       <section>
@@ -94,6 +125,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={effectiveFrame.x}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const newX = parseFloat(e.target.value);
                 handleChange('x', newX);
@@ -115,6 +147,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={effectiveFrame.y}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const newY = parseFloat(e.target.value);
                 handleChange('y', newY);
@@ -139,6 +172,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={effectiveFrame.width}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const newWidth = parseFloat(e.target.value);
                 handleChange('width', newWidth);
@@ -160,6 +194,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={effectiveFrame.height}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const newHeight = parseFloat(e.target.value);
                 handleChange('height', newHeight);
@@ -270,6 +305,7 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={anchor.x}
+                    onWheel={handleNumberInputWheel}
                     onChange={(e) => {
                       const newAnchors = [...(selectedFrame.anchors || [])];
                       newAnchors[index] = { ...anchor, x: parseFloat(e.target.value) };
@@ -284,6 +320,7 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={anchor.y}
+                    onWheel={handleNumberInputWheel}
                     onChange={(e) => {
                       const newAnchors = [...(selectedFrame.anchors || [])];
                       newAnchors[index] = { ...anchor, y: parseFloat(e.target.value) };
@@ -491,6 +528,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.1"
               value={selectedFrame.textScale || 1}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => handleChange('textScale', parseFloat(e.target.value))}
             />
           </div>
@@ -574,6 +612,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={selectedFrame.minValue || 0}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => handleChange('minValue', parseFloat(e.target.value))}
             />
           </div>
@@ -583,6 +622,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={selectedFrame.maxValue || 100}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => handleChange('maxValue', parseFloat(e.target.value))}
             />
           </div>
@@ -592,6 +632,7 @@ export const PropertiesPanel: React.FC = () => {
               type="number"
               step="0.01"
               value={selectedFrame.stepSize || 1}
+              onWheel={handleNumberInputWheel}
               onChange={(e) => handleChange('stepSize', parseFloat(e.target.value))}
             />
           </div>

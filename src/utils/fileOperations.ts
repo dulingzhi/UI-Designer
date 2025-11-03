@@ -90,6 +90,16 @@ export async function loadProject(): Promise<{ project: ProjectData; path: strin
     
     if (!path || Array.isArray(path)) return null; // 用户取消或选择了多个文件
     
+    return await loadProjectFromPath(path);
+  } catch (error) {
+    console.error('加载项目失败:', error);
+    throw error;
+  }
+}
+
+// 从指定路径加载项目
+export async function loadProjectFromPath(path: string): Promise<{ project: ProjectData; path: string } | null> {
+  try {
     // 读取文件内容
     const jsonData = await readTextFile(path);
     
@@ -101,7 +111,7 @@ export async function loadProject(): Promise<{ project: ProjectData; path: strin
     
     return { project, path };
   } catch (error) {
-    console.error('加载项目失败:', error);
+    console.error('从路径加载项目失败:', error);
     throw error;
   }
 }

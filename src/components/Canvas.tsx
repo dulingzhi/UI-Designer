@@ -13,8 +13,11 @@ const CANVAS_HEIGHT = 1080;
 const MARGIN = 240; // 4:3区域边距
 
 export interface CanvasHandle {
-  setScale: (scale: number) => void;
+  setScale: (scale: number | ((prev: number) => number)) => void;
   centerCanvas: () => void;
+  toggleGrid: () => void;
+  toggleAnchors: () => void;
+  getScale: () => number;
 }
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
@@ -62,11 +65,20 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
   // 暴露给父组件的方法
   useImperativeHandle(ref, () => ({
-    setScale: (newScale: number) => setScale(newScale),
+    setScale: (newScale: number | ((prev: number) => number)) => {
+      if (typeof newScale === 'function') {
+        setScale(prev => newScale(prev));
+      } else {
+        setScale(newScale);
+      }
+    },
     centerCanvas: () => {
       setOffset({ x: 0, y: 0 });
       setScale(1);
-    }
+    },
+    toggleGrid: () => setShowGrid(prev => !prev),
+    toggleAnchors: () => setShowAnchors(prev => !prev),
+    getScale: () => scale
   }));
 
   // 处理缩放

@@ -10,7 +10,11 @@ import { CircleArrayDialog } from './CircleArrayDialog';
 import { FrameType } from '../types';
 import './ProjectTree.css';
 
-export const ProjectTree: React.FC = () => {
+interface ProjectTreeProps {
+  onClose: () => void;
+}
+
+export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose }) => {
   const { project, selectedFrameId, selectFrame, deleteFrame, updateFrame } = useProjectStore();
   
   // 管理展开/折叠状态
@@ -419,13 +423,10 @@ export const ProjectTree: React.FC = () => {
         <h3>项目树</h3>
         <button 
           className="tree-header-btn"
-          onClick={() => {
-            // TODO: 添加新控件
-            console.log('Add frame');
-          }}
-          title="添加控件"
+          onClick={onClose}
+          title="关闭项目树"
         >
-          ➕
+          ✕
         </button>
       </div>
       
@@ -503,16 +504,6 @@ export const ProjectTree: React.FC = () => {
               }}
             >
               📁 移动到...
-            </div>
-            <div 
-              className="context-menu-item"
-              onClick={() => {
-                // TODO: 添加子控件
-                console.log('Add child to', contextMenu.frameId);
-                setContextMenu(null);
-              }}
-            >
-              ➕ 添加子控件
             </div>
             <div className="context-menu-divider" />
             <div 

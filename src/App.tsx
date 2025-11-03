@@ -10,7 +10,15 @@ import './App.css';
 
 function App() {
   const [currentFilePath, setCurrentFilePath] = React.useState<string | null>(null);
-  const canvasRef = React.useRef<{ setScale: (s: number) => void; centerCanvas: () => void } | null>(null);
+  const [showProjectTree, setShowProjectTree] = React.useState(true);
+  const [showPropertiesPanel, setShowPropertiesPanel] = React.useState(true);
+  const canvasRef = React.useRef<{ 
+    setScale: (s: number | ((prev: number) => number)) => void; 
+    centerCanvas: () => void;
+    toggleGrid: () => void;
+    toggleAnchors: () => void;
+    getScale: () => number;
+  } | null>(null);
 
   // 注册全局快捷键
   useKeyboardShortcuts(
@@ -25,12 +33,19 @@ function App() {
       <MenuBar 
         currentFilePath={currentFilePath} 
         setCurrentFilePath={setCurrentFilePath}
+        canvasRef={canvasRef}
+        onToggleGrid={() => canvasRef.current?.toggleGrid()}
+        onToggleAnchors={() => canvasRef.current?.toggleAnchors()}
+        showProjectTree={showProjectTree}
+        setShowProjectTree={setShowProjectTree}
+        showPropertiesPanel={showPropertiesPanel}
+        setShowPropertiesPanel={setShowPropertiesPanel}
       />
       <Toolbar currentFilePath={currentFilePath} setCurrentFilePath={setCurrentFilePath} />
       <div className="app-content">
-        <ProjectTree />
+        {showProjectTree && <ProjectTree onClose={() => setShowProjectTree(false)} />}
         <Canvas ref={canvasRef as any} />
-        <PropertiesPanel />
+        {showPropertiesPanel && <PropertiesPanel onClose={() => setShowPropertiesPanel(false)} />}
         <SidePanel />
       </div>
     </div>
