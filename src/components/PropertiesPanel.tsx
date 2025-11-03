@@ -652,6 +652,17 @@ const GeneralSettings: React.FC = () => {
       </div>
 
       <div className="form-group">
+        <label>导出版本</label>
+        <select
+          value={project.exportVersion || 'reforged'}
+          onChange={(e) => updateGeneralSettings({ exportVersion: e.target.value as any })}
+        >
+          <option value="reforged">重制版 (Blz API)</option>
+          <option value="1.27">1.27 版本 (Dz API)</option>
+        </select>
+      </div>
+
+      <div className="form-group">
         <label>画布背景图</label>
         <select
           value={project.backgroundImage || ''}

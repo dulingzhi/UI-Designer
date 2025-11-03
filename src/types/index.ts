@@ -119,6 +119,7 @@ export interface CircleArrayData {
 export interface ProjectData {
   libraryName: string;
   originMode: 'gameui' | 'worldframe' | 'consoleui';
+  exportVersion: ExportVersion; // 导出版本：重制版或1.27
   hideGameUI: boolean;
   hideHeroBar: boolean;
   hideMiniMap: boolean;
@@ -149,5 +150,7 @@ export interface FieldsAllowed {
 }
 
 export type ExportLanguage = 'jass' | 'lua' | 'ts';
+
+export type ExportVersion = 'reforged' | '1.27';
 
 export type SelectionMode = 'normal' | 'zoom' | 'drag';

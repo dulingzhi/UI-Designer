@@ -1,5 +1,17 @@
-import { ProjectData, FrameData, FrameType, FramePoint, ExportLanguage, FrameAnchor } from '../types';
+import { ProjectData, FrameData, FrameType, FramePoint, ExportLanguage, FrameAnchor, ExportVersion } from '../types';
 import { createDefaultAnchors } from './anchorUtils';
+
+// API 前缀映射
+const API_PREFIX = {
+  reforged: 'Blz',
+  '1.27': 'Dz',
+} as const;
+
+// 获取 API 函数名
+function getAPIFunction(version: ExportVersion, funcName: string): string {
+  const prefix = API_PREFIX[version];
+  return `${prefix}${funcName}`;
+}
 
 // 将 FramePoint 枚举转换为 WC3 常量名称
 function framePointToString(point: FramePoint): string {
@@ -18,51 +30,60 @@ function framePointToString(point: FramePoint): string {
 }
 
 // 生成锚点设置代码 (JASS)
-function generateAnchorsJASS(frameName: string, anchors: FrameAnchor[]): string {
+function generateAnchorsJASS(frameName: string, anchors: FrameAnchor[], version: ExportVersion): string {
   let code = '';
+  const setPoint = getAPIFunction(version, 'FrameSetPoint');
+  const setAbsPoint = getAPIFunction(version, 'FrameSetAbsPoint');
+  
   for (const anchor of anchors) {
     const anchorPoint = framePointToString(anchor.point);
     if (anchor.relativeTo && anchor.relativePoint !== undefined) {
       // 相对定位
       const relativePoint = framePointToString(anchor.relativePoint);
-      code += `    call BlzFrameSetPoint(${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
+      code += `    call ${setPoint}(${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     } else {
       // 绝对定位
-      code += `    call BlzFrameSetAbsPoint(${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
+      code += `    call ${setAbsPoint}(${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     }
   }
   return code;
 }
 
 // 生成锚点设置代码 (LUA)
-function generateAnchorsLUA(frameName: string, anchors: FrameAnchor[]): string {
+function generateAnchorsLUA(frameName: string, anchors: FrameAnchor[], version: ExportVersion): string {
   let code = '';
+  const setPoint = getAPIFunction(version, 'FrameSetPoint');
+  const setAbsPoint = getAPIFunction(version, 'FrameSetAbsPoint');
+  
   for (const anchor of anchors) {
     const anchorPoint = framePointToString(anchor.point);
     if (anchor.relativeTo && anchor.relativePoint !== undefined) {
       // 相对定位
       const relativePoint = framePointToString(anchor.relativePoint);
-      code += `    BlzFrameSetPoint(${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
+      code += `    ${setPoint}(${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     } else {
       // 绝对定位
-      code += `    BlzFrameSetAbsPoint(${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
+      code += `    ${setAbsPoint}(${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     }
   }
   return code;
 }
 
 // 生成锚点设置代码 (TypeScript)
-function generateAnchorsTypeScript(frameName: string, anchors: FrameAnchor[]): string {
+function generateAnchorsTypeScript(frameName: string, anchors: FrameAnchor[], version: ExportVersion): string {
   let code = '';
+  const setPoint = getAPIFunction(version, 'FrameSetPoint');
+  const setAbsPoint = getAPIFunction(version, 'FrameSetAbsPoint');
+  
   for (const anchor of anchors) {
     const anchorPoint = framePointToString(anchor.point);
     if (anchor.relativeTo && anchor.relativePoint !== undefined) {
       // 相对定位
       const relativePoint = framePointToString(anchor.relativePoint);
-      code += `    BlzFrameSetPoint(this.${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
+      code += `    ${setPoint}(this.${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
     } else {
       // 绝对定位
-      code += `    BlzFrameSetAbsPoint(this.${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
+      code += `    ${setAbsPoint}(this.${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
     }
   }
   return code;
@@ -213,6 +234,7 @@ BlzFrameSetEnable(${name}, ${checked ? 'true' : 'false'})
 
 // 生成 JASS 代码
 export function generateJASSCode(project: ProjectData): string {
+  const version = project.exportVersion || 'reforged';
   let code = JASS_TEMPLATES.header(project.libraryName);
   
   // 声明所有 Frame 变量
@@ -228,13 +250,15 @@ export function generateJASSCode(project: ProjectData): string {
   
   // 创建所有 Frame
   Object.values(project.frames).forEach(frame => {
-    code += generateFrameJASS(frame, project);
+    code += generateFrameJASS(frame, project, version);
   });
   
   // 添加通用设置
   if (project.hideGameUI) {
-    code += `    call BlzEnableUIAutoPosition(false)\n`;
-    code += `    call BlzHideOriginFrames(true)\n`;
+    const enableAutoPos = getAPIFunction(version, 'EnableUIAutoPosition');
+    const hideOriginFrames = getAPIFunction(version, 'HideOriginFrames');
+    code += `    call ${enableAutoPos}(false)\n`;
+    code += `    call ${hideOriginFrames}(true)\n`;
   }
   
   code += JASS_TEMPLATES.footer(project.libraryName);
@@ -244,6 +268,7 @@ export function generateJASSCode(project: ProjectData): string {
 
 // 生成 LUA 代码
 export function generateLUACode(project: ProjectData): string {
+  const version = project.exportVersion || 'reforged';
   let code = LUA_TEMPLATES.header(project.libraryName);
   
   code += '\n-- Frame declarations\n';
@@ -259,13 +284,15 @@ export function generateLUACode(project: ProjectData): string {
   
   // 创建所有 Frame
   Object.values(project.frames).forEach(frame => {
-    code += generateFrameLUA(frame, project);
+    code += generateFrameLUA(frame, project, version);
   });
   
   // 添加通用设置
   if (project.hideGameUI) {
-    code += `    BlzEnableUIAutoPosition(false)\n`;
-    code += `    BlzHideOriginFrames(true)\n`;
+    const enableAutoPos = getAPIFunction(version, 'EnableUIAutoPosition');
+    const hideOriginFrames = getAPIFunction(version, 'HideOriginFrames');
+    code += `    ${enableAutoPos}(false)\n`;
+    code += `    ${hideOriginFrames}(true)\n`;
   }
   
   code += 'end\n\n';
@@ -275,59 +302,70 @@ export function generateLUACode(project: ProjectData): string {
 }
 
 // 生成单个 Frame 的 JASS 代码
-function generateFrameJASS(frame: FrameData, project: ProjectData): string {
-  const parent = frame.parentId ? project.frames[frame.parentId].name : 'BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)';
+function generateFrameJASS(frame: FrameData, project: ProjectData, version: ExportVersion): string {
+  const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
   
   // 获取锚点数组,如果不存在则创建默认锚点
   const anchors = frame.anchors || createDefaultAnchors(frame.x, frame.y, frame.width, frame.height);
+  
+  const createFrame = getAPIFunction(version, 'CreateFrame');
+  const createFrameByType = getAPIFunction(version, 'CreateFrameByType');
+  const frameSetSize = getAPIFunction(version, 'FrameSetSize');
+  const frameSetTexture = getAPIFunction(version, 'FrameSetTexture');
+  const frameSetText = getAPIFunction(version, 'FrameSetText');
+  const frameSetScale = getAPIFunction(version, 'FrameSetScale');
+  const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
+  const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
+  const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
+  const frameSetStepSize = getAPIFunction(version, 'FrameSetStepSize');
   
   let code = '';
   
   switch (frame.type) {
     case FrameType.BACKDROP:
-      code += `    set ${frame.name} = BlzCreateFrame("BACKDROP", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors);
-      code += `    call BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call BlzFrameSetTexture(${frame.name}, "${frame.wc3Texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
+      code += `    set ${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetTexture}(${frame.name}, "${frame.wc3Texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
       break;
     
     case FrameType.BUTTON:
     case FrameType.BROWSER_BUTTON:
     case FrameType.SCRIPT_DIALOG_BUTTON:
-      code += `    set ${frame.name} = BlzCreateFrame("ScriptDialogButton", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors);
-      code += `    call BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${frame.name} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.TEXT_FRAME:
-      code += `    set ${frame.name} = BlzCreateFrameByType("TEXT", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors);
-      code += `    call BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call BlzFrameSetText(${frame.name}, "|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r")\n`;
-      code += `    call BlzFrameSetScale(${frame.name}, ${(frame.textScale || 1).toFixed(2)})\n`;
+      code += `    set ${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetText}(${frame.name}, "|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r")\n`;
+      code += `    call ${frameSetScale}(${frame.name}, ${(frame.textScale || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.EDITBOX:
-      code += `    set ${frame.name} = BlzCreateFrameByType("EDITBOX", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors);
-      code += `    call BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call BlzFrameSetEnable(${frame.name}, true)\n`;
-      code += `    call BlzFrameSetFocus(${frame.name}, false)\n`;
+      code += `    set ${frame.name} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetEnable}(${frame.name}, true)\n`;
+      code += `    call ${frameSetFocus}(${frame.name}, false)\n`;
       break;
     
     case FrameType.SLIDER:
-      code += `    set ${frame.name} = BlzCreateFrame("SliderTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors);
-      code += `    call BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call BlzFrameSetMinMaxValue(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    call BlzFrameSetStepSize(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    set ${frame.name} = ${createFrame}("SliderTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    call ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.CHECKBOX:
-      code += `    set ${frame.name} = BlzCreateFrame("CheckBoxTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors);
-      code += `    call BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call BlzFrameSetEnable(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
+      code += `    set ${frame.name} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetEnable}(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
       break;
     
     default:
@@ -340,59 +378,70 @@ function generateFrameJASS(frame: FrameData, project: ProjectData): string {
 }
 
 // 生成单个 Frame 的 LUA 代码
-function generateFrameLUA(frame: FrameData, project: ProjectData): string {
-  const parent = frame.parentId ? project.frames[frame.parentId].name : 'BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)';
+function generateFrameLUA(frame: FrameData, project: ProjectData, version: ExportVersion): string {
+  const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
   
   // 获取锚点数组,如果不存在则创建默认锚点
   const anchors = frame.anchors || createDefaultAnchors(frame.x, frame.y, frame.width, frame.height);
+  
+  const createFrame = getAPIFunction(version, 'CreateFrame');
+  const createFrameByType = getAPIFunction(version, 'CreateFrameByType');
+  const frameSetSize = getAPIFunction(version, 'FrameSetSize');
+  const frameSetTexture = getAPIFunction(version, 'FrameSetTexture');
+  const frameSetText = getAPIFunction(version, 'FrameSetText');
+  const frameSetScale = getAPIFunction(version, 'FrameSetScale');
+  const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
+  const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
+  const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
+  const frameSetStepSize = getAPIFunction(version, 'FrameSetStepSize');
   
   let code = '';
   
   switch (frame.type) {
     case FrameType.BACKDROP:
-      code += `    ${frame.name} = BlzCreateFrame("BACKDROP", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors);
-      code += `    BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    BlzFrameSetTexture(${frame.name}, "${frame.wc3Texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
+      code += `    ${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetTexture}(${frame.name}, "${frame.wc3Texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
       break;
     
     case FrameType.BUTTON:
     case FrameType.BROWSER_BUTTON:
     case FrameType.SCRIPT_DIALOG_BUTTON:
-      code += `    ${frame.name} = BlzCreateFrame("ScriptDialogButton", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors);
-      code += `    BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frame.name} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.TEXT_FRAME:
-      code += `    ${frame.name} = BlzCreateFrameByType("TEXT", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors);
-      code += `    BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    BlzFrameSetText(${frame.name}, "|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r")\n`;
-      code += `    BlzFrameSetScale(${frame.name}, ${(frame.textScale || 1).toFixed(2)})\n`;
+      code += `    ${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetText}(${frame.name}, "|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r")\n`;
+      code += `    ${frameSetScale}(${frame.name}, ${(frame.textScale || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.EDITBOX:
-      code += `    ${frame.name} = BlzCreateFrameByType("EDITBOX", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors);
-      code += `    BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    BlzFrameSetEnable(${frame.name}, true)\n`;
-      code += `    BlzFrameSetFocus(${frame.name}, false)\n`;
+      code += `    ${frame.name} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetEnable}(${frame.name}, true)\n`;
+      code += `    ${frameSetFocus}(${frame.name}, false)\n`;
       break;
     
     case FrameType.SLIDER:
-      code += `    ${frame.name} = BlzCreateFrame("SliderTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors);
-      code += `    BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    BlzFrameSetMinMaxValue(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    BlzFrameSetStepSize(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    ${frame.name} = ${createFrame}("SliderTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.CHECKBOX:
-      code += `    ${frame.name} = BlzCreateFrame("CheckBoxTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors);
-      code += `    BlzFrameSetSize(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    BlzFrameSetEnable(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
+      code += `    ${frame.name} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetEnable}(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
       break;
     
     default:
@@ -406,11 +455,13 @@ function generateFrameLUA(frame: FrameData, project: ProjectData): string {
 
 // 生成 TypeScript 代码
 export function generateTypeScriptCode(project: ProjectData): string {
+  const version = project.exportVersion || 'reforged';
   let code = `
 /**
  * UI Library: ${project.libraryName}
  * Generated by Warcraft 3 UI Designer
  * Date: ${new Date().toLocaleString()}
+ * Version: ${version === 'reforged' ? 'Reforged' : '1.27'}
  */
 
 export class ${project.libraryName} {
@@ -435,7 +486,7 @@ export class ${project.libraryName} {
   
   // 创建所有 Frame
   Object.values(project.frames).forEach(frame => {
-    code += generateFrameTypeScript(frame, project);
+    code += generateFrameTypeScript(frame, project, version);
   });
   
   code += `  }\n`;
@@ -447,54 +498,65 @@ export class ${project.libraryName} {
 }
 
 // 生成单个 Frame 的 TypeScript 代码
-function generateFrameTypeScript(frame: FrameData, project: ProjectData): string {
-  const parent = frame.parentId ? `this.${project.frames[frame.parentId].name}` : 'Frame.fromOrigin(ORIGIN_FRAME_GAME_UI, 0)';
+function generateFrameTypeScript(frame: FrameData, project: ProjectData, version: ExportVersion): string {
+  const getOriginFrame = getAPIFunction(version, 'GetOriginFrame');
+  const parent = frame.parentId ? `this.${project.frames[frame.parentId].name}` : `${getOriginFrame}(ORIGIN_FRAME_GAME_UI, 0)`;
   
   // 获取锚点数组,如果不存在则创建默认锚点
   const anchors = frame.anchors || createDefaultAnchors(frame.x, frame.y, frame.width, frame.height);
+  
+  const createFrame = getAPIFunction(version, 'CreateFrame');
+  const createFrameByType = getAPIFunction(version, 'CreateFrameByType');
+  const frameSetSize = getAPIFunction(version, 'FrameSetSize');
+  const frameSetTexture = getAPIFunction(version, 'FrameSetTexture');
+  const frameSetText = getAPIFunction(version, 'FrameSetText');
+  const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
+  const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
+  const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
+  const frameSetStepSize = getAPIFunction(version, 'FrameSetStepSize');
   
   let code = `\n    // ${frame.name}\n`;
   
   switch (frame.type) {
     case FrameType.BACKDROP:
-      code += `    this.${frame.name} = BlzCreateFrame("BACKDROP", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors);
-      code += `    BlzFrameSetSize(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.wc3Texture) {
-        code += `    BlzFrameSetTexture(this.${frame.name}, "${frame.wc3Texture}", 0, true);\n`;
+        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.wc3Texture}", 0, true);\n`;
       }
       break;
     
     case FrameType.TEXT_FRAME:
-      code += `    this.${frame.name} = BlzCreateFrameByType("TEXT", "", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors);
-      code += `    BlzFrameSetSize(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.text) {
-        code += `    BlzFrameSetText(this.${frame.name}, "|cff${frame.textColor?.slice(1) || 'FFFFFF'}${frame.text}|r");\n`;
+        code += `    ${frameSetText}(this.${frame.name}, "|cff${frame.textColor?.slice(1) || 'FFFFFF'}${frame.text}|r");\n`;
       }
       break;
     
     case FrameType.EDITBOX:
-      code += `    this.${frame.name} = BlzCreateFrameByType("EDITBOX", "", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors);
-      code += `    BlzFrameSetSize(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    BlzFrameSetEnable(this.${frame.name}, true);\n`;
-      code += `    BlzFrameSetFocus(this.${frame.name}, false);\n`;
+      code += `    this.${frame.name} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetEnable}(this.${frame.name}, true);\n`;
+      code += `    ${frameSetFocus}(this.${frame.name}, false);\n`;
       break;
     
     case FrameType.SLIDER:
-      code += `    this.${frame.name} = BlzCreateFrame("SliderTemplate", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors);
-      code += `    BlzFrameSetSize(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    BlzFrameSetMinMaxValue(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
-      code += `    BlzFrameSetStepSize(this.${frame.name}, ${frame.stepSize || 1});\n`;
+      code += `    this.${frame.name} = ${createFrame}("SliderTemplate", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetMinMaxValue}(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
+      code += `    ${frameSetStepSize}(this.${frame.name}, ${frame.stepSize || 1});\n`;
       break;
     
     case FrameType.CHECKBOX:
-      code += `    this.${frame.name} = BlzCreateFrame("CheckBoxTemplate", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors);
-      code += `    BlzFrameSetSize(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    BlzFrameSetEnable(this.${frame.name}, ${frame.checked || false});\n`;
+      code += `    this.${frame.name} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetEnable}(this.${frame.name}, ${frame.checked || false});\n`;
       break;
     
     default:

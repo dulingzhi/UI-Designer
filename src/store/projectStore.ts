@@ -32,7 +32,7 @@ interface ProjectState {
   copyToClipboard: (frameId: string) => void;
   
   // 通用设置
-  updateGeneralSettings: (settings: Partial<Pick<ProjectData, 'libraryName' | 'originMode' | 'backgroundImage' | 'hideGameUI' | 'hideHeroBar' | 'hideMiniMap' | 'hideResources' | 'hideButtonBar' | 'hidePortrait' | 'hideChat'>>) => void;
+  updateGeneralSettings: (settings: Partial<Pick<ProjectData, 'libraryName' | 'originMode' | 'exportVersion' | 'backgroundImage' | 'hideGameUI' | 'hideHeroBar' | 'hideMiniMap' | 'hideResources' | 'hideButtonBar' | 'hidePortrait' | 'hideChat'>>) => void;
   
   // Array操作
   addTableArray: (array: TableArrayData) => void;
@@ -47,6 +47,7 @@ interface ProjectState {
 const createDefaultProject = (): ProjectData => ({
   libraryName: 'REFORGEDUIMAKER',
   originMode: 'gameui',
+  exportVersion: 'reforged', // 默认重制版
   hideGameUI: false,
   hideHeroBar: false,
   hideMiniMap: false,
