@@ -315,49 +315,85 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       <div className="toolbar-group">
         <button 
           className="toolbar-btn-icon"
-          onClick={() => selectedFrameId && executeCommand(new AlignToCanvasCommand(selectedFrameId, 'left'))}
-          disabled={!selectedFrameId}
-          title="对齐到画布左边"
+          onClick={() => {
+            if (selectedFrameIds.length > 0) {
+              selectedFrameIds.forEach(id => 
+                executeCommand(new AlignToCanvasCommand(id, 'left'))
+              );
+            }
+          }}
+          disabled={selectedFrameIds.length === 0}
+          title={selectedFrameIds.length > 1 ? "批量对齐到画布左边" : "对齐到画布左边"}
         >
           <AlignLeftIcon />
         </button>
         <button 
           className="toolbar-btn-icon"
-          onClick={() => selectedFrameId && executeCommand(new AlignToCanvasCommand(selectedFrameId, 'centerH'))}
-          disabled={!selectedFrameId}
-          title="对齐到画布水平中心"
+          onClick={() => {
+            if (selectedFrameIds.length > 0) {
+              selectedFrameIds.forEach(id => 
+                executeCommand(new AlignToCanvasCommand(id, 'centerH'))
+              );
+            }
+          }}
+          disabled={selectedFrameIds.length === 0}
+          title={selectedFrameIds.length > 1 ? "批量对齐到画布水平中心" : "对齐到画布水平中心"}
         >
           <AlignCenterHIcon />
         </button>
         <button 
           className="toolbar-btn-icon"
-          onClick={() => selectedFrameId && executeCommand(new AlignToCanvasCommand(selectedFrameId, 'right'))}
-          disabled={!selectedFrameId}
-          title="对齐到画布右边"
+          onClick={() => {
+            if (selectedFrameIds.length > 0) {
+              selectedFrameIds.forEach(id => 
+                executeCommand(new AlignToCanvasCommand(id, 'right'))
+              );
+            }
+          }}
+          disabled={selectedFrameIds.length === 0}
+          title={selectedFrameIds.length > 1 ? "批量对齐到画布右边" : "对齐到画布右边"}
         >
           <AlignRightIcon />
         </button>
         <button 
           className="toolbar-btn-icon"
-          onClick={() => selectedFrameId && executeCommand(new AlignToCanvasCommand(selectedFrameId, 'top'))}
-          disabled={!selectedFrameId}
-          title="对齐到画布顶部"
+          onClick={() => {
+            if (selectedFrameIds.length > 0) {
+              selectedFrameIds.forEach(id => 
+                executeCommand(new AlignToCanvasCommand(id, 'top'))
+              );
+            }
+          }}
+          disabled={selectedFrameIds.length === 0}
+          title={selectedFrameIds.length > 1 ? "批量对齐到画布顶部" : "对齐到画布顶部"}
         >
           <AlignTopIcon />
         </button>
         <button 
           className="toolbar-btn-icon"
-          onClick={() => selectedFrameId && executeCommand(new AlignToCanvasCommand(selectedFrameId, 'centerV'))}
-          disabled={!selectedFrameId}
-          title="对齐到画布垂直中心"
+          onClick={() => {
+            if (selectedFrameIds.length > 0) {
+              selectedFrameIds.forEach(id => 
+                executeCommand(new AlignToCanvasCommand(id, 'centerV'))
+              );
+            }
+          }}
+          disabled={selectedFrameIds.length === 0}
+          title={selectedFrameIds.length > 1 ? "批量对齐到画布垂直中心" : "对齐到画布垂直中心"}
         >
           <AlignCenterVIcon />
         </button>
         <button 
           className="toolbar-btn-icon"
-          onClick={() => selectedFrameId && executeCommand(new AlignToCanvasCommand(selectedFrameId, 'bottom'))}
-          disabled={!selectedFrameId}
-          title="对齐到画布底部"
+          onClick={() => {
+            if (selectedFrameIds.length > 0) {
+              selectedFrameIds.forEach(id => 
+                executeCommand(new AlignToCanvasCommand(id, 'bottom'))
+              );
+            }
+          }}
+          disabled={selectedFrameIds.length === 0}
+          title={selectedFrameIds.length > 1 ? "批量对齐到画布底部" : "对齐到画布底部"}
         >
           <AlignBottomIcon />
         </button>

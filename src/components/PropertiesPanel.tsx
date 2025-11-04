@@ -9,8 +9,11 @@ interface PropertiesPanelProps {
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => {
-  const { project, selectedFrameId, updateFrame } = useProjectStore();
+  const { project, selectedFrameId, selectedFrameIds, updateFrame } = useProjectStore();
   const selectedFrame = selectedFrameId ? project.frames[selectedFrameId] : null;
+  
+  // 多选模式
+  const isMultiSelect = selectedFrameIds.length > 1;
 
   // 阻止number输入框的滚轮事件冒泡，避免滚动属性面板
   const handleNumberInputWheel = (e: React.WheelEvent<HTMLInputElement>) => {
@@ -19,6 +22,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
     if (document.activeElement !== e.currentTarget) {
       e.preventDefault();
     }
+  };
+
+  // 批量更新多个控件
+  const handleBatchChange = (field: string, value: any) => {
+    selectedFrameIds.forEach(id => {
+      updateFrame(id, { [field]: value });
+    });
   };
 
   if (!selectedFrame) {
@@ -35,6 +45,177 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
           </button>
         </div>
         <GeneralSettings />
+      </div>
+    );
+  }
+
+  // 多选模式：显示批量编辑面板
+  if (isMultiSelect) {
+    return (
+      <div className="properties-panel">
+        <div className="properties-panel-header">
+          <h3>批量编辑 ({selectedFrameIds.length} 个控件)</h3>
+          <button 
+            className="properties-panel-close"
+            onClick={onClose}
+            title="关闭属性面板"
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* 批量操作区域 */}
+        <section>
+          <h4>批量属性设置</h4>
+          <p style={{ fontSize: '12px', color: '#888', marginBottom: '12px' }}>
+            以下设置将应用到所有选中的控件
+          </p>
+
+          {/* 批量设置类型 */}
+          <div className="form-group">
+            <label>批量设置类型</label>
+            <select onChange={(e) => {
+              const type = parseInt(e.target.value);
+              if (type >= 0) {
+                handleBatchChange('type', type);
+              }
+            }}>
+              <option value="-1">- 选择类型 -</option>
+              <option value={FrameType.BACKDROP}>Backdrop</option>
+              <option value={FrameType.BUTTON}>Button</option>
+              <option value={FrameType.BROWSER_BUTTON}>Browser Button</option>
+              <option value={FrameType.SCRIPT_DIALOG_BUTTON}>Script Dialog Button</option>
+              <option value={FrameType.TEXT_FRAME}>Text Frame</option>
+              <option value={FrameType.CHECKBOX}>Checkbox</option>
+              <option value={FrameType.HORIZONTAL_BAR}>Horizontal Bar</option>
+              <option value={FrameType.TEXTAREA}>Text Area</option>
+              <option value={FrameType.EDITBOX}>Edit Box</option>
+              <option value={FrameType.SLIDER}>Slider</option>
+            </select>
+          </div>
+
+          {/* 批量设置纹理 */}
+          <div className="form-group">
+            <label>批量设置纹理路径</label>
+            <input
+              type="text"
+              placeholder="输入纹理路径后按回车应用"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const value = e.currentTarget.value;
+                  if (value) {
+                    handleBatchChange('diskTexture', value);
+                    handleBatchChange('wc3Texture', value);
+                    e.currentTarget.value = '';
+                  }
+                }
+              }}
+            />
+          </div>
+
+          {/* 批量设置文本颜色 */}
+          <div className="form-group">
+            <label>批量设置文本颜色</label>
+            <input
+              type="color"
+              onChange={(e) => handleBatchChange('textColor', e.target.value)}
+            />
+          </div>
+
+          {/* 批量设置文本缩放 */}
+          <div className="form-group">
+            <label>批量设置文本缩放</label>
+            <input
+              type="number"
+              step="0.1"
+              placeholder="输入数值后按回车应用"
+              onWheel={handleNumberInputWheel}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const value = parseFloat(e.currentTarget.value);
+                  if (!isNaN(value)) {
+                    handleBatchChange('textScale', value);
+                    e.currentTarget.value = '';
+                  }
+                }
+              }}
+            />
+          </div>
+
+          {/* 批量设置相对定位 */}
+          <div className="form-group checkbox">
+            <label>
+              <input
+                type="checkbox"
+                onChange={(e) => handleBatchChange('isRelative', e.target.checked)}
+              />
+              批量启用相对定位
+            </label>
+          </div>
+        </section>
+
+        {/* 批量尺寸调整 */}
+        <section>
+          <h4>批量尺寸调整</h4>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label>统一宽度</label>
+              <input
+                type="number"
+                step="1"
+                placeholder="输入后按回车"
+                onWheel={handleNumberInputWheel}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const value = parseFloat(e.currentTarget.value);
+                    if (!isNaN(value)) {
+                      handleBatchChange('width', value);
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
+            </div>
+            <div className="form-group">
+              <label>统一高度</label>
+              <input
+                type="number"
+                step="1"
+                placeholder="输入后按回车"
+                onWheel={handleNumberInputWheel}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const value = parseFloat(e.currentTarget.value);
+                    if (!isNaN(value)) {
+                      handleBatchChange('height', value);
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 已选控件列表 */}
+        <section>
+          <h4>已选控件</h4>
+          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {selectedFrameIds.map(id => {
+              const frame = project.frames[id];
+              return frame ? (
+                <div key={id} style={{ 
+                  padding: '4px 8px', 
+                  fontSize: '12px',
+                  borderBottom: '1px solid #333'
+                }}>
+                  {frame.name} ({frame.id})
+                </div>
+              ) : null;
+            })}
+          </div>
+        </section>
       </div>
     );
   }
