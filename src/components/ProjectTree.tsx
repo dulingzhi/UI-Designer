@@ -13,10 +13,11 @@ import './ProjectTree.css';
 
 interface ProjectTreeProps {
   onClose: () => void;
+  onDeleteRequest?: (targets: string[]) => void;
 }
 
-export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose }) => {
-  const { project, selectedFrameId, selectFrame, deleteFrame, updateFrame } = useProjectStore();
+export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteRequest }) => {
+  const { project, selectedFrameId, selectFrame, updateFrame } = useProjectStore();
   
   // 管理展开/折叠状态
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(project.rootFrameIds));
@@ -114,13 +115,20 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose }) => {
       return;
     }
     
-    const hasChildren = frame.children.length > 0;
-    setDeleteConfirm({
-      frameId,
-      frameName: frame.name,
-      hasChildren
-    });
-    setContextMenu(null);
+    // 如果提供了全局删除请求回调，使用它
+    if (onDeleteRequest) {
+      onDeleteRequest([frameId]);
+      setContextMenu(null);
+    } else {
+      // 否则使用本地确认框
+      const hasChildren = frame.children.length > 0;
+      setDeleteConfirm({
+        frameId,
+        frameName: frame.name,
+        hasChildren
+      });
+      setContextMenu(null);
+    }
   };
 
   const confirmDeleteFrame = () => {

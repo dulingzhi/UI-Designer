@@ -26,6 +26,7 @@ interface MenuBarProps {
   setShowProjectTree: (show: boolean) => void;
   showPropertiesPanel: boolean;
   setShowPropertiesPanel: (show: boolean) => void;
+  onDeleteRequest?: (targets: string[]) => void;
 }
 
 interface MenuItem {
@@ -46,7 +47,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   showProjectTree,
   setShowProjectTree,
   showPropertiesPanel,
-  setShowPropertiesPanel
+  setShowPropertiesPanel,
+  onDeleteRequest
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
@@ -298,8 +300,14 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         return; // 所有控件都被锁定
       }
       
-      setDeleteTargets(targets);
-      setShowDeleteConfirm(true);
+      // 如果提供了全局删除请求回调，使用它
+      if (onDeleteRequest) {
+        onDeleteRequest(targets);
+      } else {
+        // 否则使用本地确认框
+        setDeleteTargets(targets);
+        setShowDeleteConfirm(true);
+      }
     }
   };
 

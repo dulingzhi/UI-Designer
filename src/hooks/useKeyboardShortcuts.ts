@@ -10,7 +10,8 @@ export const useKeyboardShortcuts = (
   currentFilePath: string | null,
   setCurrentFilePath: (path: string | null) => void,
   setScale?: (scale: number | ((prev: number) => number)) => void,
-  centerCanvas?: () => void
+  centerCanvas?: () => void,
+  onDeleteRequest?: (targets: string[]) => void
 ) => {
   const { selectedFrameId, project } = useProjectStore();
   const { undo, redo, canUndo, canRedo, executeCommand } = useCommandStore();
@@ -166,26 +167,30 @@ export const useKeyboardShortcuts = (
           e.preventDefault();
           const selectedIds = useProjectStore.getState().selectedFrameIds;
           
-          if (selectedIds.length > 1) {
-            // 多选：使用批量删除命令（一次 undo 恢复）
-            const unlocked = selectedIds.filter(id => {
-              const frame = project.frames[id];
-              return frame && !frame.locked;
-            });
-            if (unlocked.length > 0) {
-              executeCommand(new BatchRemoveFrameCommand(unlocked));
-            }
-          } else if (selectedIds.length === 1) {
-            // 单选：使用单个删除命令
-            const frame = project.frames[selectedIds[0]];
-            if (frame && !frame.locked) {
-              executeCommand(new RemoveFrameCommand(selectedIds[0]));
-            }
+          // 过滤掉锁定的控件
+          const unlocked = selectedIds.filter(id => {
+            const frame = project.frames[id];
+            return frame && !frame.locked;
+          });
+
+          // 如果有删除请求回调，使用它（会显示确认框）
+          if (onDeleteRequest && unlocked.length > 0) {
+            onDeleteRequest(unlocked);
+          }
+          // 否则直接执行删除（兼容旧逻辑）
+          else if (unlocked.length > 1) {
+            executeCommand(new BatchRemoveFrameCommand(unlocked));
+          } else if (unlocked.length === 1) {
+            executeCommand(new RemoveFrameCommand(unlocked[0]));
           } else if (selectedFrameId) {
             // 兼容旧的单选逻辑
             const frame = project.frames[selectedFrameId];
             if (frame && !frame.locked) {
-              executeCommand(new RemoveFrameCommand(selectedFrameId));
+              if (onDeleteRequest) {
+                onDeleteRequest([selectedFrameId]);
+              } else {
+                executeCommand(new RemoveFrameCommand(selectedFrameId));
+              }
             }
           }
         }
