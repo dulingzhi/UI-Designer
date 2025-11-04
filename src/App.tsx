@@ -23,6 +23,7 @@ function App() {
     centerCanvas: () => void;
     toggleGrid: () => void;
     toggleAnchors: () => void;
+    toggleRulers: () => void;
     getScale: () => number;
   } | null>(null);
 
@@ -68,6 +69,7 @@ function App() {
         canvasRef={canvasRef}
         onToggleGrid={() => canvasRef.current?.toggleGrid()}
         onToggleAnchors={() => canvasRef.current?.toggleAnchors()}
+        onToggleRulers={() => canvasRef.current?.toggleRulers()}
         showProjectTree={showProjectTree}
         setShowProjectTree={setShowProjectTree}
         showPropertiesPanel={showPropertiesPanel}

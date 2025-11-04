@@ -6,6 +6,7 @@ import { FrameType, FramePoint } from '../types';
 import { ResizeHandles, ResizeDirection } from './ResizeHandles';
 import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
 import { AnchorVisualizer } from './AnchorVisualizer';
+import { Ruler } from './Ruler';
 import './Canvas.css';
 
 const CANVAS_WIDTH = 1920;
@@ -17,6 +18,7 @@ export interface CanvasHandle {
   centerCanvas: () => void;
   toggleGrid: () => void;
   toggleAnchors: () => void;
+  toggleRulers: () => void;
   getScale: () => number;
 }
 
@@ -53,6 +55,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   // 锚点可视化状态
   const [showAnchors, setShowAnchors] = React.useState(false);
   
+  // 标尺显示状态
+  const [showRulers, setShowRulers] = React.useState(true);
+  
   // 网格吸附状态
   const [snapToGrid, setSnapToGrid] = React.useState(true);
   const [gridSize, setGridSize] = React.useState(0.01); // WC3单位，默认0.01
@@ -78,7 +83,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     },
     toggleGrid: () => setShowGrid(prev => !prev),
     toggleAnchors: () => setShowAnchors(prev => !prev),
-    getScale: () => scale
+    toggleRulers: () => setShowRulers(prev => !prev),
+    getScale: () => scale,
   }));
 
   // 处理缩放
@@ -686,7 +692,38 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      style={{
+        paddingLeft: showRulers ? '30px' : '0',
+        paddingTop: showRulers ? '30px' : '0',
+      }}
     >
+      {/* 标尺角落 */}
+      {showRulers && (
+        <div className="ruler-corner">📐</div>
+      )}
+
+      {/* 水平标尺 */}
+      {showRulers && (
+        <Ruler
+          orientation="horizontal"
+          length={CANVAS_WIDTH - 2 * MARGIN}
+          scale={scale}
+          offset={offset.x + MARGIN * scale}
+          wc3UnitSize={CANVAS_WIDTH - 2 * MARGIN}
+        />
+      )}
+
+      {/* 垂直标尺 */}
+      {showRulers && (
+        <Ruler
+          orientation="vertical"
+          length={CANVAS_HEIGHT}
+          scale={scale}
+          offset={offset.y}
+          wc3UnitSize={CANVAS_HEIGHT}
+        />
+      )}
+
       <div
         className="canvas-wrapper"
         style={{

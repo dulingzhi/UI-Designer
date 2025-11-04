@@ -18,10 +18,12 @@ interface MenuBarProps {
     centerCanvas: () => void;
     toggleGrid: () => void;
     toggleAnchors: () => void;
+    toggleRulers: () => void;
     getScale: () => number;
   } | null>;
   onToggleGrid?: () => void;
   onToggleAnchors?: () => void;
+  onToggleRulers?: () => void;
   showProjectTree: boolean;
   setShowProjectTree: (show: boolean) => void;
   showPropertiesPanel: boolean;
@@ -44,6 +46,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   canvasRef,
   onToggleGrid,
   onToggleAnchors,
+  onToggleRulers,
   showProjectTree,
   setShowProjectTree,
   showPropertiesPanel,
@@ -493,6 +496,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '显示锚点',
         action: onToggleAnchors
+      },
+      {
+        label: '显示标尺',
+        action: onToggleRulers
       },
       { separator: true },
       {
