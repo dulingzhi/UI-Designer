@@ -340,5 +340,379 @@ export const getCategories = (): { id: string; name: string; icon: string }[] =>
     { id: 'backdrop', name: '背景', icon: '🖼️' },
     { id: 'input', name: '输入', icon: '✏️' },
     { id: 'bar', name: '进度条', icon: '📊' },
+    { id: 'layout', name: '布局组合', icon: '📦' },
   ];
 };
+
+// ========== 布局组合类（多控件模板）==========
+/**
+ * 组合模板接口 - 包含多个控件的复杂布局
+ */
+export interface CompositeTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  category: 'layout';
+  description: string;
+  createFrames: () => Partial<FrameData>[];
+}
+
+/**
+ * 组合模板库
+ */
+export const compositeTemplates: CompositeTemplate[] = [
+  {
+    id: 'skillbar-4x3',
+    name: '技能栏 (4x3)',
+    icon: '🎮',
+    category: 'layout',
+    description: '4行3列技能按钮布局',
+    createFrames: () => {
+      const frames: Partial<FrameData>[] = [];
+      const buttonSize = 0.035;
+      const gap = 0.005;
+      const startX = 0.3;
+      const startY = 0.2;
+
+      // 创建12个技能按钮
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 3; col++) {
+          const index = row * 3 + col;
+          frames.push({
+            name: `技能按钮${index + 1}`,
+            type: FrameType.BUTTON,
+            x: startX + col * (buttonSize + gap),
+            y: startY + row * (buttonSize + gap),
+            width: buttonSize,
+            height: buttonSize,
+            anchors: createDefaultAnchors(
+              startX + col * (buttonSize + gap),
+              startY + row * (buttonSize + gap),
+              buttonSize,
+              buttonSize
+            ),
+            wc3Texture: 'ReplaceableTextures\\CommandButtons\\BTNSelectHeroOn.blp',
+            diskTexture: '',
+            children: [],
+          });
+        }
+      }
+
+      return frames;
+    },
+  },
+
+  {
+    id: 'inventory-3x2',
+    name: '背包 (3x2)',
+    icon: '🎒',
+    category: 'layout',
+    description: '3列2行物品槽布局',
+    createFrames: () => {
+      const frames: Partial<FrameData>[] = [];
+      const slotSize = 0.04;
+      const gap = 0.005;
+      const startX = 0.3;
+      const startY = 0.25;
+
+      // 背景
+      frames.push({
+        name: '背包背景',
+        type: FrameType.BACKDROP,
+        x: startX - 0.01,
+        y: startY - 0.01,
+        width: 3 * slotSize + 2 * gap + 0.02,
+        height: 2 * slotSize + gap + 0.02,
+        anchors: createDefaultAnchors(
+          startX - 0.01,
+          startY - 0.01,
+          3 * slotSize + 2 * gap + 0.02,
+          2 * slotSize + gap + 0.02
+        ),
+        textColor: 'rgba(0, 0, 0, 0.7)',
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      // 创建6个物品槽
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          const index = row * 3 + col;
+          frames.push({
+            name: `物品槽${index + 1}`,
+            type: FrameType.BUTTON,
+            x: startX + col * (slotSize + gap),
+            y: startY + row * (slotSize + gap),
+            width: slotSize,
+            height: slotSize,
+            anchors: createDefaultAnchors(
+              startX + col * (slotSize + gap),
+              startY + row * (slotSize + gap),
+              slotSize,
+              slotSize
+            ),
+            wc3Texture: 'UI\\Widgets\\ToolTips\\Human\\human-tooltip-background.blp',
+            diskTexture: '',
+            children: [],
+          });
+        }
+      }
+
+      return frames;
+    },
+  },
+
+  {
+    id: 'status-bars',
+    name: '状态栏',
+    icon: '💚',
+    category: 'layout',
+    description: 'HP/MP进度条组合',
+    createFrames: () => {
+      const frames: Partial<FrameData>[] = [];
+      const barWidth = 0.15;
+      const barHeight = 0.015;
+      const startX = 0.3;
+      const startY = 0.3;
+      const gap = 0.01;
+
+      // HP条背景
+      frames.push({
+        name: 'HP条背景',
+        type: FrameType.BACKDROP,
+        x: startX,
+        y: startY,
+        width: barWidth,
+        height: barHeight,
+        anchors: createDefaultAnchors(startX, startY, barWidth, barHeight),
+        textColor: 'rgba(50, 0, 0, 0.8)',
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      // HP条
+      frames.push({
+        name: 'HP条',
+        type: FrameType.HORIZONTAL_BAR,
+        x: startX + 0.002,
+        y: startY + 0.002,
+        width: barWidth - 0.004,
+        height: barHeight - 0.004,
+        anchors: createDefaultAnchors(
+          startX + 0.002,
+          startY + 0.002,
+          barWidth - 0.004,
+          barHeight - 0.004
+        ),
+        wc3Texture: 'UI\\Widgets\\EscMenu\\Human\\editbox-background.blp',
+        textColor: 'rgba(0, 255, 0, 0.8)',
+        diskTexture: '',
+        children: [],
+      });
+
+      // MP条背景
+      frames.push({
+        name: 'MP条背景',
+        type: FrameType.BACKDROP,
+        x: startX,
+        y: startY + barHeight + gap,
+        width: barWidth,
+        height: barHeight,
+        anchors: createDefaultAnchors(
+          startX,
+          startY + barHeight + gap,
+          barWidth,
+          barHeight
+        ),
+        textColor: 'rgba(0, 0, 50, 0.8)',
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      // MP条
+      frames.push({
+        name: 'MP条',
+        type: FrameType.HORIZONTAL_BAR,
+        x: startX + 0.002,
+        y: startY + barHeight + gap + 0.002,
+        width: barWidth - 0.004,
+        height: barHeight - 0.004,
+        anchors: createDefaultAnchors(
+          startX + 0.002,
+          startY + barHeight + gap + 0.002,
+          barWidth - 0.004,
+          barHeight - 0.004
+        ),
+        wc3Texture: 'UI\\Widgets\\EscMenu\\Human\\editbox-background.blp',
+        textColor: 'rgba(0, 100, 255, 0.8)',
+        diskTexture: '',
+        children: [],
+      });
+
+      return frames;
+    },
+  },
+
+  {
+    id: 'dialog-box',
+    name: '对话框',
+    icon: '💬',
+    category: 'layout',
+    description: '标准对话框布局',
+    createFrames: () => {
+      const frames: Partial<FrameData>[] = [];
+      const dialogWidth = 0.3;
+      const dialogHeight = 0.2;
+      const startX = 0.35;
+      const startY = 0.3;
+
+      // 对话框背景
+      frames.push({
+        name: '对话框背景',
+        type: FrameType.BACKDROP,
+        x: startX,
+        y: startY,
+        width: dialogWidth,
+        height: dialogHeight,
+        anchors: createDefaultAnchors(startX, startY, dialogWidth, dialogHeight),
+        wc3Texture: 'UI\\Widgets\\EscMenu\\Human\\editbox-background.blp',
+        textColor: 'rgba(20, 20, 30, 0.95)',
+        diskTexture: '',
+        children: [],
+      });
+
+      // 标题
+      frames.push({
+        name: '对话框标题',
+        type: FrameType.TEXT_FRAME,
+        x: startX + 0.01,
+        y: startY + 0.01,
+        width: dialogWidth - 0.02,
+        height: 0.03,
+        anchors: createDefaultAnchors(
+          startX + 0.01,
+          startY + 0.01,
+          dialogWidth - 0.02,
+          0.03
+        ),
+        text: '对话框标题',
+        textScale: 1.2,
+        textColor: 'rgba(255, 220, 100, 1)',
+        horAlign: 'center',
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      // 内容文本
+      frames.push({
+        name: '对话框内容',
+        type: FrameType.TEXT_FRAME,
+        x: startX + 0.01,
+        y: startY + 0.05,
+        width: dialogWidth - 0.02,
+        height: 0.1,
+        anchors: createDefaultAnchors(
+          startX + 0.01,
+          startY + 0.05,
+          dialogWidth - 0.02,
+          0.1
+        ),
+        text: '这里是对话框的内容文本',
+        textScale: 1.0,
+        textColor: 'rgba(255, 255, 255, 1)',
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      // 确定按钮
+      frames.push({
+        name: '确定按钮',
+        type: FrameType.SCRIPT_DIALOG_BUTTON,
+        x: startX + 0.05,
+        y: startY + dialogHeight - 0.045,
+        width: 0.08,
+        height: 0.035,
+        anchors: createDefaultAnchors(
+          startX + 0.05,
+          startY + dialogHeight - 0.045,
+          0.08,
+          0.035
+        ),
+        text: '确定',
+        textScale: 1.0,
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      // 取消按钮
+      frames.push({
+        name: '取消按钮',
+        type: FrameType.SCRIPT_DIALOG_BUTTON,
+        x: startX + dialogWidth - 0.13,
+        y: startY + dialogHeight - 0.045,
+        width: 0.08,
+        height: 0.035,
+        anchors: createDefaultAnchors(
+          startX + dialogWidth - 0.13,
+          startY + dialogHeight - 0.045,
+          0.08,
+          0.035
+        ),
+        text: '取消',
+        textScale: 1.0,
+        diskTexture: '',
+        wc3Texture: '',
+        children: [],
+      });
+
+      return frames;
+    },
+  },
+
+  {
+    id: 'button-group-horizontal',
+    name: '按钮组 (横)',
+    icon: '⬌',
+    category: 'layout',
+    description: '水平排列的3个按钮',
+    createFrames: () => {
+      const frames: Partial<FrameData>[] = [];
+      const buttonWidth = 0.1;
+      const buttonHeight = 0.035;
+      const gap = 0.01;
+      const startX = 0.25;
+      const startY = 0.3;
+
+      for (let i = 0; i < 3; i++) {
+        frames.push({
+          name: `按钮${i + 1}`,
+          type: FrameType.SCRIPT_DIALOG_BUTTON,
+          x: startX + i * (buttonWidth + gap),
+          y: startY,
+          width: buttonWidth,
+          height: buttonHeight,
+          anchors: createDefaultAnchors(
+            startX + i * (buttonWidth + gap),
+            startY,
+            buttonWidth,
+            buttonHeight
+          ),
+          text: `按钮 ${i + 1}`,
+          textScale: 1.0,
+          diskTexture: '',
+          wc3Texture: '',
+          children: [],
+        });
+      }
+
+      return frames;
+    },
+  },
+];
+
