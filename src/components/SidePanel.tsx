@@ -182,6 +182,7 @@ export const SidePanel: React.FC = () => {
               </div>
 
               <div className="template-list">
+                {/* 单个控件模板 */}
                 {filteredTemplates.map(template => (
                   <div
                     key={template.id}
@@ -196,6 +197,11 @@ export const SidePanel: React.FC = () => {
                     </div>
                   </div>
                 ))}
+
+                {/* 组合模板分节 */}
+                {filteredCompositeTemplates.length > 0 && filteredTemplates.length > 0 && (
+                  <div className="template-section-header">📦 组合模板</div>
+                )}
 
                 {/* 组合模板 */}
                 {filteredCompositeTemplates.map(template => (
