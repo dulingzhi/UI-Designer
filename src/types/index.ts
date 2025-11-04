@@ -117,6 +117,16 @@ export interface CircleArrayData {
   elements: string[]; // frame ids
 }
 
+// 参考线类型
+export interface GuideLine {
+  id: string;
+  orientation: 'horizontal' | 'vertical';
+  position: number; // 在画布中的像素位置
+  wc3Position?: number; // WC3坐标位置（可选，用于精确对齐）
+  color?: string; // 参考线颜色，默认为蓝色
+  locked?: boolean; // 是否锁定（锁定后不能移动或删除）
+}
+
 export interface ProjectData {
   libraryName: string;
   originMode: 'gameui' | 'worldframe' | 'consoleui';
@@ -134,6 +144,7 @@ export interface ProjectData {
   rootFrameIds: string[];
   tableArrays: TableArrayData[];
   circleArrays: CircleArrayData[];
+  guides?: GuideLine[]; // 参考线数组
 }
 
 export interface FieldsAllowed {

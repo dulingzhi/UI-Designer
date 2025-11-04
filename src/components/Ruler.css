@@ -3,7 +3,7 @@
   background: #2a2a2a;
   z-index: 100;
   user-select: none;
-  pointer-events: none;
+  pointer-events: auto; /* 允许鼠标事件，用于拖拽创建参考线 */
 }
 
 .ruler-horizontal {

@@ -3,6 +3,8 @@
  * 提供拖动时的智能参考线和吸附功能
  */
 
+import { GuideLine as CustomGuideLine } from '../types';
+
 export interface GuideLine {
   type: 'vertical' | 'horizontal';
   position: number;  // x 或 y 坐标
@@ -27,7 +29,8 @@ export function calculateSnap(
   dragWidth: number,
   dragHeight: number,
   otherFrames: Array<{ x: number; y: number; width: number; height: number }>,
-  snapEnabled: boolean = true
+  snapEnabled: boolean = true,
+  customGuides?: CustomGuideLine[]  // 添加自定义参考线参数
 ): SnapResult {
   if (!snapEnabled) {
     return {
@@ -171,6 +174,88 @@ export function calculateSnap(
     }
 
     if (snappedX && snappedY) break;
+  }
+
+  // 检测与自定义参考线的吸附
+  if (customGuides && customGuides.length > 0) {
+    const dragLeft = snapX;
+    const dragRight = snapX + dragWidth;
+    const dragCenterX = snapX + dragWidth / 2;
+    const dragTop = snapY;
+    const dragBottom = snapY + dragHeight;
+    const dragCenterY = snapY + dragHeight / 2;
+
+    for (const guide of customGuides) {
+      if (guide.orientation === 'vertical' && !snappedX) {
+        const guidePos = guide.position;
+        
+        // 左边缘吸附
+        if (Math.abs(dragLeft - guidePos) < SNAP_THRESHOLD) {
+          snapX = guidePos;
+          snappedX = true;
+          guidelines.push({
+            type: 'vertical',
+            position: guidePos,
+            source: 'edge',
+          });
+        }
+        // 右边缘吸附
+        else if (Math.abs(dragRight - guidePos) < SNAP_THRESHOLD) {
+          snapX = guidePos - dragWidth;
+          snappedX = true;
+          guidelines.push({
+            type: 'vertical',
+            position: guidePos,
+            source: 'edge',
+          });
+        }
+        // 中心吸附
+        else if (Math.abs(dragCenterX - guidePos) < SNAP_THRESHOLD) {
+          snapX = guidePos - dragWidth / 2;
+          snappedX = true;
+          guidelines.push({
+            type: 'vertical',
+            position: guidePos,
+            source: 'center',
+          });
+        }
+      } else if (guide.orientation === 'horizontal' && !snappedY) {
+        const guidePos = guide.position;
+        
+        // 上边缘吸附
+        if (Math.abs(dragTop - guidePos) < SNAP_THRESHOLD) {
+          snapY = guidePos;
+          snappedY = true;
+          guidelines.push({
+            type: 'horizontal',
+            position: guidePos,
+            source: 'edge',
+          });
+        }
+        // 下边缘吸附
+        else if (Math.abs(dragBottom - guidePos) < SNAP_THRESHOLD) {
+          snapY = guidePos - dragHeight;
+          snappedY = true;
+          guidelines.push({
+            type: 'horizontal',
+            position: guidePos,
+            source: 'edge',
+          });
+        }
+        // 中心吸附
+        else if (Math.abs(dragCenterY - guidePos) < SNAP_THRESHOLD) {
+          snapY = guidePos - dragHeight / 2;
+          snappedY = true;
+          guidelines.push({
+            type: 'horizontal',
+            position: guidePos,
+            source: 'center',
+          });
+        }
+      }
+
+      if (snappedX && snappedY) break;
+    }
   }
 
   return {

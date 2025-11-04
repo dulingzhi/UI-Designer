@@ -13,7 +13,7 @@ export const useKeyboardShortcuts = (
   centerCanvas?: () => void,
   onDeleteRequest?: (targets: string[]) => void
 ) => {
-  const { selectedFrameId, project } = useProjectStore();
+  const { selectedFrameId, project, clearGuides } = useProjectStore();
   const { undo, redo, canUndo, canRedo, executeCommand } = useCommandStore();
 
   useEffect(() => {
@@ -81,6 +81,10 @@ export const useKeyboardShortcuts = (
           case 'a':
             e.preventDefault();
             handleSelectAll();
+            break;
+          case ';':
+            e.preventDefault();
+            clearGuides();
             break;
         }
       }

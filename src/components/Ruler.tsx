@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import './Ruler.css';
 
 interface RulerProps {
@@ -7,6 +7,7 @@ interface RulerProps {
   scale: number; // 缩放比例
   offset: number; // 偏移量（像素）
   wc3UnitSize: number; // WC3单位对应的像素数（例如：0.8宽度对应的像素）
+  onCreateGuide?: (orientation: 'horizontal' | 'vertical', clientX: number, clientY: number) => void; // 创建参考线回调
 }
 
 export const Ruler: React.FC<RulerProps> = ({ 
@@ -14,10 +15,56 @@ export const Ruler: React.FC<RulerProps> = ({
   length, 
   scale, 
   offset,
-  wc3UnitSize 
+  wc3UnitSize,
+  onCreateGuide,
 }) => {
   const RULER_SIZE = 30; // 标尺宽度/高度
   const isHorizontal = orientation === 'horizontal';
+  const [isDraggingGuide, setIsDraggingGuide] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // 处理从标尺拖拽创建参考线
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!onCreateGuide) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setIsDraggingGuide(true);
+    
+    const handleMouseMove = (_moveEvent: MouseEvent) => {
+      // 暂时不实现预览功能
+      // if (!svgRef.current) return;
+      // const rect = svgRef.current.getBoundingClientRect();
+      // const canvasPosition = isHorizontal
+      //   ? (moveEvent.clientY - rect.top - offset) / scale
+      //   : (moveEvent.clientX - rect.left - offset) / scale;
+    };
+    
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      setIsDraggingGuide(false);
+      
+      if (!svgRef.current) return;
+      
+      const rect = svgRef.current.getBoundingClientRect();
+      
+      // 检查是否拖拽到画布区域
+      const isInCanvas = isHorizontal
+        ? upEvent.clientY > rect.bottom
+        : upEvent.clientX > rect.right;
+      
+      if (isInCanvas) {
+        // 直接传递鼠标的屏幕坐标给Canvas处理
+        onCreateGuide(orientation, upEvent.clientX, upEvent.clientY);
+      }
+      
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   // 计算刻度
   const generateTicks = () => {
@@ -70,9 +117,14 @@ export const Ruler: React.FC<RulerProps> = ({
       }}
     >
       <svg
+        ref={svgRef}
         width={isHorizontal ? length : RULER_SIZE}
         height={isHorizontal ? RULER_SIZE : length}
-        style={{ display: 'block' }}
+        style={{ 
+          display: 'block',
+          cursor: isDraggingGuide ? 'grabbing' : (onCreateGuide ? 'grab' : 'default'),
+        }}
+        onMouseDown={handleMouseDown}
       >
         {/* 背景 */}
         <rect

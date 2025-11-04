@@ -1,0 +1,56 @@
+/* 参考线样式 */
+.guide-line {
+  opacity: 0.6;
+  box-shadow: 0 0 1px rgba(0, 170, 255, 0.5);
+  transition: opacity 0.2s ease;
+}
+
+.guide-line-active {
+  opacity: 1;
+  box-shadow: 0 0 3px rgba(0, 170, 255, 0.8);
+}
+
+.guide-line-locked {
+  opacity: 0.4;
+  background-color: #888 !important;
+}
+
+.guide-line-hit-area {
+  background: transparent;
+}
+
+.guide-line-hit-area:hover {
+  background: rgba(0, 170, 255, 0.1);
+}
+
+.guide-line-tooltip {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* 参考线容器 */
+.guide-lines-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.guide-lines-container > * {
+  pointer-events: auto;
+}

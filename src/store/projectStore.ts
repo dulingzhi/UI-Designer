@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProjectData, FrameData, TableArrayData, CircleArrayData } from '../types';
+import { ProjectData, FrameData, TableArrayData, CircleArrayData, GuideLine } from '../types';
 import { createDefaultAnchors } from '../utils/anchorUtils';
 
 interface ProjectState {
@@ -48,6 +48,12 @@ interface ProjectState {
   addCircleArray: (array: CircleArrayData) => void;
   updateCircleArray: (id: string, updates: Partial<CircleArrayData>) => void;
   removeCircleArray: (id: string) => void;
+  
+  // 参考线操作
+  addGuide: (guide: GuideLine) => void;
+  updateGuide: (id: string, updates: Partial<GuideLine>) => void;
+  removeGuide: (id: string) => void;
+  clearGuides: () => void;
 }
 
 const createDefaultProject = (): ProjectData => ({
@@ -66,6 +72,7 @@ const createDefaultProject = (): ProjectData => ({
   rootFrameIds: [],
   tableArrays: [],
   circleArrays: [],
+  guides: [], // 初始化参考线数组
 });
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -435,6 +442,37 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     project: {
       ...state.project,
       circleArrays: state.project.circleArrays.filter(arr => arr.id !== id),
+    },
+  })),
+
+  // 参考线操作
+  addGuide: (guide) => set((state) => ({
+    project: {
+      ...state.project,
+      guides: [...(state.project.guides || []), guide],
+    },
+  })),
+
+  updateGuide: (id, updates) => set((state) => ({
+    project: {
+      ...state.project,
+      guides: (state.project.guides || []).map(guide =>
+        guide.id === id ? { ...guide, ...updates } : guide
+      ),
+    },
+  })),
+
+  removeGuide: (id) => set((state) => ({
+    project: {
+      ...state.project,
+      guides: (state.project.guides || []).filter(guide => guide.id !== id),
+    },
+  })),
+
+  clearGuides: () => set((state) => ({
+    project: {
+      ...state.project,
+      guides: [],
     },
   })),
 }));

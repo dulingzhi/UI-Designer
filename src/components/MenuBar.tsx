@@ -60,7 +60,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const menuBarRef = useRef<HTMLDivElement>(null);
   
-  const { project, setProject, selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard } = useProjectStore();
+  const { project, setProject, selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard, clearGuides } = useProjectStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
 
   // 导出处理函数
@@ -526,6 +526,12 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '显示标尺',
         action: onToggleRulers
+      },
+      {
+        label: '清除参考线',
+        shortcut: 'Ctrl+;',
+        action: clearGuides,
+        disabled: !project.guides || project.guides.length === 0
       },
       { separator: true },
       {

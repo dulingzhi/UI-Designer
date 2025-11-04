@@ -7,6 +7,7 @@ import { ResizeHandles, ResizeDirection } from './ResizeHandles';
 import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
 import { AnchorVisualizer } from './AnchorVisualizer';
 import { Ruler } from './Ruler';
+import { GuideLine } from './GuideLine';
 import './Canvas.css';
 
 const CANVAS_WIDTH = 1920;
@@ -23,7 +24,7 @@ export interface CanvasHandle {
 }
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
-  const { project, selectedFrameId, selectFrame, toggleSelectFrame, setProject } = useProjectStore();
+  const { project, selectedFrameId, selectFrame, toggleSelectFrame, setProject, addGuide, updateGuide, removeGuide } = useProjectStore();
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
@@ -66,6 +67,41 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const snapValue = (value: number, gridSize: number): number => {
     if (!snapToGrid) return value;
     return Math.round(value / gridSize) * gridSize;
+  };
+
+  // 处理从标尺创建参考线
+  const handleCreateGuide = (orientation: 'horizontal' | 'vertical', clientX: number, clientY: number) => {
+    // 获取canvas元素的位置
+    if (!canvasRef.current) return;
+    
+    const canvasBounds = canvasRef.current.getBoundingClientRect();
+    
+    // 计算鼠标在canvas内的位置（考虑缩放和偏移）
+    let position: number;
+    
+    if (orientation === 'horizontal') {
+      // 水平参考线：计算相对于canvas顶部的Y坐标
+      // clientY - canvasBounds.top 得到在缩放后的canvas中的位置
+      // 除以scale得到实际的canvas坐标
+      position = (clientY - canvasBounds.top) / scale;
+    } else {
+      // 垂直参考线：计算相对于画布左边缘的X坐标
+      // 允许在整个画布范围内（0-1920），不限制在内容区域
+      position = (clientX - canvasBounds.left) / scale;
+    }
+    
+    // 确保位置有效（在画布范围内）
+    if (position < 0) return;
+    if (orientation === 'vertical' && position > CANVAS_WIDTH) return;
+    if (orientation === 'horizontal' && position > CANVAS_HEIGHT) return;
+    
+    const guideId = `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    addGuide({
+      id: guideId,
+      orientation,
+      position,
+      color: '#00aaff',
+    });
   };
 
   // 暴露给父组件的方法
@@ -710,6 +746,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           scale={scale}
           offset={offset.x + MARGIN * scale}
           wc3UnitSize={CANVAS_WIDTH - 2 * MARGIN}
+          onCreateGuide={handleCreateGuide}
         />
       )}
 
@@ -721,6 +758,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           scale={scale}
           offset={offset.y}
           wc3UnitSize={CANVAS_HEIGHT}
+          onCreateGuide={handleCreateGuide}
         />
       )}
 
@@ -842,6 +880,25 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               canvasHeight={CANVAS_HEIGHT}
               margin={MARGIN}
             />
+          )}
+          
+          {/* 参考线 - 在canvas内部，跟随缩放变换 */}
+          {project.guides && project.guides.length > 0 && (
+            <div className="guide-lines-container">
+              {project.guides.map(guide => (
+                <GuideLine
+                  key={guide.id}
+                  guide={guide}
+                  scale={scale}
+                  panX={offset.x}
+                  panY={offset.y}
+                  canvasWidth={CANVAS_WIDTH}
+                  canvasHeight={CANVAS_HEIGHT}
+                  onUpdate={updateGuide}
+                  onRemove={removeGuide}
+                />
+              ))}
+            </div>
           )}
           
           {/* 框选矩形 */}
