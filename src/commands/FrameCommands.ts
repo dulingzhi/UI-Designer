@@ -267,3 +267,40 @@ export class PasteFrameCommand implements Command {
     this.execute();
   }
 }
+
+// 批量删除命令
+export class BatchRemoveFrameCommand implements Command {
+  private frameIds: string[];
+  private framesData: Map<string, FrameData> = new Map();
+  private previousSelection: string | null;
+
+  constructor(frameIds: string[]) {
+    this.frameIds = frameIds;
+    this.previousSelection = useProjectStore.getState().selectedFrameId;
+  }
+
+  execute(): void {
+    const store = useProjectStore.getState();
+    // 保存所有要删除的控件数据
+    this.frameIds.forEach(id => {
+      const frame = store.getFrame(id);
+      if (frame) {
+        this.framesData.set(id, frame);
+        store.removeFrame(id);
+      }
+    });
+  }
+
+  undo(): void {
+    const store = useProjectStore.getState();
+    // 恢复所有删除的控件
+    this.framesData.forEach((frame) => {
+      store.addFrame(frame);
+    });
+    store.selectFrame(this.previousSelection);
+  }
+
+  redo(): void {
+    this.execute();
+  }
+}

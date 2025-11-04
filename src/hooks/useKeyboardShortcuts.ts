@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
-import { RemoveFrameCommand, UpdateFrameCommand, CopyFrameCommand, PasteFrameCommand } from '../commands/FrameCommands';
+import { RemoveFrameCommand, BatchRemoveFrameCommand, UpdateFrameCommand, CopyFrameCommand, PasteFrameCommand } from '../commands/FrameCommands';
 import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
@@ -165,14 +165,22 @@ export const useKeyboardShortcuts = (
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
           const selectedIds = useProjectStore.getState().selectedFrameIds;
-          if (selectedIds.length > 0) {
-            // 删除所有选中的控件
-            selectedIds.forEach(id => {
+          
+          if (selectedIds.length > 1) {
+            // 多选：使用批量删除命令（一次 undo 恢复）
+            const unlocked = selectedIds.filter(id => {
               const frame = project.frames[id];
-              if (frame && !frame.locked) {
-                executeCommand(new RemoveFrameCommand(id));
-              }
+              return frame && !frame.locked;
             });
+            if (unlocked.length > 0) {
+              executeCommand(new BatchRemoveFrameCommand(unlocked));
+            }
+          } else if (selectedIds.length === 1) {
+            // 单选：使用单个删除命令
+            const frame = project.frames[selectedIds[0]];
+            if (frame && !frame.locked) {
+              executeCommand(new RemoveFrameCommand(selectedIds[0]));
+            }
           } else if (selectedFrameId) {
             // 兼容旧的单选逻辑
             const frame = project.frames[selectedFrameId];

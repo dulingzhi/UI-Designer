@@ -7,6 +7,7 @@ import { CreateTableArrayCommand } from '../commands/TableArrayCommand';
 import { CreateCircleArrayCommand } from '../commands/CircleArrayCommand';
 import { TableArrayDialog } from './TableArrayDialog';
 import { CircleArrayDialog } from './CircleArrayDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 import { FrameType } from '../types';
 import './ProjectTree.css';
 
@@ -33,8 +34,11 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose }) => {
   // 管理 TableArray 对话框
   const [tableArrayDialog, setTableArrayDialog] = useState<{ frameId: string; frameName: string } | null>(null);
 
-  // 管理 CircleArray 对话框
+  // 管理CircleArray 对话框
   const [circleArrayDialog, setCircleArrayDialog] = useState<{ frameId: string; frameName: string } | null>(null);
+
+  // 管理删除确认对话框
+  const [deleteConfirm, setDeleteConfirm] = useState<{ frameId: string; frameName: string; hasChildren: boolean } | null>(null);
 
   // 管理面板宽度调整
   const [width, setWidth] = useState(280);
@@ -111,16 +115,25 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose }) => {
     }
     
     const hasChildren = frame.children.length > 0;
-    const confirmMsg = hasChildren 
-      ? `确定要删除 "${frame.name}" 及其 ${frame.children.length} 个子控件吗？`
-      : `确定要删除 "${frame.name}" 吗？`;
-      
-    if (confirm(confirmMsg)) {
+    setDeleteConfirm({
+      frameId,
+      frameName: frame.name,
+      hasChildren
+    });
+    setContextMenu(null);
+  };
+
+  const confirmDeleteFrame = () => {
+    if (deleteConfirm) {
       const { executeCommand } = useCommandStore.getState();
-      const command = new RemoveFrameCommand(frameId);
+      const command = new RemoveFrameCommand(deleteConfirm.frameId);
       executeCommand(command);
-      setContextMenu(null);
+      setDeleteConfirm(null);
     }
+  };
+
+  const cancelDeleteFrame = () => {
+    setDeleteConfirm(null);
   };
 
   // 复制节点
@@ -595,6 +608,21 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose }) => {
           frameName={circleArrayDialog.frameName}
           onSubmit={handleCircleArraySubmit}
           onClose={() => setCircleArrayDialog(null)}
+        />
+      )}
+
+      {/* 删除确认对话框 */}
+      {deleteConfirm && (
+        <ConfirmDialog
+          title="删除确认"
+          message={deleteConfirm.hasChildren 
+            ? `确定要删除 "${deleteConfirm.frameName}" 及其 ${project.frames[deleteConfirm.frameId]?.children.length || 0} 个子控件吗？`
+            : `确定要删除 "${deleteConfirm.frameName}" 吗？`}
+          confirmText="删除"
+          cancelText="取消"
+          type="danger"
+          onConfirm={confirmDeleteFrame}
+          onCancel={cancelDeleteFrame}
         />
       )}
     </div>

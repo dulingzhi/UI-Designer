@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './MenuBar.css';
 import { AboutDialog } from './AboutDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { saveProject, loadProject, loadProjectFromPath } from '../utils/fileOperations';
 import { exportToFDF, exportToJSON, exportToPNG } from '../utils/exportUtils';
 import { AlignCommand, DistributeCommand } from '../commands/AlignCommands';
 import { ZIndexCommand } from '../commands/ZIndexCommands';
-import { RemoveFrameCommand } from '../commands/FrameCommands';
+import { RemoveFrameCommand, BatchRemoveFrameCommand } from '../commands/FrameCommands';
 
 interface MenuBarProps {
   currentFilePath: string | null;
@@ -49,6 +50,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargets, setDeleteTargets] = useState<string[]>([]);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const menuBarRef = useRef<HTMLDivElement>(null);
   
@@ -285,18 +288,36 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   const handleDelete = () => {
     if (selectedFrameIds.length > 0) {
-      if (confirm(`确定要删除选中的 ${selectedFrameIds.length} 个控件吗？`)) {
-        const { executeCommand } = useCommandStore.getState();
-        // 为每个选中的控件创建删除命令
-        selectedFrameIds.forEach(id => {
-          const frame = project.frames[id];
-          if (frame && !frame.locked) {
-            const command = new RemoveFrameCommand(id);
-            executeCommand(command);
-          }
-        });
+      // 过滤掉锁定的控件
+      const targets = selectedFrameIds.filter(id => {
+        const frame = project.frames[id];
+        return frame && !frame.locked;
+      });
+      
+      if (targets.length === 0) {
+        return; // 所有控件都被锁定
       }
+      
+      setDeleteTargets(targets);
+      setShowDeleteConfirm(true);
     }
+  };
+
+  const confirmDelete = () => {
+    if (deleteTargets.length === 1) {
+      // 单个删除
+      executeCommand(new RemoveFrameCommand(deleteTargets[0]));
+    } else {
+      // 批量删除（一次 undo 就能全部恢复）
+      executeCommand(new BatchRemoveFrameCommand(deleteTargets));
+    }
+    setShowDeleteConfirm(false);
+    setDeleteTargets([]);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeleteTargets([]);
   };
 
   // 视图操作
@@ -651,6 +672,18 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       </div>
 
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="删除确认"
+          message={`确定要删除选中的 ${deleteTargets.length} 个控件吗？${deleteTargets.length > 1 ? '\n（可以通过撤销一次性恢复）' : ''}`}
+          confirmText="删除"
+          cancelText="取消"
+          type="danger"
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        />
+      )}
     </>
   );
 };
