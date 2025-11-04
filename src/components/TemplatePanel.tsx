@@ -6,12 +6,13 @@ import { FrameData } from '../types';
 import './TemplatePanel.css';
 
 // 调试：立即检查导入
-console.log('=== TemplatePanel 导入检查 ===');
+console.log('=== TemplatePanel 导入检查 [v2] ===');
 console.log('compositeTemplates 是否存在:', !!compositeTemplates);
 console.log('compositeTemplates 类型:', typeof compositeTemplates);
 console.log('compositeTemplates 长度:', compositeTemplates?.length);
 console.log('compositeTemplates 内容:', compositeTemplates);
 console.log('templates 长度:', templates?.length);
+console.log('强制刷新时间:', new Date().toISOString());
 
 export const TemplatePanel: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
