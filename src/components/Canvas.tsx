@@ -24,7 +24,7 @@ export interface CanvasHandle {
 }
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
-  const { project, selectedFrameId, selectFrame, toggleSelectFrame, setProject, addGuide, updateGuide, removeGuide } = useProjectStore();
+  const { project, selectedFrameId, selectFrame, toggleSelectFrame, setProject, addGuide, updateGuide, removeGuide, highlightedFrameIds } = useProjectStore();
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
@@ -594,6 +594,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
     const store = useProjectStore.getState();
     const isSelected = store.selectedFrameIds.includes(frameId);
+    const isHighlighted = highlightedFrameIds.includes(frameId);
     
     // 检查是否使用相对锚点，如果是则重新计算位置
     const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
@@ -620,7 +621,11 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       height: `${height}px`,
       border: frame.locked 
         ? '2px dashed #888888' 
-        : isSelected ? '2px solid #f22613' : '1px solid #00e640',
+        : isSelected 
+          ? '2px solid #f22613' 
+          : isHighlighted 
+            ? '2px solid #00aaff'  // 搜索高亮：蓝色边框
+            : '1px solid #00e640',
       boxSizing: 'border-box',
       cursor: frame.locked ? 'not-allowed' : 'pointer',
       zIndex: frame.z,
@@ -634,6 +639,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       fontSize: `${(frame.textScale || 1) * 14}px`,
       pointerEvents: 'auto',
       opacity: frame.locked ? 0.7 : 1,
+      boxShadow: isHighlighted ? '0 0 10px rgba(0, 170, 255, 0.5)' : undefined,  // 添加发光效果
     };
 
     return (

@@ -17,7 +17,7 @@ interface ProjectTreeProps {
 }
 
 export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteRequest }) => {
-  const { project, selectedFrameId, selectFrame, updateFrame } = useProjectStore();
+  const { project, selectedFrameId, selectFrame, updateFrame, setHighlightedFrames, clearHighlightedFrames } = useProjectStore();
   
   // 管理展开/折叠状态
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(project.rootFrameIds));
@@ -51,6 +51,32 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
   const [width, setWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = React.useRef<HTMLDivElement>(null);
+
+  // 当搜索查询变化时，更新高亮的控件列表
+  React.useEffect(() => {
+    if (!searchQuery) {
+      clearHighlightedFrames();
+      return;
+    }
+
+    const matchedIds: string[] = [];
+    const searchLower = searchQuery.toLowerCase();
+
+    // 递归查找所有匹配的控件
+    const findMatches = (frameId: string) => {
+      const frame = project.frames[frameId];
+      if (!frame) return;
+
+      if (frame.name.toLowerCase().includes(searchLower)) {
+        matchedIds.push(frameId);
+      }
+
+      frame.children.forEach(findMatches);
+    };
+
+    project.rootFrameIds.forEach(findMatches);
+    setHighlightedFrames(matchedIds);
+  }, [searchQuery, project.frames, project.rootFrameIds, setHighlightedFrames, clearHighlightedFrames]);
 
   // 切换展开/折叠
   const toggleExpand = (frameId: string, e: React.MouseEvent) => {

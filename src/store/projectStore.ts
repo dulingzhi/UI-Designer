@@ -8,6 +8,7 @@ interface ProjectState {
   selectedFrameIds: string[]; // 多选支持
   clipboard: FrameData | null; // 剪贴板，存储被复制的控件
   styleClipboard: Partial<FrameData> | null; // 样式剪贴板，存储被复制的样式
+  highlightedFrameIds: string[]; // 搜索高亮的控件ID列表
   
   // 项目操作
   setProject: (project: ProjectData) => void;
@@ -25,6 +26,10 @@ interface ProjectState {
   toggleSelectFrame: (id: string) => void; // Ctrl+点击切换选择
   selectMultipleFrames: (ids: string[]) => void; // 框选多个
   clearSelection: () => void;
+  
+  // 搜索高亮
+  setHighlightedFrames: (ids: string[]) => void;
+  clearHighlightedFrames: () => void;
   
   // 锁定操作
   toggleFrameLock: (id: string) => void;
@@ -81,6 +86,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   selectedFrameIds: [],
   clipboard: null,
   styleClipboard: null,
+  highlightedFrameIds: [],
 
   setProject: (project) => {
     // 修复所有控件的锚点和children字段
@@ -280,6 +286,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     selectedFrameId: null,
     selectedFrameIds: []
   }),
+
+  setHighlightedFrames: (ids) => set({ highlightedFrameIds: ids }),
+  
+  clearHighlightedFrames: () => set({ highlightedFrameIds: [] }),
 
   toggleFrameLock: (id) => set((state) => {
     const frame = state.project.frames[id];
