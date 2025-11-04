@@ -127,6 +127,36 @@ export interface GuideLine {
   locked?: boolean; // 是否锁定（锁定后不能移动或删除）
 }
 
+// 样式预设类型
+export interface StylePreset {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string; // 分类：按钮、文本、背景等
+  createdAt: number; // 创建时间戳
+  style: {
+    // 纹理
+    diskTexture?: string;
+    wc3Texture?: string;
+    backDiskTexture?: string;
+    backWc3Texture?: string;
+    
+    // 文本
+    text?: string;
+    textScale?: number;
+    textColor?: string;
+    horAlign?: 'left' | 'center' | 'right';
+    verAlign?: 'start' | 'center' | 'flex-end';
+    
+    // 尺寸
+    width?: number;
+    height?: number;
+    
+    // 类型
+    type?: FrameType;
+  };
+}
+
 export interface ProjectData {
   libraryName: string;
   originMode: 'gameui' | 'worldframe' | 'consoleui';
@@ -145,6 +175,7 @@ export interface ProjectData {
   tableArrays: TableArrayData[];
   circleArrays: CircleArrayData[];
   guides?: GuideLine[]; // 参考线数组
+  stylePresets?: StylePreset[]; // 样式预设库
 }
 
 export interface FieldsAllowed {

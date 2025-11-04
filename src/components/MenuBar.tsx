@@ -28,6 +28,8 @@ interface MenuBarProps {
   setShowProjectTree: (show: boolean) => void;
   showPropertiesPanel: boolean;
   setShowPropertiesPanel: (show: boolean) => void;
+  showStylePresetPanel?: boolean;
+  setShowStylePresetPanel?: (show: boolean) => void;
   onDeleteRequest?: (targets: string[]) => void;
 }
 
@@ -51,6 +53,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   setShowProjectTree,
   showPropertiesPanel,
   setShowPropertiesPanel,
+  showStylePresetPanel = false,
+  setShowStylePresetPanel = () => {},
   onDeleteRequest
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -545,8 +549,13 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         action: () => setShowPropertiesPanel(!showPropertiesPanel)
       },
       {
-        label: '模板面板',
+        label: showStylePresetPanel ? '✓ 样式预设' : '样式预设',
         shortcut: 'Ctrl+3',
+        action: () => setShowStylePresetPanel(!showStylePresetPanel)
+      },
+      {
+        label: '模板面板',
+        shortcut: 'Ctrl+4',
         action: () => console.log('Toggle templates')
       }
     ],

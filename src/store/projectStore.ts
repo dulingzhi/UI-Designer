@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProjectData, FrameData, TableArrayData, CircleArrayData, GuideLine } from '../types';
+import { ProjectData, FrameData, TableArrayData, CircleArrayData, GuideLine, StylePreset } from '../types';
 import { createDefaultAnchors } from '../utils/anchorUtils';
 
 interface ProjectState {
@@ -59,6 +59,13 @@ interface ProjectState {
   updateGuide: (id: string, updates: Partial<GuideLine>) => void;
   removeGuide: (id: string) => void;
   clearGuides: () => void;
+  
+  // 样式预设操作
+  addStylePreset: (preset: StylePreset) => void;
+  updateStylePreset: (id: string, updates: Partial<StylePreset>) => void;
+  removeStylePreset: (id: string) => void;
+  applyStylePreset: (presetId: string, targetFrameIds: string[]) => void;
+  saveFrameAsPreset: (frameId: string, name: string, category?: string) => void;
 }
 
 const createDefaultProject = (): ProjectData => ({
@@ -485,4 +492,84 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       guides: [],
     },
   })),
+
+  // 样式预设管理
+  addStylePreset: (preset) => set((state) => ({
+    project: {
+      ...state.project,
+      stylePresets: [...(state.project.stylePresets || []), preset],
+    },
+  })),
+
+  updateStylePreset: (id, updates) => set((state) => ({
+    project: {
+      ...state.project,
+      stylePresets: (state.project.stylePresets || []).map(preset =>
+        preset.id === id ? { ...preset, ...updates } : preset
+      ),
+    },
+  })),
+
+  removeStylePreset: (id) => set((state) => ({
+    project: {
+      ...state.project,
+      stylePresets: (state.project.stylePresets || []).filter(preset => preset.id !== id),
+    },
+  })),
+
+  applyStylePreset: (presetId, targetFrameIds) => set((state) => {
+    const preset = (state.project.stylePresets || []).find(p => p.id === presetId);
+    if (!preset) return state;
+
+    const updatedFrames = { ...state.project.frames };
+    targetFrameIds.forEach(frameId => {
+      if (updatedFrames[frameId]) {
+        updatedFrames[frameId] = {
+          ...updatedFrames[frameId],
+          ...preset.style,
+        };
+      }
+    });
+
+    return {
+      project: {
+        ...state.project,
+        frames: updatedFrames,
+      },
+    };
+  }),
+
+  saveFrameAsPreset: (frameId, name, category) => set((state) => {
+    const frame = state.project.frames[frameId];
+    if (!frame) return state;
+
+    const preset: StylePreset = {
+      id: `preset_${Date.now()}`,
+      name,
+      category: category || '默认',
+      description: `基于 ${frame.name} 创建`,
+      createdAt: Date.now(),
+      style: {
+        type: frame.type,
+        diskTexture: frame.diskTexture,
+        wc3Texture: frame.wc3Texture,
+        backDiskTexture: frame.backDiskTexture,
+        backWc3Texture: frame.backWc3Texture,
+        text: frame.text,
+        textScale: frame.textScale,
+        textColor: frame.textColor,
+        horAlign: frame.horAlign,
+        verAlign: frame.verAlign,
+        width: frame.width,
+        height: frame.height,
+      },
+    };
+
+    return {
+      project: {
+        ...state.project,
+        stylePresets: [...(state.project.stylePresets || []), preset],
+      },
+    };
+  }),
 }));
