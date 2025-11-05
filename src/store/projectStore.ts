@@ -78,10 +78,11 @@ interface ProjectState {
 }
 
 const createDefaultProject = (): ProjectData => ({
+  version: 2,  // V2 格式
   libraryName: 'REFORGEDUIMAKER',
   originMode: 'gameui',
-  exportVersion: 'reforged', // 默认重制版
-  backgroundImage: '/backgrounds/wc3-with-ui.png', // 默认显示带UI的背景
+  exportVersion: 'reforged',
+  backgroundImage: '/backgrounds/wc3-with-ui.png',
   hideGameUI: false,
   hideHeroBar: false,
   hideMiniMap: false,
@@ -92,9 +93,10 @@ const createDefaultProject = (): ProjectData => ({
   appInterface: 'dark',
   frames: {},
   rootFrameIds: [],
+  fdfTemplates: {},  // FDF 模板库
   tableArrays: [],
   circleArrays: [],
-  guides: [], // 初始化参考线数组
+  guides: [],
 });
 
 export const useProjectStore = create<ProjectState>((set, get) => ({

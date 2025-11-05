@@ -5,6 +5,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { saveProject, loadProject, loadProjectFromPath, importFromFDF } from '../utils/fileOperations';
+import { importFromFDFEnhanced, importFDFFolder } from '../utils/fdfImportExport';
 import { exportToFDF, exportToJSON, exportToPNG } from '../utils/exportUtils';
 import { AlignCommand, DistributeCommand } from '../commands/AlignCommands';
 import { ZIndexCommand } from '../commands/ZIndexCommands';
@@ -86,6 +87,33 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     } catch (error) {
       console.error('导入FDF失败:', error);
       alert(`导入FDF失败: ${error}`);
+    }
+  };
+
+  // 增强的 FDF 导入（保留元数据）
+  const handleImportFDFEnhanced = async () => {
+    try {
+      const frames = await importFromFDFEnhanced();
+      if (frames && frames.length > 0) {
+        addFrames(frames);
+        alert(`成功导入 ${frames.length} 个控件（含 FDF 元数据）`);
+      }
+    } catch (error) {
+      console.error('增强导入失败:', error);
+      alert(`增强导入失败: ${error}`);
+    }
+  };
+
+  // 批量导入 FDF 模板库
+  const handleImportFDFTemplates = async () => {
+    try {
+      const count = await importFDFFolder();
+      if (count > 0) {
+        alert(`成功加载 ${count} 个 FDF 模板`);
+      }
+    } catch (error) {
+      console.error('导入模板库失败:', error);
+      alert(`导入模板库失败: ${error}`);
     }
   };
 
@@ -202,6 +230,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const handleNewProject = () => {
     if (confirm('创建新项目将清除当前项目，是否继续？')) {
       setProject({
+        version: 2,
         libraryName: 'UILib',
         originMode: 'gameui',
         hideGameUI: false,
@@ -214,6 +243,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         appInterface: '',
         frames: {},
         rootFrameIds: [],
+        fdfTemplates: {},
         tableArrays: [],
         circleArrays: [],
         exportVersion: 'reforged',
@@ -452,7 +482,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '导入',
         submenu: [
-          { label: '导入 FDF', action: handleImportFDF }
+          { label: '导入 FDF (基础)', action: handleImportFDF },
+          { label: '导入 FDF (增强)', action: handleImportFDFEnhanced },
+          { separator: true },
+          { label: '导入 FDF 模板库', action: handleImportFDFTemplates }
         ]
       },
       {

@@ -45,57 +45,97 @@ export enum FrameType {
   SLIDER = 20,
 }
 
+// FDF 元数据 - 保留原始 FDF 信息
+export interface FDFMetadata {
+  inherits?: string;                    // INHERITS 模板名
+  includeFile?: string;                 // IncludeFile 路径
+  rawProperties?: Record<string, any>;  // 无法映射的原始 FDF 属性
+  comment?: string;                     // FDF 注释
+  originalFDF?: string;                 // 原始 FDF 文本（用于精确还原）
+}
+
+// FDF 纹理数据
+export interface FDFTextureData {
+  file: string;
+  texCoord?: [number, number, number, number]; // [left, right, top, bottom]
+  alphaMode?: 'ALPHAKEY' | 'BLEND' | 'ADD';
+  decorateFileNames?: boolean;
+}
+
+// FDF 文本数据
+export interface FDFStringData {
+  content: string;
+  font?: string;                        // 字体名称
+  fontSize?: number;                    // 字体大小
+  fontFlags?: string[];                 // 字体标志 (FIXEDSIZE, THICKOUTLINE)
+  shadowOffset?: [number, number];      // 阴影偏移
+  shadowColor?: string;                 // 阴影颜色
+}
+
+// FDF Backdrop 数据
+export interface FDFBackdropData {
+  background?: string;                  // 背景纹理
+  tileBackground?: boolean;             // 是否平铺背景
+  backgroundSize?: number;              // 背景尺寸
+  backgroundInsets?: [number, number, number, number]; // [left, top, right, bottom]
+  edgeFile?: string;                    // 边框纹理
+  cornerFlags?: string;                 // 角标志 "UL|UR|BL|BR|T|L|B|R"
+  cornerSize?: number;                  // 角尺寸
+  blendAll?: boolean;                   // 混合所有层
+}
+
 export interface FrameData {
   id: string;
   name: string;
   type: FrameType;
-  x: number;                   // 编辑器内部使用（左下角X坐标）
-  y: number;                   // 编辑器内部使用（左下角Y坐标）
-  width: number;               // 编辑器内部使用
-  height: number;              // 编辑器内部使用
+  
+  // 编辑器坐标 (像素，左下角原点)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   z: number;
+  
+  // 层级关系
   parentId: string | null;
   children: string[];
-  tooltip: boolean;
-  isRelative: boolean;
-  locked?: boolean;            // 是否锁定（锁定后不能移动/编辑/删除）
-  visible?: boolean;           // 是否可见（默认为true）
   
-  // 锚点系统 - 用于代码导出
-  anchors: FrameAnchor[];      // 支持多个锚点（通常使用TOPLEFT和BOTTOMRIGHT）
+  // 锚点系统 (用于 FDF 导出)
+  anchors: FrameAnchor[];
   
-  // 兼容旧版本 - 废弃但保留
-  anchorPoint?: FramePoint;
+  // 显示控制
+  locked?: boolean;
+  visible?: boolean;
+  tooltip?: boolean;
   
-  // 纹理属性
-  diskTexture: string;
-  wc3Texture: string;
+  // 基础属性 (简化，主要用于编辑器显示)
+  diskTexture?: string;
+  wc3Texture?: string;
   backDiskTexture?: string;
   backWc3Texture?: string;
-  
-  // 文本属性
   text?: string;
   textScale?: number;
   textColor?: string;
   horAlign?: 'left' | 'center' | 'right';
   verAlign?: 'start' | 'center' | 'flex-end';
   
-  // EDITBOX 属性
-  multiline?: boolean;
-  
-  // SLIDER 属性
-  minValue?: number;
-  maxValue?: number;
-  stepSize?: number;
-  
-  // CHECKBOX 属性
-  checked?: boolean;
+  // 特殊控件属性
+  multiline?: boolean;      // EDITBOX
+  minValue?: number;        // SLIDER
+  maxValue?: number;        // SLIDER
+  stepSize?: number;        // SLIDER
+  checked?: boolean;        // CHECKBOX
   
   // 功能属性
   trigVar?: string;
-  
-  // Array属性
   arrayId?: string;
+  isRelative?: boolean;     // 保留兼容性
+  
+  // ===== FDF 扩展数据 =====
+  fdfMetadata?: FDFMetadata;        // FDF 元数据
+  fdfTexture?: FDFTextureData;      // FDF 纹理数据
+  fdfString?: FDFStringData;        // FDF 文本数据
+  fdfBackdrop?: FDFBackdropData;    // FDF Backdrop 数据
 }
 
 export interface TableArrayData {
@@ -167,10 +207,19 @@ export interface FrameGroup {
   locked?: boolean; // 是否锁定组（锁定后不能修改成员）
 }
 
+// FDF 模板定义（来自 fdfAst.ts）
+export interface FDFTemplate {
+  name: string;
+  frameType: string;
+  inherits?: string;
+  properties: Record<string, any>;
+}
+
 export interface ProjectData {
+  version: 2;                  // 项目版本号
   libraryName: string;
   originMode: 'gameui' | 'worldframe' | 'consoleui';
-  exportVersion: ExportVersion; // 导出版本：重制版或1.27
+  exportVersion: ExportVersion;
   hideGameUI: boolean;
   hideHeroBar: boolean;
   hideMiniMap: boolean;
@@ -179,14 +228,21 @@ export interface ProjectData {
   hidePortrait: boolean;
   hideChat: boolean;
   appInterface: string;
-  backgroundImage?: string; // 画布背景图路径
+  backgroundImage?: string;
+  
+  // 核心数据
   frames: Record<string, FrameData>;
   rootFrameIds: string[];
+  
+  // FDF 模板库
+  fdfTemplates?: Record<string, FDFTemplate>;
+  
+  // 辅助数据
   tableArrays: TableArrayData[];
   circleArrays: CircleArrayData[];
-  guides?: GuideLine[]; // 参考线数组
-  stylePresets?: StylePreset[]; // 样式预设库
-  frameGroups?: FrameGroup[]; // 控件组合列表
+  guides?: GuideLine[];
+  stylePresets?: StylePreset[];
+  frameGroups?: FrameGroup[];
 }
 
 export interface FieldsAllowed {

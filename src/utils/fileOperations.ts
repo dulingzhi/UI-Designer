@@ -2,7 +2,7 @@ import { save, open } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { ProjectData, FrameData } from '../types';
 import { createDefaultAnchors } from './anchorUtils';
-import { parseFDF } from './fdfParser';
+import { parseFDF } from './fdf';  // 使用新的统一入口
 
 // 数据迁移: 将旧版本的单锚点数据转换为锚点数组
 function migrateProjectData(project: ProjectData): ProjectData {

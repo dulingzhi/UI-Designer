@@ -122,7 +122,7 @@ export class FDFExporter {
       fdf += this.getIndent() + 'Texture {\n';
       this.indentLevel++;
       
-      const texturePath = frame.diskTexture || frame.wc3Texture;
+      const texturePath = frame.diskTexture || frame.wc3Texture || '';
       fdf += this.getIndent() + `File "${this.escapeString(texturePath)}"\n`;
       
       this.indentLevel--;
