@@ -213,17 +213,21 @@ export class FDFTransformer {
         break;
         
       case 'fontjustificationh':
-        const hAlign = (value as string).toLowerCase();
-        if (hAlign.includes('left')) frame.horAlign = 'left';
-        else if (hAlign.includes('center')) frame.horAlign = 'center';
-        else if (hAlign.includes('right')) frame.horAlign = 'right';
+        if (typeof value === 'string') {
+          const hAlign = value.toLowerCase();
+          if (hAlign.includes('left')) frame.horAlign = 'left';
+          else if (hAlign.includes('center')) frame.horAlign = 'center';
+          else if (hAlign.includes('right')) frame.horAlign = 'right';
+        }
         break;
         
       case 'fontjustificationv':
-        const vAlign = (value as string).toLowerCase();
-        if (vAlign.includes('top')) frame.verAlign = 'start';
-        else if (vAlign.includes('middle')) frame.verAlign = 'center';
-        else if (vAlign.includes('bottom')) frame.verAlign = 'flex-end';
+        if (typeof value === 'string') {
+          const vAlign = value.toLowerCase();
+          if (vAlign.includes('top')) frame.verAlign = 'start';
+          else if (vAlign.includes('middle')) frame.verAlign = 'center';
+          else if (vAlign.includes('bottom')) frame.verAlign = 'flex-end';
+        }
         break;
         
       // Backdrop 相关
