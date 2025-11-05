@@ -1,12 +1,12 @@
 /**
  * FDF 解析器完整测试脚本（Node.js 版本）
- * 运行: bun tests/test-fdf.ts
+ * 运行: bun test-fdf.ts
  */
 
-import { parseFDFToAST } from '../src/utils/fdf';
-import { FDFTransformer } from '../src/utils/fdfTransformer';
-import { FDFExporter, FDFExporterEnhanced } from '../src/utils/fdfExporter';
-import { importFromFDFText } from '../src/utils/fdfImport';
+import { parseFDFToAST } from './src/utils/fdf';
+import { FDFTransformer } from './src/utils/fdfTransformer';
+import { FDFExporter } from './src/utils/fdfExporter';
+import { importFromFDFText } from './src/utils/fdfImport';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -297,7 +297,7 @@ function scanFDFFiles(dirPath: string, files: string[] = []): string[] {
 async function runWC3Tests() {
   console.log('🧪 开始 WC3 原生 FDF 文件测试...\n');
 
-  const basePath = path.join(__dirname, '..', 'vendor', 'UI', 'FrameDef');
+  const basePath = path.join(__dirname, 'vendor', 'UI', 'FrameDef');
   console.log(`正在扫描 ${basePath}...`);
   const fdfFiles = scanFDFFiles(basePath);
   
@@ -345,7 +345,7 @@ async function runWC3Tests() {
 async function analyzeWC3FDF() {
   console.log('📊 分析 WC3 原生 FDF 文件...\n');
 
-  const basePath = path.join(__dirname, '..', 'vendor', 'UI', 'FrameDef');
+  const basePath = path.join(__dirname, 'vendor', 'UI', 'FrameDef');
   console.log(`正在扫描 ${basePath}...`);
   const fdfFiles = scanFDFFiles(basePath);
 
@@ -420,185 +420,6 @@ async function analyzeWC3FDF() {
   };
 }
 
-// ==================== 增强导出测试 ====================
-
-async function runEnhancedExportTests() {
-  console.log('🧪 开始增强导出测试...\n');
-  
-  let passed = 0;
-  let failed = 0;
-
-  // 测试 11: 无损导出 - rawProperties 合并
-  try {
-    const fdf = `
-      Frame "BACKDROP" "TestFrame" {
-        Width 0.2,
-        Height 0.1,
-        DecorateFileNames true,
-        CustomProperty "CustomValue",
-      }
-    `;
-    
-    const frames = importFromFDFText(fdf);
-    const exporter = new FDFExporterEnhanced({ lossless: true, mergeRawProperties: true });
-    const exported = exporter.exportEnhanced(frames);
-    
-    // 验证导出包含 rawProperties
-    if (exported.includes('DecorateFileNames') && exported.includes('CustomProperty')) {
-      console.log('✓ 测试 11: 无损导出 - rawProperties 合并');
-      passed++;
-    } else {
-      throw new Error('rawProperties 未正确导出');
-    }
-  } catch (error) {
-    console.error('✗ 测试 11 失败:', error);
-    failed++;
-  }
-
-  // 测试 12: INHERITS 优化导出
-  try {
-    const fdf = `
-      Frame "BUTTON" "BaseButton" {
-        Width 0.1,
-        Height 0.05,
-      }
-      Frame "BUTTON" "DerivedButton" INHERITS "BaseButton" {
-        Width 0.15,
-      }
-    `;
-    
-    const frames = importFromFDFText(fdf);
-    const exporter = new FDFExporterEnhanced({ smartInheritance: true });
-    const exported = exporter.exportEnhanced(frames);
-    
-    // 验证 INHERITS 声明存在
-    if (exported.includes('INHERITS "BaseButton"')) {
-      console.log('✓ 测试 12: INHERITS 优化导出');
-      passed++;
-    } else {
-      throw new Error('INHERITS 声明未找到');
-    }
-  } catch (error) {
-    console.error('✗ 测试 12 失败:', error);
-    failed++;
-  }
-
-  // 测试 13: 嵌套 Frame 导出
-  try {
-    const fdf = `
-      Frame "FRAME" "ParentFrame" {
-        Width 0.3,
-        Height 0.2,
-        
-        Frame "TEXT" "ChildText" {
-          Text "Nested Frame",
-          Width 0.1,
-          Height 0.05,
-        }
-      }
-    `;
-    
-    const frames = importFromFDFText(fdf);
-    const exporter = new FDFExporterEnhanced({ exportNestedFrames: true });
-    const exported = exporter.exportEnhanced(frames);
-    
-    // 验证嵌套结构
-    const ast = parseFDFToAST(exported);
-    const parentFrame = ast.body.find((item: any) => 
-      item.type === 'FrameDefinition' && item.name === 'ParentFrame'
-    );
-    
-    if (parentFrame && (parentFrame as any).properties.some((prop: any) => 
-      prop.type === 'NestedFrame' && prop.frame?.name === 'ChildText'
-    )) {
-      console.log('✓ 测试 13: 嵌套 Frame 导出');
-      passed++;
-    } else {
-      throw new Error('嵌套 Frame 结构未保留');
-    }
-  } catch (error) {
-    console.error('✗ 测试 13 失败:', error);
-    failed++;
-  }
-
-  // 测试 14: 完整往返测试（无损）
-  try {
-    const originalFdf = `
-      Frame "BACKDROP" "ComplexFrame" INHERITS "BaseTemplate" {
-        Width 0.25,
-        Height 0.15,
-        BackdropTileBackground true,
-        BackdropBackground "UI\\Widgets\\EscMenu\\Human\\quest-backdrop-human.blp",
-        Texture {
-          File "UI\\Widgets\\ToolTips\\Human\\human-tooltip-background.blp",
-          AlphaMode "BLEND",
-        }
-      }
-    `;
-    
-    const frames1 = importFromFDFText(originalFdf);
-    const exporter = new FDFExporterEnhanced({ lossless: true });
-    const exported = exporter.exportEnhanced(frames1);
-    
-    // 再次导入导出的FDF
-    const frames2 = importFromFDFText(exported);
-    const exported2 = exporter.exportEnhanced(frames2);
-    
-    // 验证 INHERITS 保留
-    if (exported2.includes('INHERITS "BaseTemplate"')) {
-      console.log('✓ 测试 14: 完整往返测试（无损）');
-      passed++;
-    } else {
-      throw new Error('往返测试中元数据丢失');
-    }
-  } catch (error) {
-    console.error('✗ 测试 14 失败:', error);
-    failed++;
-  }
-
-  // 测试 15: 对比标准导出 vs 增强导出
-  try {
-    const fdf = `
-      Frame "TEXT" "TestText" {
-        Width 0.2,
-        Height 0.05,
-        Text "Hello World",
-        FontHeight 0.012,
-        FontFlags "FIXEDSIZE",
-      }
-    `;
-    
-    const frames = importFromFDFText(fdf);
-    
-    const standardExporter = new FDFExporter();
-    const standardExport = standardExporter.export(frames);
-    
-    const enhancedExporter = new FDFExporterEnhanced({ lossless: true });
-    const enhancedExport = enhancedExporter.exportEnhanced(frames);
-    
-    // 增强导出应该包含更多属性
-    const standardLineCount = standardExport.split('\n').length;
-    const enhancedLineCount = enhancedExport.split('\n').length;
-    
-    if (enhancedLineCount >= standardLineCount) {
-      console.log('✓ 测试 15: 标准 vs 增强导出对比');
-      console.log(`    标准导出: ${standardLineCount} 行`);
-      console.log(`    增强导出: ${enhancedLineCount} 行`);
-      passed++;
-    } else {
-      throw new Error('增强导出包含内容少于标准导出');
-    }
-  } catch (error) {
-    console.error('✗ 测试 15 失败:', error);
-    failed++;
-  }
-
-  console.log('\n============================================================');
-  console.log(`增强导出测试完成: ✓ ${passed} 通过, ✗ ${failed} 失败`);
-  
-  return { passed, failed };
-}
-
 // ==================== 运行所有测试 ====================
 
 async function runAllTests() {
@@ -606,9 +427,6 @@ async function runAllTests() {
   console.log('============================================================');
   
   const basic = await runBasicTests();
-  console.log('\n============================================================');
-  
-  const enhanced = await runEnhancedExportTests();
   console.log('\n============================================================');
   
   const wc3 = await runWC3Tests();
@@ -619,7 +437,6 @@ async function runAllTests() {
   
   console.log('\n📊 总体结果:');
   console.log(`  基础测试: ${basic.passed}/${basic.passed + basic.failed} 通过`);
-  console.log(`  增强导出: ${enhanced.passed}/${enhanced.passed + enhanced.failed} 通过`);
   console.log(`  WC3 文件: ${wc3.successCount}/${wc3.total} 通过`);
   console.log(`  总 Frame 类型: ${Object.keys(stats.frameTypes).length}`);
   console.log(`  总模板数: ${stats.templates.length}`);

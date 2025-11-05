@@ -1,11 +1,14 @@
 import { ProjectData, FrameData, FrameType } from '../types';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { FDFExporter, FDFExporterEnhanced } from './fdfExporter';
 
 /**
  * 导出项目为 FDF 格式（魔兽3 UI 文件格式）
+ * @param project 项目数据
+ * @param enhanced 是否使用增强导出（无损、保留元数据）
  */
-export async function exportToFDF(project: ProjectData): Promise<void> {
+export async function exportToFDF(project: ProjectData, enhanced: boolean = false): Promise<void> {
   try {
     // 打开保存对话框
     const path = await save({
@@ -19,12 +22,14 @@ export async function exportToFDF(project: ProjectData): Promise<void> {
     if (!path) return; // 用户取消
 
     // 生成 FDF 内容
-    const fdfContent = generateFDFContent(project);
+    const fdfContent = enhanced 
+      ? generateFDFContentEnhanced(project) 
+      : generateFDFContent(project);
 
     // 写入文件
     await writeTextFile(path, fdfContent);
 
-    alert('导出 FDF 成功！');
+    alert(`导出 FDF 成功！${enhanced ? '（增强模式）' : ''}`);
   } catch (error) {
     console.error('导出 FDF 失败:', error);
     alert(`导出失败: ${error}`);
@@ -57,7 +62,7 @@ export async function exportToJSON(project: ProjectData): Promise<void> {
 }
 
 /**
- * 生成 FDF 文件内容
+ * 生成 FDF 文件内容（标准模式）
  */
 function generateFDFContent(project: ProjectData): string {
   const lines: string[] = [];
@@ -78,6 +83,46 @@ function generateFDFContent(project: ProjectData): string {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * 生成 FDF 文件内容（增强模式 - 无损导出）
+ */
+function generateFDFContentEnhanced(project: ProjectData): string {
+  // 将 frames 对象转换为数组
+  const framesArray = Object.values(project.frames);
+  
+  // 创建增强导出器
+  const exporter = new FDFExporterEnhanced({
+    lossless: true,
+    mergeRawProperties: true,
+    smartInheritance: true,
+    exportNestedFrames: true,
+    includeComments: true,
+    baseWidth: 800,
+    baseHeight: 600,
+  });
+  
+  // 使用增强导出
+  let fdfContent = exporter.exportEnhanced(framesArray);
+  
+  // 添加项目特定的头部信息
+  const header = [
+    `// Origin Mode: ${project.originMode}`,
+    '',
+    'IncludeFile "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",',
+    '',
+  ].join('\n');
+  
+  // 在第一个 Frame 定义之前插入头部
+  const firstFrameIndex = fdfContent.indexOf('Frame "');
+  if (firstFrameIndex > 0) {
+    fdfContent = fdfContent.substring(0, firstFrameIndex) + header + fdfContent.substring(firstFrameIndex);
+  } else {
+    fdfContent = header + fdfContent;
+  }
+  
+  return fdfContent;
 }
 
 /**
