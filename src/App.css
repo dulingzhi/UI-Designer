@@ -32,6 +32,11 @@ html, body, #root {
   display: flex;
   overflow: hidden;
   position: relative;
+  margin-bottom: 24px; /* 为底部状态栏预留空间 */
+}
+
+.app-content.no-status-bar {
+  margin-bottom: 0; /* 状态栏隐藏时不需要预留空间 */
 }
 
 /* 项目树 - 固定宽度 */

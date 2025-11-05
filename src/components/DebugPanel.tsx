@@ -32,55 +32,51 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
 
   return (
     <div className="debug-panel">
-      <div className="debug-section">
-        <div className="debug-title">🖱️ 鼠标位置</div>
-        <div className="debug-row">
-          <span className="debug-label">屏幕坐标:</span>
-          <span className="debug-value">X: {mouseX.toFixed(0)}, Y: {mouseY.toFixed(0)}</span>
-        </div>
-        <div className="debug-row">
-          <span className="debug-label">WC3坐标:</span>
-          <span className="debug-value wc3-coords">
-            X: {mouseWc3X.toFixed(5)}, Y: {mouseWc3Y.toFixed(5)}
-          </span>
-        </div>
+      {/* 鼠标屏幕坐标 */}
+      <div className="debug-item">
+        <span className="debug-label">屏幕:</span>
+        <span className="debug-value">{mouseX.toFixed(0)}, {mouseY.toFixed(0)}</span>
       </div>
 
-      <div className="debug-divider"></div>
+      <div className="debug-separator"></div>
 
-      <div className="debug-section">
-        <div className="debug-title">🔍 画布状态</div>
-        <div className="debug-row">
-          <span className="debug-label">缩放比例:</span>
-          <span className="debug-value">{(scale * 100).toFixed(0)}%</span>
-        </div>
+      {/* WC3 坐标 */}
+      <div className="debug-item wc3-coords">
+        <span className="debug-label">WC3:</span>
+        <span className="debug-value">{mouseWc3X.toFixed(5)}, {mouseWc3Y.toFixed(5)}</span>
       </div>
 
+      <div className="debug-separator"></div>
+
+      {/* 缩放比例 */}
+      <div className="debug-item zoom-info">
+        <span className="debug-label">缩放:</span>
+        <span className="debug-value">{(scale * 100).toFixed(0)}%</span>
+      </div>
+
+      {/* 选中控件信息 */}
       {selectedFrame && (
         <>
-          <div className="debug-divider"></div>
-          <div className="debug-section">
-            <div className="debug-title">📦 选中控件</div>
-            <div className="debug-row">
-              <span className="debug-label">名称:</span>
-              <span className="debug-value">{selectedFrame.name}</span>
-            </div>
-            <div className="debug-row">
-              <span className="debug-label">类型:</span>
-              <span className="debug-value">{selectedFrame.type}</span>
-            </div>
-            <div className="debug-row">
-              <span className="debug-label">位置:</span>
-              <span className="debug-value wc3-coords">
-                ({selectedFrame.x.toFixed(5)}, {selectedFrame.y.toFixed(5)})
-              </span>
-            </div>
-            <div className="debug-row">
-              <span className="debug-label">尺寸:</span>
-              <span className="debug-value wc3-coords">
-                {selectedFrame.width.toFixed(5)} × {selectedFrame.height.toFixed(5)}
-              </span>
-            </div>
+          <div className="debug-separator"></div>
+          <div className="debug-item selected-frame">
+            <span className="debug-label">✓</span>
+            <span className="debug-value">
+              {selectedFrame.name}
+            </span>
+          </div>
+
+          <div className="debug-item wc3-coords">
+            <span className="debug-label">位置:</span>
+            <span className="debug-value">
+              {selectedFrame.x.toFixed(3)}, {selectedFrame.y.toFixed(3)}
+            </span>
+          </div>
+
+          <div className="debug-item wc3-coords">
+            <span className="debug-label">尺寸:</span>
+            <span className="debug-value">
+              {selectedFrame.width.toFixed(3)} × {selectedFrame.height.toFixed(3)}
+            </span>
           </div>
         </>
       )}

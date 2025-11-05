@@ -21,7 +21,7 @@ function App() {
   const [showPropertiesPanel, setShowPropertiesPanel] = React.useState(true);
   const [showStylePresetPanel, setShowStylePresetPanel] = React.useState(false);
   const [showFrameGroupPanel, setShowFrameGroupPanel] = React.useState(false);
-  const [showDebugPanel, setShowDebugPanel] = React.useState(false);
+  const [showDebugPanel, setShowDebugPanel] = React.useState(true); // 状态栏默认显示
   const [deleteConfirm, setDeleteConfirm] = React.useState<{ targets: string[] } | null>(null);
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
   const [canvasScale, setCanvasScale] = React.useState(1);
@@ -136,7 +136,7 @@ function App() {
         onDeleteRequest={handleDeleteRequest}
       />
       <Toolbar currentFilePath={currentFilePath} setCurrentFilePath={setCurrentFilePath} />
-      <div className="app-content">
+      <div className={`app-content ${showDebugPanel ? '' : 'no-status-bar'}`}>
         {showProjectTree && <ProjectTree onClose={() => setShowProjectTree(false)} onDeleteRequest={handleDeleteRequest} />}
         <Canvas ref={canvasRef as any} />
         {showPropertiesPanel && <PropertiesPanel onClose={() => setShowPropertiesPanel(false)} />}

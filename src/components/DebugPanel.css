@@ -1,95 +1,130 @@
 .debug-panel {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(30, 30, 30, 0.95);
-  border: 1px solid #3c3c3c;
-  border-radius: 4px;
-  padding: 12px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: #007acc;
+  border-top: 1px solid #005a9e;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 11px;
-  color: #cccccc;
-  min-width: 280px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
+  font-size: 12px;
+  color: #ffffff;
   z-index: 9999;
   user-select: text;
+  gap: 20px;
 }
 
-.debug-section {
-  margin-bottom: 8px;
-}
-
-.debug-section:last-child {
-  margin-bottom: 0;
-}
-
-.debug-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #007acc;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #2d2d30;
-}
-
-.debug-row {
+.debug-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 3px 0;
-  gap: 12px;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: default;
+  padding: 0 8px;
+  height: 100%;
+  transition: background-color 0.15s ease;
+}
+
+.debug-item:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .debug-label {
-  color: #858585;
-  font-size: 11px;
-  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .debug-value {
-  color: #d4d4d4;
-  font-weight: 500;
-  text-align: right;
-  flex: 1;
-}
-
-.debug-value.wc3-coords {
-  color: #4ec9b0;
+  color: #ffffff;
+  font-weight: 600;
   font-family: 'Consolas', 'Monaco', monospace;
+  letter-spacing: 0.3px;
 }
 
-.debug-divider {
-  height: 1px;
-  background: #2d2d30;
-  margin: 8px 0;
+.debug-separator {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.3);
+  margin: 0 4px;
 }
 
 /* 悬停效果 */
-.debug-panel:hover {
-  background: rgba(40, 40, 40, 0.98);
-  border-color: #007acc;
+.debug-item:hover .debug-value {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
-/* 高亮重要数值 */
-.debug-row:hover .debug-value {
-  color: #ffffff;
+/* 高亮 WC3 坐标 */
+.debug-item.wc3-coords .debug-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.debug-item.wc3-coords .debug-value {
+  color: #e3f2fd;
+  font-weight: 600;
+}
+
+.debug-item.wc3-coords:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 选中控件信息 */
+.debug-item.selected-frame {
+  background: rgba(0, 150, 0, 0.2);
+}
+
+.debug-item.selected-frame .debug-value {
+  color: #c8e6c9;
+  font-weight: 600;
+}
+
+.debug-item.selected-frame:hover {
+  background: rgba(0, 150, 0, 0.3);
+}
+
+/* 缩放信息高亮 */
+.debug-item.zoom-info:hover {
+  background: rgba(255, 235, 59, 0.15);
+}
+
+.debug-item.zoom-info:hover .debug-value {
+  color: #ffeb3b;
 }
 
 /* 响应式 - 小屏幕 */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .debug-panel {
-    bottom: 10px;
-    right: 10px;
-    min-width: 240px;
-    font-size: 10px;
+    font-size: 11px;
+    padding: 0 8px;
+    gap: 12px;
   }
 
-  .debug-title {
+  .debug-item {
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  .debug-label {
     font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .debug-panel {
+    font-size: 10px;
+    padding: 0 6px;
+    gap: 8px;
+  }
+
+  .debug-item {
+    padding: 0 4px;
   }
 
   .debug-label {
     font-size: 10px;
   }
 }
+
