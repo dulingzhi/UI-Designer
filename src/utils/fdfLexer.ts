@@ -15,6 +15,7 @@ export enum TokenType {
   // 关键字
   FRAME = 'FRAME',
   INHERITS = 'INHERITS',
+  WITHCHILDREN = 'WITHCHILDREN',
   INCLUDE_FILE = 'INCLUDE_FILE',
   
   // 符号
@@ -244,6 +245,8 @@ export class FDFLexer {
       type = TokenType.FRAME;
     } else if (upperValue === 'INHERITS') {
       type = TokenType.INHERITS;
+    } else if (upperValue === 'WITHCHILDREN') {
+      type = TokenType.WITHCHILDREN;
     } else if (upperValue === 'INCLUDEFILE') {
       type = TokenType.INCLUDE_FILE;
     } else {

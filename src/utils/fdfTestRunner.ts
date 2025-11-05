@@ -11,7 +11,7 @@ import { FDFTransformer } from '../utils/fdfTransformer';
 import { FDFExporter } from '../utils/fdfExporter';
 import { importFromFDFText } from '../utils/fdfImport';
 import { readTextFile, readDir } from '@tauri-apps/plugin-fs';
-import { resolveResource } from '@tauri-apps/api/path';
+import { resolveResource, join } from '@tauri-apps/api/path';
 
 // ==================== 基础测试 ====================
 
@@ -204,9 +204,13 @@ export async function runWC3Tests() {
   console.log('🧪 开始 WC3 原生 FDF 文件测试...\n');
 
   try {
-    // 递归扫描所有 FDF 文件
-    // 使用项目根目录的相对路径
-    const basePath = await resolveResource('target/vendor/UI/FrameDef');
+    // 获取资源目录（src-tauri/target/debug/）然后向上回退到项目根目录
+    const resourcePath = await resolveResource('');
+    // resourcePath 类似: D:\Projects\W3UIDesigner\Wc3 UI Designer\src-tauri\target\debug
+    // 需要回退到: D:\Projects\W3UIDesigner\Wc3 UI Designer
+    const projectRoot = resourcePath.replace(/[\\\/]src-tauri[\\\/]target[\\\/](debug|release).*$/, '');
+    const basePath = `${projectRoot}/vendor/UI/FrameDef`.replace(/\\/g, '/');
+    
     console.log(`正在扫描 ${basePath}...`);
     const fdfFiles = await scanFDFFiles(basePath);
     
@@ -262,7 +266,11 @@ export async function analyzeWC3FDF() {
   console.log('📊 分析 WC3 原生 FDF 文件...\n');
 
   try {
-    const basePath = await resolveResource('target/vendor/UI/FrameDef');
+    // 获取项目根目录
+    const resourcePath = await resolveResource('');
+    const projectRoot = resourcePath.replace(/[\\\/]src-tauri[\\\/]target[\\\/](debug|release).*$/, '');
+    const basePath = `${projectRoot}/vendor/UI/FrameDef`.replace(/\\/g, '/');
+    
     console.log(`正在扫描 ${basePath}...`);
     const fdfFiles = await scanFDFFiles(basePath);
 

@@ -71,6 +71,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargets, setDeleteTargets] = useState<string[]>([]);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
+  const [showTestResult, setShowTestResult] = useState(false);
+  const [testResultMessage, setTestResultMessage] = useState('');
   const menuBarRef = useRef<HTMLDivElement>(null);
   
   const { project, setProject, selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard, clearGuides, addFrames } = useProjectStore();
@@ -700,32 +702,68 @@ export const MenuBar: React.FC<MenuBarProps> = ({
                 console.log('开始运行 FDF 解析器测试...');
                 const results = await runAllTests();
                 console.log('测试完成！', results);
-                alert(`测试完成！\n基础测试: ${results.basic.passed}/${results.basic.passed + results.basic.failed}\nWC3 文件: ${results.wc3.successCount}/${results.wc3.total}\n详情请查看控制台`);
+                
+                const message = `📊 FDF 解析器测试完成\n\n✅ 基础测试: ${results.basic.passed}/${results.basic.passed + results.basic.failed} 通过\n\n${results.wc3.total > 0 ? `📁 WC3 文件: ${results.wc3.successCount}/${results.wc3.total} 通过 (${Math.round(results.wc3.successCount / results.wc3.total * 100)}%)\n\n` : '⚠️ WC3 文件: 未找到测试文件\n\n'}📈 统计分析:\n  • Frame 类型: ${Object.keys(results.stats.frameTypes).length} 种\n  • 总模板数: ${results.stats.templates.length}\n  • 继承深度: ${results.stats.maxDepth}\n\n详情请查看控制台（F12）`;
+                
+                setTestResultMessage(message);
+                setShowTestResult(true);
               } catch (error) {
                 console.error('测试失败:', error);
-                alert('测试失败，请查看控制台');
+                setTestResultMessage(`❌ 测试失败\n\n错误信息:\n${error}\n\n请查看控制台获取详细信息`);
+                setShowTestResult(true);
               }
             }
           },
           {
             label: '基础功能测试',
             action: async () => {
-              const { runBasicTests } = await import('../utils/fdfTestRunner');
-              await runBasicTests();
+              try {
+                const { runBasicTests } = await import('../utils/fdfTestRunner');
+                const result = await runBasicTests();
+                setTestResultMessage(`✅ 基础功能测试完成\n\n通过: ${result.passed}\n失败: ${result.failed}\n\n详情请查看控制台`);
+                setShowTestResult(true);
+              } catch (error) {
+                console.error('测试失败:', error);
+                setTestResultMessage(`❌ 测试失败: ${error}`);
+                setShowTestResult(true);
+              }
             }
           },
           {
             label: 'WC3 文件测试',
             action: async () => {
-              const { runWC3Tests } = await import('../utils/fdfTestRunner');
-              await runWC3Tests();
+              try {
+                const { runWC3Tests } = await import('../utils/fdfTestRunner');
+                const result = await runWC3Tests();
+                const passRate = result.total > 0 ? Math.round(result.successCount / result.total * 100) : 0;
+                setTestResultMessage(`📁 WC3 文件测试完成\n\n通过: ${result.successCount}/${result.total} (${passRate}%)\n失败: ${result.failCount}\n\n详情请查看控制台`);
+                setShowTestResult(true);
+              } catch (error) {
+                console.error('测试失败:', error);
+                setTestResultMessage(`❌ 测试失败: ${error}`);
+                setShowTestResult(true);
+              }
             }
           },
           {
             label: '统计分析',
             action: async () => {
-              const { analyzeWC3FDF } = await import('../utils/fdfTestRunner');
-              await analyzeWC3FDF();
+              try {
+                const { analyzeWC3FDF } = await import('../utils/fdfTestRunner');
+                const stats = await analyzeWC3FDF();
+                const topTypes = Object.entries(stats.frameTypes)
+                  .sort((a, b) => (b[1] as number) - (a[1] as number))
+                  .slice(0, 5)
+                  .map(([type, count]) => `  • ${type}: ${count}`)
+                  .join('\n');
+                
+                setTestResultMessage(`📊 WC3 FDF 统计分析\n\n📈 Frame 类型统计 (Top 5):\n${topTypes}\n\n📦 模板统计:\n  • 总模板数: ${stats.templates.length}\n  • 总 Frame 数: ${stats.totalFrames}\n  • 最大继承深度: ${stats.maxDepth}\n\n详情请查看控制台`);
+                setShowTestResult(true);
+              } catch (error) {
+                console.error('分析失败:', error);
+                setTestResultMessage(`❌ 分析失败: ${error}`);
+                setShowTestResult(true);
+              }
             }
           },
         ]
@@ -847,6 +885,16 @@ export const MenuBar: React.FC<MenuBarProps> = ({
           type="danger"
           onConfirm={confirmDelete}
           onCancel={cancelDelete}
+        />
+      )}
+
+      {showTestResult && (
+        <ConfirmDialog
+          title="测试结果"
+          message={testResultMessage}
+          confirmText="确定"
+          onConfirm={() => setShowTestResult(false)}
+          onCancel={() => setShowTestResult(false)}
         />
       )}
     </>

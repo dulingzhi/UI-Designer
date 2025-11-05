@@ -146,8 +146,17 @@ export class FDFParser {
     
     // 可选的 INHERITS
     let inherits: string | undefined;
+    let withChildren = false;
+    
     if (this.check(TokenType.INHERITS)) {
       this.advance();
+      
+      // 检查可选的 WITHCHILDREN
+      if (this.check(TokenType.WITHCHILDREN)) {
+        withChildren = true;
+        this.advance();
+      }
+      
       const inheritsToken = this.expect(TokenType.STRING);
       inherits = inheritsToken.value;
     }
