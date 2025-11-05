@@ -28,6 +28,17 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
   const [filterVisible, setFilterVisible] = useState<boolean | null>(null);
   const [filterLocked, setFilterLocked] = useState<boolean | null>(null);
   
+  // 高级搜索状态
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    textColor: '',
+    minWidth: '',
+    maxWidth: '',
+    minHeight: '',
+    maxHeight: '',
+    texture: '',
+  });
+  
   // 管理重命名状态
   const [renamingNodeId, setRenamingNodeId] = useState<string | null>(null);
   const [newName, setNewName] = useState<string>('');
@@ -54,7 +65,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
 
   // 当搜索查询变化时，更新高亮的控件列表
   React.useEffect(() => {
-    if (!searchQuery) {
+    if (!searchQuery && !hasActiveAdvancedFilters()) {
       clearHighlightedFrames();
       return;
     }
@@ -67,7 +78,57 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
       const frame = project.frames[frameId];
       if (!frame) return;
 
-      if (frame.name.toLowerCase().includes(searchLower)) {
+      let matches = true;
+
+      // 基础名称搜索
+      if (searchQuery && !frame.name.toLowerCase().includes(searchLower)) {
+        matches = false;
+      }
+
+      // 高级筛选
+      if (matches && advancedFilters.textColor) {
+        if (!frame.textColor || !frame.textColor.toLowerCase().includes(advancedFilters.textColor.toLowerCase())) {
+          matches = false;
+        }
+      }
+
+      if (matches && advancedFilters.texture) {
+        const textureLower = advancedFilters.texture.toLowerCase();
+        if ((!frame.diskTexture || !frame.diskTexture.toLowerCase().includes(textureLower)) &&
+            (!frame.wc3Texture || !frame.wc3Texture.toLowerCase().includes(textureLower))) {
+          matches = false;
+        }
+      }
+
+      if (matches && advancedFilters.minWidth) {
+        const minW = parseFloat(advancedFilters.minWidth);
+        if (!isNaN(minW) && frame.width < minW) {
+          matches = false;
+        }
+      }
+
+      if (matches && advancedFilters.maxWidth) {
+        const maxW = parseFloat(advancedFilters.maxWidth);
+        if (!isNaN(maxW) && frame.width > maxW) {
+          matches = false;
+        }
+      }
+
+      if (matches && advancedFilters.minHeight) {
+        const minH = parseFloat(advancedFilters.minHeight);
+        if (!isNaN(minH) && frame.height < minH) {
+          matches = false;
+        }
+      }
+
+      if (matches && advancedFilters.maxHeight) {
+        const maxH = parseFloat(advancedFilters.maxHeight);
+        if (!isNaN(maxH) && frame.height > maxH) {
+          matches = false;
+        }
+      }
+
+      if (matches) {
         matchedIds.push(frameId);
       }
 
@@ -76,7 +137,17 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
 
     project.rootFrameIds.forEach(findMatches);
     setHighlightedFrames(matchedIds);
-  }, [searchQuery, project.frames, project.rootFrameIds, setHighlightedFrames, clearHighlightedFrames]);
+  }, [searchQuery, advancedFilters, project.frames, project.rootFrameIds, setHighlightedFrames, clearHighlightedFrames]);
+
+  // 检查是否有激活的高级筛选
+  const hasActiveAdvancedFilters = () => {
+    return advancedFilters.textColor !== '' ||
+           advancedFilters.minWidth !== '' ||
+           advancedFilters.maxWidth !== '' ||
+           advancedFilters.minHeight !== '' ||
+           advancedFilters.maxHeight !== '' ||
+           advancedFilters.texture !== '';
+  };
 
   // 切换展开/折叠
   const toggleExpand = (frameId: string, e: React.MouseEvent) => {
@@ -508,6 +579,95 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        
+        {/* 高级搜索切换按钮 */}
+        <button 
+          className={`tree-filter-btn advanced-search-btn ${showAdvancedSearch ? 'active' : ''}`}
+          onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+          title="高级搜索"
+        >
+          🔍+
+        </button>
+
+        {/* 高级搜索面板 */}
+        {showAdvancedSearch && (
+          <div className="advanced-search-panel">
+            <h4>高级搜索</h4>
+            
+            <div className="advanced-filter-group">
+              <label>文本颜色</label>
+              <input
+                type="text"
+                placeholder="#FFFFFF 或 FFFFFF"
+                value={advancedFilters.textColor}
+                onChange={(e) => setAdvancedFilters({...advancedFilters, textColor: e.target.value})}
+              />
+            </div>
+
+            <div className="advanced-filter-group">
+              <label>纹理路径</label>
+              <input
+                type="text"
+                placeholder="包含的路径..."
+                value={advancedFilters.texture}
+                onChange={(e) => setAdvancedFilters({...advancedFilters, texture: e.target.value})}
+              />
+            </div>
+
+            <div className="advanced-filter-group">
+              <label>宽度范围</label>
+              <div className="range-inputs">
+                <input
+                  type="number"
+                  placeholder="最小"
+                  value={advancedFilters.minWidth}
+                  onChange={(e) => setAdvancedFilters({...advancedFilters, minWidth: e.target.value})}
+                />
+                <span>-</span>
+                <input
+                  type="number"
+                  placeholder="最大"
+                  value={advancedFilters.maxWidth}
+                  onChange={(e) => setAdvancedFilters({...advancedFilters, maxWidth: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="advanced-filter-group">
+              <label>高度范围</label>
+              <div className="range-inputs">
+                <input
+                  type="number"
+                  placeholder="最小"
+                  value={advancedFilters.minHeight}
+                  onChange={(e) => setAdvancedFilters({...advancedFilters, minHeight: e.target.value})}
+                />
+                <span>-</span>
+                <input
+                  type="number"
+                  placeholder="最大"
+                  value={advancedFilters.maxHeight}
+                  onChange={(e) => setAdvancedFilters({...advancedFilters, maxHeight: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <button 
+              className="clear-filters-btn"
+              onClick={() => setAdvancedFilters({
+                textColor: '',
+                minWidth: '',
+                maxWidth: '',
+                minHeight: '',
+                maxHeight: '',
+                texture: '',
+              })}
+            >
+              清除所有筛选
+            </button>
+          </div>
+        )}
+        
         <div className="tree-filters">
           <select value={filterType} onChange={(e) => setFilterType(e.target.value as FrameType | 'all')} className="tree-filter-select">
             <option value="all">全部类型</option>
