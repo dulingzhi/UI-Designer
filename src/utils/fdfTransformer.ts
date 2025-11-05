@@ -151,6 +151,9 @@ export class FDFTransformer {
     // 应用属性
     this.applyProperties(frame, node.properties);
     
+    // 如果没有明确的宽高，尝试从锚点计算
+    this.calculateSizeFromAnchors(frame);
+    
     return frame;
   }
   
@@ -338,6 +341,61 @@ export class FDFTransformer {
     };
     
     return FramePoint[point] ?? 0;
+  }
+  
+  /**
+   * 根据锚点计算 Frame 尺寸
+   * 当 Frame 有对角锚点（如 TOPLEFT + BOTTOMRIGHT）时，可以计算出尺寸
+   */
+  private calculateSizeFromAnchors(frame: FrameData): void {
+    if (!frame.anchors || frame.anchors.length < 2) {
+      return;
+    }
+    
+    // 查找对角锚点组合
+    const hasTopLeft = frame.anchors.some(a => a.point === 0); // TOPLEFT
+    const hasTopRight = frame.anchors.some(a => a.point === 2); // TOPRIGHT
+    const hasBottomLeft = frame.anchors.some(a => a.point === 6); // BOTTOMLEFT
+    const hasBottomRight = frame.anchors.some(a => a.point === 8); // BOTTOMRIGHT
+    
+    // TOPLEFT + BOTTOMRIGHT 或 TOPRIGHT + BOTTOMLEFT
+    if ((hasTopLeft && hasBottomRight) || (hasTopRight && hasBottomLeft)) {
+      const topLeft = frame.anchors.find(a => a.point === 0);
+      const bottomRight = frame.anchors.find(a => a.point === 8);
+      const topRight = frame.anchors.find(a => a.point === 2);
+      const bottomLeft = frame.anchors.find(a => a.point === 6);
+      
+      if (topLeft && bottomRight) {
+        // 计算宽高（如果锚点是相对于同一个父元素）
+        if (topLeft.relativeTo === bottomRight.relativeTo) {
+          frame.width = Math.abs(bottomRight.x - topLeft.x);
+          frame.height = Math.abs(bottomRight.y - topLeft.y);
+        }
+      } else if (topRight && bottomLeft) {
+        if (topRight.relativeTo === bottomLeft.relativeTo) {
+          frame.width = Math.abs(bottomLeft.x - topRight.x);
+          frame.height = Math.abs(bottomLeft.y - topRight.y);
+        }
+      }
+    }
+    
+    // TOPLEFT + TOPRIGHT（可以计算宽度）
+    if (hasTopLeft && hasTopRight) {
+      const topLeft = frame.anchors.find(a => a.point === 0);
+      const topRight = frame.anchors.find(a => a.point === 2);
+      if (topLeft && topRight && topLeft.relativeTo === topRight.relativeTo) {
+        frame.width = Math.abs(topRight.x - topLeft.x);
+      }
+    }
+    
+    // TOPLEFT + BOTTOMLEFT（可以计算高度）
+    if (hasTopLeft && hasBottomLeft) {
+      const topLeft = frame.anchors.find(a => a.point === 0);
+      const bottomLeft = frame.anchors.find(a => a.point === 6);
+      if (topLeft && bottomLeft && topLeft.relativeTo === bottomLeft.relativeTo) {
+        frame.height = Math.abs(bottomLeft.y - topLeft.y);
+      }
+    }
   }
   
   /**

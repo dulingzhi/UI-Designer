@@ -329,23 +329,55 @@ export class FDFParser {
     const values: FDFPropertyValue[] = [];
     
     // 读取第一个值
-    if (!this.check(TokenType.RIGHT_BRACE) && 
-        !this.check(TokenType.IDENTIFIER) && 
-        !this.check(TokenType.FRAME)) {
+    // 特殊处理：如果当前是 IDENTIFIER，需要判断是值还是下一个属性名
+    if (this.check(TokenType.IDENTIFIER)) {
+      const nextToken = this.peek();
+      // 如果后面是逗号或其他值类型 token，当前 IDENTIFIER 是值
+      if (nextToken.type === TokenType.COMMA || 
+          nextToken.type === TokenType.STRING ||
+          nextToken.type === TokenType.NUMBER) {
+        values.push(this.parsePropertyValue());
+      }
+      // 否则，这个 IDENTIFIER 可能是下一个属性名，不读取
+    } else if (!this.check(TokenType.RIGHT_BRACE) && 
+               !this.check(TokenType.FRAME)) {
       values.push(this.parsePropertyValue());
+    }
+    
+    // 读取后续值（用逗号分隔）
+    while (this.check(TokenType.COMMA)) {
+      this.advance(); // 跳过逗号
       
-      // 读取后续值（用逗号分隔）
-      while (this.check(TokenType.COMMA)) {
-        this.advance(); // 跳过逗号
-        // 检查下一个 token 是否是值（排除 RIGHT_BRACE, IDENTIFIER, FRAME）
-        if (!this.check(TokenType.RIGHT_BRACE) && 
-            !this.check(TokenType.IDENTIFIER) && 
-            !this.check(TokenType.FRAME)) {
-          values.push(this.parsePropertyValue());
-        } else {
-          // 如果后面是 FRAME，退出循环，让 parseProperties 处理
+      // 跳过逗号后的换行符和注释
+      this.skipCommentsAndNewlines();
+      
+      // 检查逗号后面是什么（已跳过换行符）
+      if (this.check(TokenType.RIGHT_BRACE) || 
+          this.check(TokenType.FRAME)) {
+        // 逗号后是右大括号或 FRAME，说明这是行尾逗号
+        break;
+      } else if (this.check(TokenType.IDENTIFIER)) {
+        const identifierValue = this.currentToken().value;
+        // 检查是否是已知的属性名（首字母大写的常见属性）
+        const commonProperties = [
+          'Width', 'Height', 'SetPoint', 'SetAllPoints', 'Text', 'Anchor',
+          'FontColor', 'FontJustificationH', 'FontJustificationV',
+          'Frame', 'BackdropBackground', 'File', 'HighlightColor'
+        ];
+        
+        if (commonProperties.includes(identifierValue)) {
+          // 这是新属性名，停止读取
           break;
         }
+        
+        // 否则，当作值处理
+        values.push(this.parsePropertyValue());
+      } else if (this.check(TokenType.STRING) || this.check(TokenType.NUMBER)) {
+        // 逗号后是 STRING/NUMBER，继续读取
+        values.push(this.parsePropertyValue());
+      } else {
+        // 其他情况，停止读取
+        break;
       }
     }
     
