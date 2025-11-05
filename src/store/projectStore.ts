@@ -81,6 +81,7 @@ const createDefaultProject = (): ProjectData => ({
   libraryName: 'REFORGEDUIMAKER',
   originMode: 'gameui',
   exportVersion: 'reforged', // 默认重制版
+  backgroundImage: '/backgrounds/wc3-with-ui.png', // 默认显示带UI的背景
   hideGameUI: false,
   hideHeroBar: false,
   hideMiniMap: false,
