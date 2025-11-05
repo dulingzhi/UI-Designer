@@ -11,6 +11,7 @@ import { FDFTransformer } from '../utils/fdfTransformer';
 import { FDFExporter } from '../utils/fdfExporter';
 import { importFromFDFText } from '../utils/fdfImport';
 import { readTextFile, readDir } from '@tauri-apps/plugin-fs';
+import { resolveResource } from '@tauri-apps/api/path';
 
 // ==================== 基础测试 ====================
 
@@ -204,7 +205,8 @@ export async function runWC3Tests() {
 
   try {
     // 递归扫描所有 FDF 文件
-    const basePath = 'target/vendor/UI/FrameDef';
+    // 使用项目根目录的相对路径
+    const basePath = await resolveResource('target/vendor/UI/FrameDef');
     console.log(`正在扫描 ${basePath}...`);
     const fdfFiles = await scanFDFFiles(basePath);
     
@@ -260,7 +262,7 @@ export async function analyzeWC3FDF() {
   console.log('📊 分析 WC3 原生 FDF 文件...\n');
 
   try {
-    const basePath = 'target/vendor/UI/FrameDef';
+    const basePath = await resolveResource('target/vendor/UI/FrameDef');
     console.log(`正在扫描 ${basePath}...`);
     const fdfFiles = await scanFDFFiles(basePath);
 

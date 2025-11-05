@@ -17,7 +17,8 @@
         { "path": "$DESKTOP/**" },
         { "path": "$DOCUMENT/**" },
         { "path": "$DOWNLOAD/**" },
-        { "path": "$HOME/**" }
+        { "path": "$HOME/**" },
+        { "path": "$RESOURCE/../target/**" }
       ]
     },
     {
@@ -35,7 +36,8 @@
         { "path": "$DESKTOP/**" },
         { "path": "$DOCUMENT/**" },
         { "path": "$DOWNLOAD/**" },
-        { "path": "$HOME/**" }
+        { "path": "$HOME/**" },
+        { "path": "$RESOURCE/../target/**" }
       ]
     },
     {
@@ -53,7 +55,18 @@
         { "path": "$DESKTOP/**" },
         { "path": "$DOCUMENT/**" },
         { "path": "$DOWNLOAD/**" },
-        { "path": "$HOME/**" }
+        { "path": "$HOME/**" },
+        { "path": "$RESOURCE/../target/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$HOME/**" },
+        { "path": "$RESOURCE/../target/**" }
       ]
     }
   ]
