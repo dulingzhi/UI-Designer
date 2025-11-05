@@ -690,6 +690,48 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       },
       { separator: true },
       {
+        label: '开发者工具',
+        submenu: [
+          {
+            label: '运行 FDF 解析器测试',
+            action: async () => {
+              try {
+                const { runAllTests } = await import('../utils/fdfTestRunner');
+                console.log('开始运行 FDF 解析器测试...');
+                const results = await runAllTests();
+                console.log('测试完成！', results);
+                alert(`测试完成！\n基础测试: ${results.basic.passed}/${results.basic.passed + results.basic.failed}\nWC3 文件: ${results.wc3.successCount}/${results.wc3.total}\n详情请查看控制台`);
+              } catch (error) {
+                console.error('测试失败:', error);
+                alert('测试失败，请查看控制台');
+              }
+            }
+          },
+          {
+            label: '基础功能测试',
+            action: async () => {
+              const { runBasicTests } = await import('../utils/fdfTestRunner');
+              await runBasicTests();
+            }
+          },
+          {
+            label: 'WC3 文件测试',
+            action: async () => {
+              const { runWC3Tests } = await import('../utils/fdfTestRunner');
+              await runWC3Tests();
+            }
+          },
+          {
+            label: '统计分析',
+            action: async () => {
+              const { analyzeWC3FDF } = await import('../utils/fdfTestRunner');
+              await analyzeWC3FDF();
+            }
+          },
+        ]
+      },
+      { separator: true },
+      {
         label: '检查更新',
         action: () => console.log('Check updates')
       },

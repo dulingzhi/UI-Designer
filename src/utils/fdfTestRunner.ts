@@ -170,16 +170,43 @@ export async function runBasicTests() {
   return { passed, failed };
 }
 
+// ==================== 辅助函数 ====================
+
+// 递归扫描目录获取所有 FDF 文件
+async function scanFDFFiles(dirPath: string): Promise<string[]> {
+  const files: string[] = [];
+  
+  try {
+    const entries = await readDir(dirPath);
+    
+    for (const entry of entries) {
+      const fullPath = `${dirPath}/${entry.name}`;
+      
+      if (entry.isDirectory) {
+        // 递归扫描子目录
+        const subFiles = await scanFDFFiles(fullPath);
+        files.push(...subFiles);
+      } else if (entry.isFile && entry.name.endsWith('.fdf')) {
+        files.push(fullPath);
+      }
+    }
+  } catch (error) {
+    console.warn(`扫描目录失败: ${dirPath}`, error);
+  }
+  
+  return files;
+}
+
 // ==================== WC3 原生文件测试 ====================
 
 export async function runWC3Tests() {
   console.log('🧪 开始 WC3 原生 FDF 文件测试...\n');
 
   try {
-    // 扫描 FDF 文件
+    // 递归扫描所有 FDF 文件
     const basePath = 'target/vendor/UI/FrameDef';
-    const entries = await readDir(basePath);
-    const fdfFiles = entries.filter(e => e.isFile && e.name.endsWith('.fdf'));
+    console.log(`正在扫描 ${basePath}...`);
+    const fdfFiles = await scanFDFFiles(basePath);
     
     console.log(`找到 ${fdfFiles.length} 个 FDF 文件\n`);
 
@@ -188,25 +215,25 @@ export async function runWC3Tests() {
     const errors: { file: string; error: string }[] = [];
 
     // 解析每个文件
-    for (const entry of fdfFiles) {
-      const filePath = `${basePath}/${entry.name}`;
+    for (const filePath of fdfFiles) {
+      const fileName = filePath.split(/[\\/]/).pop() || filePath;
       try {
         const content = await readTextFile(filePath);
         const ast = parseFDFToAST(content);
         
         if (ast.type === 'Program' && ast.body.length > 0) {
           successCount++;
-          console.log(`✓ ${entry.name} (${ast.body.length} 个定义)`);
+          console.log(`✓ ${fileName} (${ast.body.length} 个定义)`);
         } else {
           throw new Error('解析结果为空');
         }
       } catch (error) {
         failCount++;
         errors.push({
-          file: entry.name,
+          file: fileName,
           error: error instanceof Error ? error.message : String(error)
         });
-        console.error(`✗ ${entry.name}:`, error);
+        console.error(`✗ ${fileName}:`, error);
       }
     }
 
@@ -234,16 +261,15 @@ export async function analyzeWC3FDF() {
 
   try {
     const basePath = 'target/vendor/UI/FrameDef';
-    const entries = await readDir(basePath);
-    const fdfFiles = entries.filter(e => e.isFile && e.name.endsWith('.fdf'));
+    console.log(`正在扫描 ${basePath}...`);
+    const fdfFiles = await scanFDFFiles(basePath);
 
     const frameTypes = new Map<string, number>();
     const templates = new Set<string>();
     const inheritanceMap = new Map<string, string>();
     let totalFrames = 0;
 
-    for (const entry of fdfFiles) {
-      const filePath = `${basePath}/${entry.name}`;
+    for (const filePath of fdfFiles) {
       try {
         const content = await readTextFile(filePath);
         const ast = parseFDFToAST(content);
