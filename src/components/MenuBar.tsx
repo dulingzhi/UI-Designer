@@ -30,6 +30,8 @@ interface MenuBarProps {
   setShowPropertiesPanel: (show: boolean) => void;
   showStylePresetPanel?: boolean;
   setShowStylePresetPanel?: (show: boolean) => void;
+  showFrameGroupPanel?: boolean;
+  setShowFrameGroupPanel?: (show: boolean) => void;
   onDeleteRequest?: (targets: string[]) => void;
 }
 
@@ -55,6 +57,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   setShowPropertiesPanel,
   showStylePresetPanel = false,
   setShowStylePresetPanel = () => {},
+  showFrameGroupPanel = false,
+  setShowFrameGroupPanel = () => {},
   onDeleteRequest
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -554,9 +558,9 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         action: () => setShowStylePresetPanel(!showStylePresetPanel)
       },
       {
-        label: '模板面板',
+        label: showFrameGroupPanel ? '✓ 分组管理' : '分组管理',
         shortcut: 'Ctrl+4',
-        action: () => console.log('Toggle templates')
+        action: () => setShowFrameGroupPanel(!showFrameGroupPanel)
       }
     ],
     tools: [

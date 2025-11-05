@@ -157,6 +157,16 @@ export interface StylePreset {
   };
 }
 
+// 控件组合类型
+export interface FrameGroup {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: number;
+  frameIds: string[]; // 组中包含的控件ID列表
+  locked?: boolean; // 是否锁定组（锁定后不能修改成员）
+}
+
 export interface ProjectData {
   libraryName: string;
   originMode: 'gameui' | 'worldframe' | 'consoleui';
@@ -176,6 +186,7 @@ export interface ProjectData {
   circleArrays: CircleArrayData[];
   guides?: GuideLine[]; // 参考线数组
   stylePresets?: StylePreset[]; // 样式预设库
+  frameGroups?: FrameGroup[]; // 控件组合列表
 }
 
 export interface FieldsAllowed {

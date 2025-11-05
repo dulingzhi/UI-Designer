@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProjectData, FrameData, TableArrayData, CircleArrayData, GuideLine, StylePreset } from '../types';
+import { ProjectData, FrameData, TableArrayData, CircleArrayData, GuideLine, StylePreset, FrameGroup } from '../types';
 import { createDefaultAnchors } from '../utils/anchorUtils';
 
 interface ProjectState {
@@ -66,6 +66,14 @@ interface ProjectState {
   removeStylePreset: (id: string) => void;
   applyStylePreset: (presetId: string, targetFrameIds: string[]) => void;
   saveFrameAsPreset: (frameId: string, name: string, category?: string) => void;
+  
+  // 控件组合操作
+  createGroup: (name: string, frameIds: string[]) => string; // 返回组ID
+  updateGroup: (id: string, updates: Partial<FrameGroup>) => void;
+  removeGroup: (id: string) => void;
+  addFramesToGroup: (groupId: string, frameIds: string[]) => void;
+  removeFramesFromGroup: (groupId: string, frameIds: string[]) => void;
+  selectGroup: (groupId: string) => void; // 选中组内所有控件
 }
 
 const createDefaultProject = (): ProjectData => ({
@@ -572,4 +580,70 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
     };
   }),
+
+  // 控件组合管理
+  createGroup: (name, frameIds) => {
+    const groupId = `group_${Date.now()}`;
+    const newGroup: FrameGroup = {
+      id: groupId,
+      name,
+      frameIds,
+      createdAt: Date.now(),
+    };
+
+    set((state) => ({
+      project: {
+        ...state.project,
+        frameGroups: [...(state.project.frameGroups || []), newGroup],
+      },
+    }));
+
+    return groupId;
+  },
+
+  updateGroup: (id, updates) => set((state) => ({
+    project: {
+      ...state.project,
+      frameGroups: (state.project.frameGroups || []).map(group =>
+        group.id === id ? { ...group, ...updates } : group
+      ),
+    },
+  })),
+
+  removeGroup: (id) => set((state) => ({
+    project: {
+      ...state.project,
+      frameGroups: (state.project.frameGroups || []).filter(group => group.id !== id),
+    },
+  })),
+
+  addFramesToGroup: (groupId, frameIds) => set((state) => ({
+    project: {
+      ...state.project,
+      frameGroups: (state.project.frameGroups || []).map(group =>
+        group.id === groupId
+          ? { ...group, frameIds: [...new Set([...group.frameIds, ...frameIds])] }
+          : group
+      ),
+    },
+  })),
+
+  removeFramesFromGroup: (groupId, frameIds) => set((state) => ({
+    project: {
+      ...state.project,
+      frameGroups: (state.project.frameGroups || []).map(group =>
+        group.id === groupId
+          ? { ...group, frameIds: group.frameIds.filter(id => !frameIds.includes(id)) }
+          : group
+      ),
+    },
+  })),
+
+  selectGroup: (groupId) => {
+    const state = get();
+    const group = (state.project.frameGroups || []).find(g => g.id === groupId);
+    if (group) {
+      set({ selectedFrameIds: [...group.frameIds] });
+    }
+  },
 }));

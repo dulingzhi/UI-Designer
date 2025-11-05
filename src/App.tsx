@@ -5,6 +5,7 @@ import { MenuBar } from './components/MenuBar';
 import { ProjectTree } from './components/ProjectTree';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { StylePresetPanel } from './components/StylePresetPanel';
+import { FrameGroupPanel } from './components/FrameGroupPanel';
 import { SidePanel } from './components/SidePanel';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -17,6 +18,7 @@ function App() {
   const [showProjectTree, setShowProjectTree] = React.useState(true);
   const [showPropertiesPanel, setShowPropertiesPanel] = React.useState(true);
   const [showStylePresetPanel, setShowStylePresetPanel] = React.useState(false);
+  const [showFrameGroupPanel, setShowFrameGroupPanel] = React.useState(false);
   const [deleteConfirm, setDeleteConfirm] = React.useState<{ targets: string[] } | null>(null);
   const executeCommand = useCommandStore(state => state.executeCommand);
   
@@ -78,6 +80,8 @@ function App() {
         setShowPropertiesPanel={setShowPropertiesPanel}
         showStylePresetPanel={showStylePresetPanel}
         setShowStylePresetPanel={setShowStylePresetPanel}
+        showFrameGroupPanel={showFrameGroupPanel}
+        setShowFrameGroupPanel={setShowFrameGroupPanel}
         onDeleteRequest={handleDeleteRequest}
       />
       <Toolbar currentFilePath={currentFilePath} setCurrentFilePath={setCurrentFilePath} />
@@ -86,6 +90,7 @@ function App() {
         <Canvas ref={canvasRef as any} />
         {showPropertiesPanel && <PropertiesPanel onClose={() => setShowPropertiesPanel(false)} />}
         {showStylePresetPanel && <StylePresetPanel onClose={() => setShowStylePresetPanel(false)} />}
+        {showFrameGroupPanel && <FrameGroupPanel onClose={() => setShowFrameGroupPanel(false)} />}
         <SidePanel />
       </div>
 
