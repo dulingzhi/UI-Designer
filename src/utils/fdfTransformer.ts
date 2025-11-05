@@ -93,6 +93,14 @@ export class FDFTransformer {
       wc3Texture: '',
     };
     
+    // 保存 FDF 元数据（如 inherits）
+    if (node.inherits) {
+      frame.fdfMetadata = {
+        ...frame.fdfMetadata,
+        inherits: node.inherits,
+      };
+    }
+    
     // 如果有继承，先应用模板属性
     if (node.inherits && this.options.resolveInheritance) {
       const template = this.templateRegistry.get(node.inherits);

@@ -65,8 +65,13 @@ export class FDFExporter {
     const frameType = this.mapFrameType(frame.type);
     const frameName = frame.name || `Frame_${frame.id}`;
     
-    // Frame 定义
-    fdf += this.getIndent() + `Frame "${frameType}" "${frameName}" {\n`;
+    // Frame 定义（带可选的 INHERITS）
+    const inherits = frame.fdfMetadata?.inherits;
+    if (inherits) {
+      fdf += this.getIndent() + `Frame "${frameType}" "${frameName}" INHERITS "${inherits}" {\n`;
+    } else {
+      fdf += this.getIndent() + `Frame "${frameType}" "${frameName}" {\n`;
+    }
     this.indentLevel++;
     
     // 尺寸

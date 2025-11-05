@@ -199,26 +199,36 @@ async function runBasicTests() {
     failed++;
   }
 
-  // 测试 9: 往返测试 - 带继承的 Frame（跳过，导出器暂不支持 INHERITS）
+  // 测试 9: 往返测试 - 带继承的 Frame
   try {
     const originalFdf = `Frame "BUTTON" "BaseButton" {
   Width 0.1,
   Height 0.05,
 }
 Frame "BUTTON" "MyButton" INHERITS "BaseButton" {
-  ControlBackdrop "ButtonBackdrop",
+  Width 0.15,
 }`;
     
+    // 解析 → 转换
     const ast1 = parseFDFToAST(originalFdf);
-    const frames1 = ast1.body.filter((item: any) => item.type === 'FrameDefinition');
+    const transformer = new FDFTransformer();
+    const frames1 = transformer.transform(ast1);
     
-    // 验证解析器能正确解析继承
-    const myButton = frames1.find((f: any) => f.name === 'MyButton');
+    // 导出
+    const exporter = new FDFExporter();
+    const exportedFdf = exporter.export(frames1);
+    
+    // 再解析
+    const ast2 = parseFDFToAST(exportedFdf);
+    const frames2 = ast2.body.filter((item: any) => item.type === 'FrameDefinition');
+    
+    // 检查继承信息是否保留
+    const myButton = frames2.find((f: any) => f.name === 'MyButton');
     if (myButton && (myButton as any).inherits === 'BaseButton') {
-      console.log('✓ 测试 9: 解析器支持 INHERITS（导出器待实现）');
+      console.log('✓ 测试 9: 往返测试 - 带继承的 Frame');
       passed++;
     } else {
-      throw new Error('解析器无法识别 INHERITS');
+      throw new Error('继承信息丢失');
     }
   } catch (error) {
     console.error('✗ 测试 9 失败:', error);
