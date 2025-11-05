@@ -1,13 +1,15 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
-import { UpdateFrameCommand } from '../commands/FrameCommands';
+import { UpdateFrameCommand, RemoveFrameCommand, CopyFrameCommand, PasteFrameCommand } from '../commands/FrameCommands';
+import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
 import { FrameType, FramePoint } from '../types';
 import { ResizeHandles, ResizeDirection } from './ResizeHandles';
 import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
 import { AnchorVisualizer } from './AnchorVisualizer';
 import { Ruler } from './Ruler';
 import { GuideLine } from './GuideLine';
+import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import './Canvas.css';
 
 const CANVAS_WIDTH = 1920;
@@ -26,6 +28,7 @@ export interface CanvasHandle {
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const { project, selectedFrameId, selectFrame, toggleSelectFrame, setProject, addGuide, updateGuide, removeGuide, highlightedFrameIds } = useProjectStore();
+  const { executeCommand } = useCommandStore();
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
@@ -62,6 +65,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   
   // 鼠标坐标跟踪（用于调试面板）
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
+  
+  // 右键菜单状态
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; frameId: string | null } | null>(null);
   
   // 网格吸附状态
   const [snapToGrid, setSnapToGrid] = React.useState(true);
@@ -519,6 +525,98 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     setResizeStartAnchors(null);
   };
 
+  // 右键菜单处理
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // 检查是否点击在某个Frame上
+    const target = e.target as HTMLElement;
+    const frameElement = target.closest('.canvas-frame');
+    const frameId = frameElement ? Object.keys(project.frames).find(id => {
+      const frame = project.frames[id];
+      if (!canvasRef.current) return false;
+      
+      const bounds = canvasRef.current.getBoundingClientRect();
+      const wc3X = (((e.clientX - bounds.left - offset.x) / scale) - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN) * 0.8;
+      const wc3Y = 0.6 - (((e.clientY - bounds.top - offset.y) / scale) - MARGIN) / (CANVAS_HEIGHT - 2 * MARGIN) * 0.6;
+      
+      return wc3X >= frame.x && wc3X <= frame.x + frame.width &&
+             wc3Y >= frame.y && wc3Y <= frame.y + frame.height;
+    }) : null;
+
+    // 如果点击在Frame上且该Frame未选中，则选中它
+    if (frameId && frameId !== selectedFrameId) {
+      selectFrame(frameId);
+    }
+
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      frameId: frameId || null
+    });
+  };
+
+  // 构建右键菜单项
+  const buildContextMenuItems = (frameId: string | null): ContextMenuItem[] => {
+    if (frameId) {
+      const frame = project.frames[frameId];
+      if (!frame) return [];
+
+      return [
+        {
+          label: '复制',
+          shortcut: 'Ctrl+C',
+          action: () => executeCommand(new CopyFrameCommand(frameId))
+        },
+        {
+          label: '粘贴',
+          shortcut: 'Ctrl+V',
+          action: () => executeCommand(new PasteFrameCommand(0.02, 0.02)),
+          disabled: !useProjectStore.getState().clipboard
+        },
+        {
+          label: '复制控件',
+          shortcut: 'Ctrl+D',
+          action: () => executeCommand(new DuplicateFrameCommand(frameId))
+        },
+        { separator: true },
+        {
+          label: frame.locked ? '解锁' : '锁定',
+          action: () => executeCommand(new UpdateFrameCommand(frameId, { locked: !frame.locked }))
+        },
+        { separator: true },
+        {
+          label: '删除',
+          shortcut: 'Del',
+          action: () => executeCommand(new RemoveFrameCommand(frameId))
+        }
+      ];
+    } else {
+      // 画布右键菜单
+      return [
+        {
+          label: '粘贴',
+          shortcut: 'Ctrl+V',
+          action: () => executeCommand(new PasteFrameCommand(0.02, 0.02)),
+          disabled: !useProjectStore.getState().clipboard
+        },
+        { separator: true },
+        {
+          label: '显示网格',
+          action: () => setShowGrid(!showGrid)
+        },
+        {
+          label: '显示锚点',
+          action: () => setShowAnchors(!showAnchors)
+        },
+        {
+          label: '网格吸附',
+          action: () => setSnapToGrid(!snapToGrid)
+        }
+      ];
+    }
+  };
+
   // Frame 的鼠标按下事件
   const handleFrameMouseDown = (e: React.MouseEvent, frameId: string) => {
     if (!e.altKey && e.button === 0) { // 左键且不按Alt键
@@ -754,6 +852,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onContextMenu={handleContextMenu}
       style={{
         paddingLeft: showRulers ? '30px' : '0',
         paddingTop: showRulers ? '30px' : '0',
@@ -985,6 +1084,16 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           <option value={0.05}>0.05</option>
         </select>
       </div>
+
+      {/* 右键菜单 */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={buildContextMenuItems(contextMenu.frameId)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 });
