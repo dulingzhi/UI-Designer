@@ -21,6 +21,7 @@ export interface CanvasHandle {
   toggleAnchors: () => void;
   toggleRulers: () => void;
   getScale: () => number;
+  getMousePosition: () => { x: number; y: number; wc3X: number; wc3Y: number };
 }
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
@@ -58,6 +59,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   
   // 标尺显示状态
   const [showRulers, setShowRulers] = React.useState(true);
+  
+  // 鼠标坐标跟踪（用于调试面板）
+  const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
   
   // 网格吸附状态
   const [snapToGrid, setSnapToGrid] = React.useState(true);
@@ -121,6 +125,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     toggleAnchors: () => setShowAnchors(prev => !prev),
     toggleRulers: () => setShowRulers(prev => !prev),
     getScale: () => scale,
+    getMousePosition: () => mousePosition,
   }));
 
   // 处理缩放
@@ -155,6 +160,22 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // 更新鼠标坐标（用于调试面板）
+    const canvasBounds = canvasRef.current?.getBoundingClientRect();
+    if (canvasBounds) {
+      const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
+      const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
+      const mouseWc3X = ((mouseX - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
+      const mouseWc3Y = (mouseY / CANVAS_HEIGHT) * 0.6;
+      
+      setMousePosition({
+        x: e.clientX,
+        y: e.clientY,
+        wc3X: mouseWc3X,
+        wc3Y: mouseWc3Y
+      });
+    }
+
     if (isPanning) {
       setOffset({
         x: e.clientX - panStart.x,

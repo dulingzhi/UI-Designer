@@ -1,0 +1,95 @@
+.debug-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #cccccc;
+  min-width: 280px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+  user-select: text;
+}
+
+.debug-section {
+  margin-bottom: 8px;
+}
+
+.debug-section:last-child {
+  margin-bottom: 0;
+}
+
+.debug-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #007acc;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #2d2d30;
+}
+
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  gap: 12px;
+}
+
+.debug-label {
+  color: #858585;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.debug-value {
+  color: #d4d4d4;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+}
+
+.debug-value.wc3-coords {
+  color: #4ec9b0;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.debug-divider {
+  height: 1px;
+  background: #2d2d30;
+  margin: 8px 0;
+}
+
+/* 悬停效果 */
+.debug-panel:hover {
+  background: rgba(40, 40, 40, 0.98);
+  border-color: #007acc;
+}
+
+/* 高亮重要数值 */
+.debug-row:hover .debug-value {
+  color: #ffffff;
+}
+
+/* 响应式 - 小屏幕 */
+@media (max-width: 768px) {
+  .debug-panel {
+    bottom: 10px;
+    right: 10px;
+    min-width: 240px;
+    font-size: 10px;
+  }
+
+  .debug-title {
+    font-size: 11px;
+  }
+
+  .debug-label {
+    font-size: 10px;
+  }
+}

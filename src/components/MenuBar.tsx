@@ -32,6 +32,8 @@ interface MenuBarProps {
   setShowStylePresetPanel?: (show: boolean) => void;
   showFrameGroupPanel?: boolean;
   setShowFrameGroupPanel?: (show: boolean) => void;
+  showDebugPanel?: boolean;
+  setShowDebugPanel?: (show: boolean) => void;
   onDeleteRequest?: (targets: string[]) => void;
 }
 
@@ -59,6 +61,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   setShowStylePresetPanel = () => {},
   showFrameGroupPanel = false,
   setShowFrameGroupPanel = () => {},
+  showDebugPanel = false,
+  setShowDebugPanel = () => {},
   onDeleteRequest
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -581,6 +585,12 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         label: showFrameGroupPanel ? '✓ 分组管理' : '分组管理',
         shortcut: 'Ctrl+4',
         action: () => setShowFrameGroupPanel(!showFrameGroupPanel)
+      },
+      { separator: true },
+      {
+        label: showDebugPanel ? '✓ 调试面板' : '调试面板',
+        shortcut: 'Ctrl+Shift+D',
+        action: () => setShowDebugPanel(!showDebugPanel)
       }
     ],
     tools: [

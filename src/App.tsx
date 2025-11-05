@@ -8,8 +8,10 @@ import { StylePresetPanel } from './components/StylePresetPanel';
 import { FrameGroupPanel } from './components/FrameGroupPanel';
 import { SidePanel } from './components/SidePanel';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { DebugPanel } from './components/DebugPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCommandStore } from './store/commandStore';
+import { useProjectStore } from './store/projectStore';
 import { RemoveFrameCommand, BatchRemoveFrameCommand } from './commands/FrameCommands';
 import './App.css';
 
@@ -19,8 +21,10 @@ function App() {
   const [showPropertiesPanel, setShowPropertiesPanel] = React.useState(true);
   const [showStylePresetPanel, setShowStylePresetPanel] = React.useState(false);
   const [showFrameGroupPanel, setShowFrameGroupPanel] = React.useState(false);
+  const [showDebugPanel, setShowDebugPanel] = React.useState(false);
   const [deleteConfirm, setDeleteConfirm] = React.useState<{ targets: string[] } | null>(null);
   const executeCommand = useCommandStore(state => state.executeCommand);
+  const { project, selectedFrameId } = useProjectStore();
   
   const canvasRef = React.useRef<{ 
     setScale: (s: number | ((prev: number) => number)) => void; 
@@ -29,6 +33,7 @@ function App() {
     toggleAnchors: () => void;
     toggleRulers: () => void;
     getScale: () => number;
+    getMousePosition: () => { x: number; y: number; wc3X: number; wc3Y: number };
   } | null>(null);
 
   // 全局删除请求处理函数
@@ -54,6 +59,19 @@ function App() {
   // 取消删除
   const cancelDelete = React.useCallback(() => {
     setDeleteConfirm(null);
+  }, []);
+
+  // Debug 面板快捷键 (Ctrl+Shift+D)
+  React.useEffect(() => {
+    const handleDebugToggle = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setShowDebugPanel(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleDebugToggle);
+    return () => window.removeEventListener('keydown', handleDebugToggle);
   }, []);
 
   // 注册全局快捷键
@@ -82,6 +100,8 @@ function App() {
         setShowStylePresetPanel={setShowStylePresetPanel}
         showFrameGroupPanel={showFrameGroupPanel}
         setShowFrameGroupPanel={setShowFrameGroupPanel}
+        showDebugPanel={showDebugPanel}
+        setShowDebugPanel={setShowDebugPanel}
         onDeleteRequest={handleDeleteRequest}
       />
       <Toolbar currentFilePath={currentFilePath} setCurrentFilePath={setCurrentFilePath} />
@@ -106,6 +126,24 @@ function App() {
           onCancel={cancelDelete}
         />
       )}
+
+      {/* Debug 面板 */}
+      <DebugPanel
+        mouseX={canvasRef.current?.getMousePosition?.().x ?? 0}
+        mouseY={canvasRef.current?.getMousePosition?.().y ?? 0}
+        mouseWc3X={canvasRef.current?.getMousePosition?.().wc3X ?? 0}
+        mouseWc3Y={canvasRef.current?.getMousePosition?.().wc3Y ?? 0}
+        selectedFrame={
+          selectedFrameId && project.frames[selectedFrameId]
+            ? {
+                ...project.frames[selectedFrameId],
+                type: String(project.frames[selectedFrameId].type),
+              }
+            : null
+        }
+        scale={canvasRef.current?.getScale?.() ?? 1}
+        isVisible={showDebugPanel}
+      />
     </div>
   );
 }
