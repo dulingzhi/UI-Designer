@@ -105,6 +105,15 @@ export class FDFTransformer {
           childFrame.parentId = parentFrame.id;
           parentFrame.children.push(childFrame.id);
           
+          // 如果子 Frame 使用了 SetAllPoints，将 __PARENT__ 替换为父元素名称
+          if (childFrame.fdfMetadata?.setAllPoints) {
+            for (const anchor of childFrame.anchors) {
+              if (anchor.relativeTo === '__PARENT__') {
+                anchor.relativeTo = parentFrame.name;
+              }
+            }
+          }
+          
           // 添加到数组
           allFrames.push(childFrame);
           
@@ -228,12 +237,17 @@ export class FDFTransformer {
         
       case 'setallpoints':
         // SetAllPoints 表示填充整个父窗口
+        // 在嵌套 Frame 中，这意味着相对于父元素的 TOPLEFT 和 BOTTOMRIGHT
+        // 我们创建一个特殊标记，稍后会被处理
+        frame.fdfMetadata = {
+          ...frame.fdfMetadata,
+          setAllPoints: true,  // 标记这个 Frame 使用了 SetAllPoints
+        };
+        // 暂时创建相对于父元素的锚点（父元素名称稍后会被填充）
         frame.anchors = [
-          { point: 0, x: 0, y: 0 }, // TOPLEFT
-          { point: 8, x: this.options.baseWidth, y: this.options.baseHeight } // BOTTOMRIGHT
+          { point: 0, relativeTo: '__PARENT__', relativePoint: 0, x: 0, y: 0 }, // TOPLEFT
+          { point: 8, relativeTo: '__PARENT__', relativePoint: 8, x: 0, y: 0 }  // BOTTOMRIGHT
         ];
-        frame.width = this.options.baseWidth;
-        frame.height = this.options.baseHeight;
         break;
         
       // 文本相关

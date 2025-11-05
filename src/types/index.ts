@@ -52,6 +52,7 @@ export interface FDFMetadata {
   rawProperties?: Record<string, any>;  // 无法映射的原始 FDF 属性
   comment?: string;                     // FDF 注释
   originalFDF?: string;                 // 原始 FDF 文本（用于精确还原）
+  setAllPoints?: boolean;               // 是否使用了 SetAllPoints
 }
 
 // FDF 纹理数据
