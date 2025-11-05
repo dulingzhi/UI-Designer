@@ -119,15 +119,27 @@ export class FDFTransformer {
    * 转换 Frame 定义
    */
   private transformFrame(node: FDFFrameDefinition): FrameData {
+    // 根据 Frame 类型确定默认尺寸
+    const frameType = this.mapFrameType(node.frameType);
+    let defaultWidth = 100;
+    let defaultHeight = 100;
+    
+    // TEXT 类型的 Frame 通常较小
+    // FrameType.TEXT_FRAME = 13
+    if (frameType === 13) {
+      defaultWidth = 100;
+      defaultHeight = 12; // 约 0.02 单位，文本的常见高度
+    }
+    
     // 创建基础 Frame
     const frame: FrameData = {
       id: this.generateId(),
       name: node.name || `Frame_${Date.now()}`,
-      type: this.mapFrameType(node.frameType),
+      type: frameType,
       x: 0,
       y: 0,
-      width: 100,
-      height: 100,
+      width: defaultWidth,
+      height: defaultHeight,
       z: 0,
       parentId: null,
       children: [],
