@@ -16,7 +16,7 @@ import {
   FDFStringLiteral,
   FDFNumberLiteral,
 } from './fdfAst';
-import { FrameData } from '../types';
+import { FrameData, FrameAnchor } from '../types';
 
 /**
  * 转换器选项
@@ -72,6 +72,9 @@ export class FDFTransformer {
     
     // 后处理：将锚点的 relativeTo 从名称映射到 ID
     this.resolveRelativeFrames(frames);
+    
+    // 第二次尺寸计算：现在所有 Frame 都已创建，可以正确计算相对锚点的尺寸
+    this.recalculateSizesWithRelativeAnchors(frames);
     
     return frames;
   }
@@ -156,6 +159,23 @@ export class FDFTransformer {
     
     // 如果没有明确的宽高，尝试从锚点计算
     this.calculateSizeFromAnchors(frame);
+    
+    // 如果 Frame 没有锚点且使用默认尺寸（100x100），给它一个更合理的默认配置
+    // 这通常发生在容器 Frame 上，它们依赖子元素的相对定位
+    if (frame.anchors.length === 0 && frame.width === 100 && frame.height === 100) {
+      // 创建一个默认锚点：TOPLEFT 在画布中心上方，使用画布的 40% 宽度和高度
+      frame.width = this.options.baseWidth * 0.4;
+      frame.height = this.options.baseHeight * 0.4;
+      frame.x = this.options.baseWidth * 0.3; // 居中偏左
+      frame.y = this.options.baseHeight * 0.3; // 居中偏下
+      
+      // 添加默认锚点
+      frame.anchors = [{
+        point: 0, // TOPLEFT
+        x: frame.x,
+        y: frame.y + frame.height,
+      }];
+    }
     
     return frame;
   }
@@ -528,6 +548,138 @@ export class FDFTransformer {
           }
         }
       }
+    }
+  }
+  
+  /**
+   * 重新计算包含相对锚点的 Frame 的尺寸
+   * 在所有 Frame 创建完成后调用，确保相对引用的 Frame 已经有正确的尺寸
+   */
+  private recalculateSizesWithRelativeAnchors(frames: FrameData[]): void {
+    // 构建 ID 到 Frame 的映射
+    const idToFrame = new Map<string, FrameData>();
+    for (const frame of frames) {
+      idToFrame.set(frame.id, frame);
+    }
+    
+    // 重新计算每个 Frame 的尺寸
+    for (const frame of frames) {
+      if (frame.anchors && frame.anchors.length >= 2) {
+        // 查找对角锚点
+        const hasTopLeft = frame.anchors.some(a => a.point === 0); // TOPLEFT
+        const hasTopRight = frame.anchors.some(a => a.point === 2); // TOPRIGHT
+        const hasBottomLeft = frame.anchors.some(a => a.point === 6); // BOTTOMLEFT
+        const hasBottomRight = frame.anchors.some(a => a.point === 8); // BOTTOMRIGHT
+        
+        // 获取锚点
+        const topLeft = frame.anchors.find(a => a.point === 0);
+        const topRight = frame.anchors.find(a => a.point === 2);
+        const bottomLeft = frame.anchors.find(a => a.point === 6);
+        const bottomRight = frame.anchors.find(a => a.point === 8);
+        
+        // TOPLEFT + BOTTOMRIGHT（完整尺寸）
+        if (hasTopLeft && hasBottomRight && topLeft && bottomRight) {
+          const tlPos = this.calculateAbsoluteAnchorPosition(topLeft, idToFrame);
+          const brPos = this.calculateAbsoluteAnchorPosition(bottomRight, idToFrame);
+          if (tlPos && brPos) {
+            frame.width = Math.abs(brPos.x - tlPos.x);
+            frame.height = Math.abs(tlPos.y - brPos.y); // Y 轴向上
+            frame.x = Math.min(tlPos.x, brPos.x);
+            frame.y = Math.min(tlPos.y, brPos.y);
+          }
+        }
+        // TOPLEFT + TOPRIGHT（宽度）
+        else if (hasTopLeft && hasTopRight && topLeft && topRight) {
+          const tlPos = this.calculateAbsoluteAnchorPosition(topLeft, idToFrame);
+          const trPos = this.calculateAbsoluteAnchorPosition(topRight, idToFrame);
+          if (tlPos && trPos) {
+            frame.width = Math.abs(trPos.x - tlPos.x);
+            frame.x = Math.min(tlPos.x, trPos.x);
+            frame.y = Math.min(tlPos.y, trPos.y) - frame.height; // 左下角
+          }
+        }
+        // TOPLEFT + BOTTOMLEFT（高度）
+        else if (hasTopLeft && hasBottomLeft && topLeft && bottomLeft) {
+          const tlPos = this.calculateAbsoluteAnchorPosition(topLeft, idToFrame);
+          const blPos = this.calculateAbsoluteAnchorPosition(bottomLeft, idToFrame);
+          if (tlPos && blPos) {
+            frame.height = Math.abs(tlPos.y - blPos.y);
+            frame.x = Math.min(tlPos.x, blPos.x);
+            frame.y = Math.min(tlPos.y, blPos.y);
+          }
+        }
+        // TOPRIGHT + BOTTOMLEFT（完整尺寸，对角）
+        else if (hasTopRight && hasBottomLeft && topRight && bottomLeft) {
+          const trPos = this.calculateAbsoluteAnchorPosition(topRight, idToFrame);
+          const blPos = this.calculateAbsoluteAnchorPosition(bottomLeft, idToFrame);
+          if (trPos && blPos) {
+            frame.width = Math.abs(trPos.x - blPos.x);
+            frame.height = Math.abs(trPos.y - blPos.y);
+            frame.x = Math.min(trPos.x, blPos.x);
+            frame.y = Math.min(trPos.y, blPos.y);
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * 计算锚点的绝对位置
+   * 如果是相对锚点，递归计算相对 Frame 的位置
+   */
+  private calculateAbsoluteAnchorPosition(
+    anchor: FrameAnchor,
+    idToFrame: Map<string, FrameData>
+  ): { x: number; y: number } | null {
+    if (!anchor.relativeTo) {
+      // 绝对锚点
+      return { x: anchor.x, y: anchor.y };
+    }
+    
+    // 相对锚点
+    const relativeFrame = idToFrame.get(anchor.relativeTo);
+    if (!relativeFrame) {
+      return null;
+    }
+    
+    // 获取相对 Frame 上的锚点位置
+    const relativePoint = anchor.relativePoint !== undefined ? anchor.relativePoint : 0; // 默认 TOPLEFT
+    const relativePos = this.getFrameAnchorPosition(relativeFrame, relativePoint);
+    
+    // 加上偏移
+    return {
+      x: relativePos.x + anchor.x,
+      y: relativePos.y + anchor.y,
+    };
+  }
+  
+  /**
+   * 获取 Frame 上某个锚点的位置
+   */
+  private getFrameAnchorPosition(frame: FrameData, point: number): { x: number; y: number } {
+    const { x, y, width, height } = frame;
+    
+    switch (point) {
+      case 0: // TOPLEFT
+        return { x, y: y + height };
+      case 1: // TOP
+        return { x: x + width / 2, y: y + height };
+      case 2: // TOPRIGHT
+        return { x: x + width, y: y + height };
+      case 3: // LEFT
+        return { x, y: y + height / 2 };
+      case 4: // CENTER
+        return { x: x + width / 2, y: y + height / 2 };
+      case 5: // RIGHT
+        return { x: x + width, y: y + height / 2 };
+      case 6: // BOTTOMLEFT
+        return { x, y };
+      case 7: // BOTTOM
+        return { x: x + width / 2, y };
+      case 8: // BOTTOMRIGHT
+        return { x: x + width, y };
+      default:
+        return { x, y };
     }
   }
   
