@@ -81,16 +81,52 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               }
             }}>
               <option value="-1">- 选择类型 -</option>
-              <option value={FrameType.BACKDROP}>Backdrop</option>
-              <option value={FrameType.BUTTON}>Button</option>
-              <option value={FrameType.BROWSER_BUTTON}>Browser Button</option>
-              <option value={FrameType.SCRIPT_DIALOG_BUTTON}>Script Dialog Button</option>
-              <option value={FrameType.TEXT_FRAME}>Text Frame</option>
-              <option value={FrameType.CHECKBOX}>Checkbox</option>
-              <option value={FrameType.HORIZONTAL_BAR}>Horizontal Bar</option>
-              <option value={FrameType.TEXTAREA}>Text Area</option>
-              <option value={FrameType.EDITBOX}>Edit Box</option>
-              <option value={FrameType.SLIDER}>Slider</option>
+              <optgroup label="基础容器">
+                <option value={FrameType.ORIGIN}>Origin</option>
+                <option value={FrameType.FRAME}>Frame</option>
+                <option value={FrameType.BACKDROP}>Backdrop</option>
+                <option value={FrameType.SIMPLEFRAME}>SimpleFrame</option>
+              </optgroup>
+              <optgroup label="文本控件">
+                <option value={FrameType.TEXT_FRAME}>Text Frame</option>
+                <option value={FrameType.SIMPLEFONTSTRING}>SimpleFontString</option>
+                <option value={FrameType.TEXTAREA}>TextArea</option>
+              </optgroup>
+              <optgroup label="按钮控件">
+                <option value={FrameType.BUTTON}>Button</option>
+                <option value={FrameType.GLUETEXTBUTTON}>GlueTextButton</option>
+                <option value={FrameType.GLUEBUTTON}>GlueButton</option>
+                <option value={FrameType.SIMPLEBUTTON}>SimpleButton</option>
+                <option value={FrameType.SCRIPT_DIALOG_BUTTON}>ScriptDialogButton</option>
+                <option value={FrameType.BROWSER_BUTTON}>BrowserButton</option>
+                <option value={FrameType.INVIS_BUTTON}>InvisButton</option>
+              </optgroup>
+              <optgroup label="交互控件">
+                <option value={FrameType.CHECKBOX}>Checkbox</option>
+                <option value={FrameType.EDITBOX}>EditBox</option>
+                <option value={FrameType.SLIDER}>Slider</option>
+                <option value={FrameType.SCROLLBAR}>ScrollBar</option>
+                <option value={FrameType.LISTBOX}>ListBox</option>
+                <option value={FrameType.MENU}>Menu</option>
+                <option value={FrameType.POPUPMENU}>PopupMenu</option>
+              </optgroup>
+              <optgroup label="图形控件">
+                <option value={FrameType.SPRITE}>Sprite</option>
+                <option value={FrameType.MODEL}>Model</option>
+                <option value={FrameType.HIGHLIGHT}>Highlight</option>
+              </optgroup>
+              <optgroup label="状态栏">
+                <option value={FrameType.SIMPLESTATUSBAR}>SimpleStatusBar</option>
+                <option value={FrameType.STATUSBAR}>StatusBar</option>
+              </optgroup>
+              <optgroup label="其他控件">
+                <option value={FrameType.CONTROL}>Control</option>
+                <option value={FrameType.DIALOG}>Dialog</option>
+                <option value={FrameType.TIMERTEXT}>TimerText</option>
+              </optgroup>
+              <optgroup label="兼容(旧)">
+                <option value={FrameType.HORIZONTAL_BAR}>Horizontal Bar</option>
+              </optgroup>
             </select>
           </div>
 
@@ -270,16 +306,52 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             value={selectedFrame.type}
             onChange={(e) => handleChange('type', parseInt(e.target.value))}
           >
-            <option value={FrameType.BACKDROP}>Backdrop</option>
-            <option value={FrameType.BUTTON}>Button</option>
-            <option value={FrameType.BROWSER_BUTTON}>Browser Button</option>
-            <option value={FrameType.SCRIPT_DIALOG_BUTTON}>Script Dialog Button</option>
-            <option value={FrameType.TEXT_FRAME}>Text Frame</option>
-            <option value={FrameType.CHECKBOX}>Checkbox</option>
-            <option value={FrameType.HORIZONTAL_BAR}>Horizontal Bar</option>
-            <option value={FrameType.TEXTAREA}>Text Area</option>
-            <option value={FrameType.EDITBOX}>Edit Box</option>
-            <option value={FrameType.SLIDER}>Slider</option>
+            <optgroup label="基础容器">
+              <option value={FrameType.ORIGIN}>Origin</option>
+              <option value={FrameType.FRAME}>Frame</option>
+              <option value={FrameType.BACKDROP}>Backdrop</option>
+              <option value={FrameType.SIMPLEFRAME}>SimpleFrame</option>
+            </optgroup>
+            <optgroup label="文本控件">
+              <option value={FrameType.TEXT_FRAME}>Text Frame</option>
+              <option value={FrameType.SIMPLEFONTSTRING}>SimpleFontString</option>
+              <option value={FrameType.TEXTAREA}>TextArea</option>
+            </optgroup>
+            <optgroup label="按钮控件">
+              <option value={FrameType.BUTTON}>Button</option>
+              <option value={FrameType.GLUETEXTBUTTON}>GlueTextButton</option>
+              <option value={FrameType.GLUEBUTTON}>GlueButton</option>
+              <option value={FrameType.SIMPLEBUTTON}>SimpleButton</option>
+              <option value={FrameType.SCRIPT_DIALOG_BUTTON}>ScriptDialogButton</option>
+              <option value={FrameType.BROWSER_BUTTON}>BrowserButton</option>
+              <option value={FrameType.INVIS_BUTTON}>InvisButton</option>
+            </optgroup>
+            <optgroup label="交互控件">
+              <option value={FrameType.CHECKBOX}>Checkbox</option>
+              <option value={FrameType.EDITBOX}>EditBox</option>
+              <option value={FrameType.SLIDER}>Slider</option>
+              <option value={FrameType.SCROLLBAR}>ScrollBar</option>
+              <option value={FrameType.LISTBOX}>ListBox</option>
+              <option value={FrameType.MENU}>Menu</option>
+              <option value={FrameType.POPUPMENU}>PopupMenu</option>
+            </optgroup>
+            <optgroup label="图形控件">
+              <option value={FrameType.SPRITE}>Sprite</option>
+              <option value={FrameType.MODEL}>Model</option>
+              <option value={FrameType.HIGHLIGHT}>Highlight</option>
+            </optgroup>
+            <optgroup label="状态栏">
+              <option value={FrameType.SIMPLESTATUSBAR}>SimpleStatusBar</option>
+              <option value={FrameType.STATUSBAR}>StatusBar</option>
+            </optgroup>
+            <optgroup label="其他控件">
+              <option value={FrameType.CONTROL}>Control</option>
+              <option value={FrameType.DIALOG}>Dialog</option>
+              <option value={FrameType.TIMERTEXT}>TimerText</option>
+            </optgroup>
+            <optgroup label="兼容(旧)">
+              <option value={FrameType.HORIZONTAL_BAR}>Horizontal Bar</option>
+            </optgroup>
           </select>
         </div>
 
@@ -287,10 +359,52 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
           <label>
             <input
               type="checkbox"
-              checked={selectedFrame.tooltip}
+              checked={typeof selectedFrame.tooltip === 'boolean' ? selectedFrame.tooltip : false}
               onChange={(e) => handleChange('tooltip', e.target.checked)}
             />
             作为父级的Tooltip
+          </label>
+        </div>
+      </section>
+
+      {/* 显示控制 */}
+      <section>
+        <h4>显示控制</h4>
+        
+        <div className="form-group">
+          <label>透明度 (Alpha)</label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={selectedFrame.alpha ?? 1}
+            onChange={(e) => handleChange('alpha', parseFloat(e.target.value))}
+          />
+          <span style={{ marginLeft: '8px', fontSize: '12px' }}>
+            {((selectedFrame.alpha ?? 1) * 100).toFixed(0)}%
+          </span>
+        </div>
+
+        <div className="form-group checkbox">
+          <label>
+            <input
+              type="checkbox"
+              checked={selectedFrame.visible ?? true}
+              onChange={(e) => handleChange('visible', e.target.checked)}
+            />
+            可见
+          </label>
+        </div>
+
+        <div className="form-group checkbox">
+          <label>
+            <input
+              type="checkbox"
+              checked={selectedFrame.locked ?? false}
+              onChange={(e) => handleChange('locked', e.target.checked)}
+            />
+            锁定（不可编辑）
           </label>
         </div>
       </section>
@@ -687,6 +801,93 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               onChange={(e) => handleChange('wc3Texture', e.target.value)}
             />
           </div>
+          
+          <details style={{ marginBottom: '12px' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '8px' }}>
+              高级纹理设置
+            </summary>
+            
+            <div className="form-group">
+              <label>纹理文件 (textureFile)</label>
+              <input
+                type="text"
+                value={selectedFrame.textureFile || ''}
+                onChange={(e) => handleChange('textureFile', e.target.value)}
+                placeholder="纹理路径"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>纹理坐标 (UVs: minU, minV, maxU, maxV)</label>
+              <div className="form-row">
+                <input type="number" step="0.01" placeholder="minU"
+                  value={selectedFrame.texCoord?.[0] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
+                    arr[0] = val ? parseFloat(val) : 0;
+                    handleChange('texCoord', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" placeholder="minV"
+                  value={selectedFrame.texCoord?.[1] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
+                    arr[1] = val ? parseFloat(val) : 0;
+                    handleChange('texCoord', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" placeholder="maxU"
+                  value={selectedFrame.texCoord?.[2] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
+                    arr[2] = val ? parseFloat(val) : 1;
+                    handleChange('texCoord', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" placeholder="maxV"
+                  value={selectedFrame.texCoord?.[3] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
+                    arr[3] = val ? parseFloat(val) : 1;
+                    handleChange('texCoord', [...arr]);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Alpha模式</label>
+              <select
+                value={selectedFrame.alphaMode || ''}
+                onChange={(e) => handleChange('alphaMode', e.target.value || undefined)}
+              >
+                <option value="">默认</option>
+                <option value="BLEND">BLEND</option>
+                <option value="ALPHAKEY">ALPHAKEY</option>
+                <option value="ADD">ADD</option>
+                <option value="MOD">MOD</option>
+              </select>
+            </div>
+
+            <div className="form-group checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={selectedFrame.decorateFileNames ?? false}
+                  onChange={(e) => handleChange('decorateFileNames', e.target.checked)}
+                />
+                装饰文件名
+              </label>
+            </div>
+          </details>
         </section>
       )}
 
@@ -747,6 +948,214 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               </select>
             </div>
           </div>
+
+          <div className="form-group">
+            <label>字体</label>
+            <input
+              type="text"
+              value={selectedFrame.font || ''}
+              onChange={(e) => handleChange('font', e.target.value)}
+              placeholder="例如: Fonts\\FZKATJW.TTF"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>字体大小</label>
+            <input
+              type="number"
+              step="1"
+              value={selectedFrame.fontSize ?? ''}
+              onWheel={handleNumberInputWheel}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleChange('fontSize', val ? parseFloat(val) : undefined);
+              }}
+              placeholder="默认字体大小"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>字体标记</label>
+            <input
+              type="text"
+              value={selectedFrame.fontFlags?.join(', ') || ''}
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                handleChange('fontFlags', val ? val.split(/[,\s]+/).filter(Boolean) : undefined);
+              }}
+              placeholder="例如: BOLD, ITALIC (用逗号分隔)"
+            />
+          </div>
+
+          <details style={{ marginBottom: '12px' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '8px' }}>
+              高级文本颜色设置
+            </summary>
+            
+            <div className="form-group">
+              <label>高亮颜色 (RGB)</label>
+              <div className="form-row">
+                <input type="number" step="0.01" min="0" max="1" placeholder="R"
+                  value={selectedFrame.fontHighlightColor?.[0] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
+                    arr[0] = val ? parseFloat(val) : 1;
+                    handleChange('fontHighlightColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="G"
+                  value={selectedFrame.fontHighlightColor?.[1] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
+                    arr[1] = val ? parseFloat(val) : 1;
+                    handleChange('fontHighlightColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="B"
+                  value={selectedFrame.fontHighlightColor?.[2] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
+                    arr[2] = val ? parseFloat(val) : 1;
+                    handleChange('fontHighlightColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="A"
+                  value={selectedFrame.fontHighlightColor?.[3] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
+                    arr[3] = val ? parseFloat(val) : 1;
+                    handleChange('fontHighlightColor', [...arr]);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>禁用状态颜色 (RGB)</label>
+              <div className="form-row">
+                <input type="number" step="0.01" min="0" max="1" placeholder="R"
+                  value={selectedFrame.fontDisabledColor?.[0] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
+                    arr[0] = val ? parseFloat(val) : 0.5;
+                    handleChange('fontDisabledColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="G"
+                  value={selectedFrame.fontDisabledColor?.[1] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
+                    arr[1] = val ? parseFloat(val) : 0.5;
+                    handleChange('fontDisabledColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="B"
+                  value={selectedFrame.fontDisabledColor?.[2] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
+                    arr[2] = val ? parseFloat(val) : 0.5;
+                    handleChange('fontDisabledColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="A"
+                  value={selectedFrame.fontDisabledColor?.[3] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
+                    arr[3] = val ? parseFloat(val) : 1;
+                    handleChange('fontDisabledColor', [...arr]);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>阴影偏移 (X, Y)</label>
+              <div className="form-row">
+                <input type="number" step="0.001" placeholder="X"
+                  value={selectedFrame.fontShadowOffset?.[0] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontShadowOffset || [0, 0];
+                    arr[0] = val ? parseFloat(val) : 0;
+                    handleChange('fontShadowOffset', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.001" placeholder="Y"
+                  value={selectedFrame.fontShadowOffset?.[1] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontShadowOffset || [0, 0];
+                    arr[1] = val ? parseFloat(val) : 0;
+                    handleChange('fontShadowOffset', [...arr]);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>阴影颜色 (RGBA)</label>
+              <div className="form-row">
+                <input type="number" step="0.01" min="0" max="1" placeholder="R"
+                  value={selectedFrame.fontShadowColor?.[0] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
+                    arr[0] = val ? parseFloat(val) : 0;
+                    handleChange('fontShadowColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="G"
+                  value={selectedFrame.fontShadowColor?.[1] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
+                    arr[1] = val ? parseFloat(val) : 0;
+                    handleChange('fontShadowColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="B"
+                  value={selectedFrame.fontShadowColor?.[2] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
+                    arr[2] = val ? parseFloat(val) : 0;
+                    handleChange('fontShadowColor', [...arr]);
+                  }}
+                />
+                <input type="number" step="0.01" min="0" max="1" placeholder="A"
+                  value={selectedFrame.fontShadowColor?.[3] ?? ''}
+                  onWheel={handleNumberInputWheel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
+                    arr[3] = val ? parseFloat(val) : 1;
+                    handleChange('fontShadowColor', [...arr]);
+                  }}
+                />
+              </div>
+            </div>
+          </details>
         </section>
       )}
 
@@ -833,6 +1242,491 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               />
               默认选中
             </label>
+          </div>
+        </section>
+      )}
+
+      {/* BACKDROP 特定属性 */}
+      {selectedFrame.type === FrameType.BACKDROP && (
+        <section>
+          <h4>BACKDROP设置</h4>
+          
+          <div className="form-group">
+            <label>背景纹理</label>
+            <input
+              type="text"
+              value={selectedFrame.backdropBackground || ''}
+              onChange={(e) => handleChange('backdropBackground', e.target.value)}
+              placeholder="背景纹理路径"
+            />
+          </div>
+
+          <div className="form-group checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={selectedFrame.backdropTileBackground ?? false}
+                onChange={(e) => handleChange('backdropTileBackground', e.target.checked)}
+              />
+              平铺背景
+            </label>
+          </div>
+
+          <div className="form-group">
+            <label>背景尺寸</label>
+            <input
+              type="number"
+              step="0.001"
+              value={selectedFrame.backdropBackgroundSize ?? ''}
+              onWheel={handleNumberInputWheel}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleChange('backdropBackgroundSize', val ? parseFloat(val) : undefined);
+              }}
+              placeholder="背景尺寸"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>背景内边距 (上, 右, 下, 左)</label>
+            <div className="form-row">
+              <input type="number" step="0.001" placeholder="上"
+                value={selectedFrame.backdropBackgroundInsets?.[0] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
+                  arr[0] = val ? parseFloat(val) : 0;
+                  handleChange('backdropBackgroundInsets', [...arr]);
+                }}
+              />
+              <input type="number" step="0.001" placeholder="右"
+                value={selectedFrame.backdropBackgroundInsets?.[1] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
+                  arr[1] = val ? parseFloat(val) : 0;
+                  handleChange('backdropBackgroundInsets', [...arr]);
+                }}
+              />
+              <input type="number" step="0.001" placeholder="下"
+                value={selectedFrame.backdropBackgroundInsets?.[2] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
+                  arr[2] = val ? parseFloat(val) : 0;
+                  handleChange('backdropBackgroundInsets', [...arr]);
+                }}
+              />
+              <input type="number" step="0.001" placeholder="左"
+                value={selectedFrame.backdropBackgroundInsets?.[3] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
+                  arr[3] = val ? parseFloat(val) : 0;
+                  handleChange('backdropBackgroundInsets', [...arr]);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>边框纹理</label>
+            <input
+              type="text"
+              value={selectedFrame.backdropEdgeFile || ''}
+              onChange={(e) => handleChange('backdropEdgeFile', e.target.value)}
+              placeholder="边框纹理路径"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>边角尺寸</label>
+            <input
+              type="number"
+              step="0.001"
+              value={selectedFrame.backdropCornerSize ?? ''}
+              onWheel={handleNumberInputWheel}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleChange('backdropCornerSize', val ? parseFloat(val) : undefined);
+              }}
+              placeholder="边角尺寸"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>边角标志</label>
+            <input
+              type="text"
+              value={selectedFrame.backdropCornerFlags || ''}
+              onChange={(e) => handleChange('backdropCornerFlags', e.target.value)}
+              placeholder="例如: UL|UR|BL|BR"
+            />
+          </div>
+
+          <div className="form-group checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={selectedFrame.backdropBlendAll ?? false}
+                onChange={(e) => handleChange('backdropBlendAll', e.target.checked)}
+              />
+              全部混合
+            </label>
+          </div>
+        </section>
+      )}
+
+      {/* BUTTON 特定属性 */}
+      {(selectedFrame.type === FrameType.BUTTON || 
+        selectedFrame.type === FrameType.GLUETEXTBUTTON ||
+        selectedFrame.type === FrameType.GLUEBUTTON ||
+        selectedFrame.type === FrameType.SIMPLEBUTTON ||
+        selectedFrame.type === FrameType.SCRIPT_DIALOG_BUTTON ||
+        selectedFrame.type === FrameType.BROWSER_BUTTON) && (
+        <section>
+          <h4>按钮状态设置</h4>
+          
+          <div className="form-group">
+            <label>控件样式</label>
+            <input
+              type="text"
+              value={selectedFrame.controlStyle || ''}
+              onChange={(e) => handleChange('controlStyle', e.target.value)}
+              placeholder="AUTOCAST, AUTOTARGET等"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>正常状态背景</label>
+            <input
+              type="text"
+              value={selectedFrame.controlBackdrop || ''}
+              onChange={(e) => handleChange('controlBackdrop', e.target.value)}
+              placeholder="正常状态纹理"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>按下状态背景</label>
+            <input
+              type="text"
+              value={selectedFrame.controlPushedBackdrop || ''}
+              onChange={(e) => handleChange('controlPushedBackdrop', e.target.value)}
+              placeholder="按下状态纹理"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>禁用状态背景</label>
+            <input
+              type="text"
+              value={selectedFrame.controlDisabledBackdrop || ''}
+              onChange={(e) => handleChange('controlDisabledBackdrop', e.target.value)}
+              placeholder="禁用状态纹理"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>鼠标悬停高亮</label>
+            <input
+              type="text"
+              value={selectedFrame.controlMouseOverHighlight || ''}
+              onChange={(e) => handleChange('controlMouseOverHighlight', e.target.value)}
+              placeholder="悬停高亮名称"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>按下文本偏移 (X, Y)</label>
+            <div className="form-row">
+              <input type="number" step="0.001" placeholder="X"
+                value={selectedFrame.buttonPushedTextOffset?.[0] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.buttonPushedTextOffset || [0, 0];
+                  arr[0] = val ? parseFloat(val) : 0;
+                  handleChange('buttonPushedTextOffset', [...arr]);
+                }}
+              />
+              <input type="number" step="0.001" placeholder="Y"
+                value={selectedFrame.buttonPushedTextOffset?.[1] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.buttonPushedTextOffset || [0, 0];
+                  arr[1] = val ? parseFloat(val) : 0;
+                  handleChange('buttonPushedTextOffset', [...arr]);
+                }}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* EDITBOX 额外属性 */}
+      {selectedFrame.type === FrameType.EDITBOX && (
+        <section>
+          <h4>编辑框颜色设置</h4>
+          
+          <div className="form-group">
+            <label>编辑文本颜色 (RGBA)</label>
+            <div className="form-row">
+              <input type="number" step="0.01" min="0" max="1" placeholder="R"
+                value={selectedFrame.editTextColor?.[0] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editTextColor || [1, 1, 1, 1];
+                  arr[0] = val ? parseFloat(val) : 1;
+                  handleChange('editTextColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="G"
+                value={selectedFrame.editTextColor?.[1] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editTextColor || [1, 1, 1, 1];
+                  arr[1] = val ? parseFloat(val) : 1;
+                  handleChange('editTextColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="B"
+                value={selectedFrame.editTextColor?.[2] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editTextColor || [1, 1, 1, 1];
+                  arr[2] = val ? parseFloat(val) : 1;
+                  handleChange('editTextColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="A"
+                value={selectedFrame.editTextColor?.[3] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editTextColor || [1, 1, 1, 1];
+                  arr[3] = val ? parseFloat(val) : 1;
+                  handleChange('editTextColor', [...arr]);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>光标颜色 (RGBA)</label>
+            <div className="form-row">
+              <input type="number" step="0.01" min="0" max="1" placeholder="R"
+                value={selectedFrame.editCursorColor?.[0] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
+                  arr[0] = val ? parseFloat(val) : 1;
+                  handleChange('editCursorColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="G"
+                value={selectedFrame.editCursorColor?.[1] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
+                  arr[1] = val ? parseFloat(val) : 1;
+                  handleChange('editCursorColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="B"
+                value={selectedFrame.editCursorColor?.[2] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
+                  arr[2] = val ? parseFloat(val) : 1;
+                  handleChange('editCursorColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="A"
+                value={selectedFrame.editCursorColor?.[3] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
+                  arr[3] = val ? parseFloat(val) : 1;
+                  handleChange('editCursorColor', [...arr]);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>边框颜色 (RGBA)</label>
+            <div className="form-row">
+              <input type="number" step="0.01" min="0" max="1" placeholder="R"
+                value={selectedFrame.editBorderColor?.[0] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
+                  arr[0] = val ? parseFloat(val) : 0.5;
+                  handleChange('editBorderColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="G"
+                value={selectedFrame.editBorderColor?.[1] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
+                  arr[1] = val ? parseFloat(val) : 0.5;
+                  handleChange('editBorderColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="B"
+                value={selectedFrame.editBorderColor?.[2] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
+                  arr[2] = val ? parseFloat(val) : 0.5;
+                  handleChange('editBorderColor', [...arr]);
+                }}
+              />
+              <input type="number" step="0.01" min="0" max="1" placeholder="A"
+                value={selectedFrame.editBorderColor?.[3] ?? ''}
+                onWheel={handleNumberInputWheel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
+                  arr[3] = val ? parseFloat(val) : 1;
+                  handleChange('editBorderColor', [...arr]);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>最大字符数</label>
+            <input
+              type="number"
+              step="1"
+              value={selectedFrame.maxChars ?? ''}
+              onWheel={handleNumberInputWheel}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleChange('maxChars', val ? parseInt(val) : undefined);
+              }}
+              placeholder="最大字符数"
+            />
+          </div>
+        </section>
+      )}
+
+      {/* SLIDER 额外属性 */}
+      {selectedFrame.type === FrameType.SLIDER && (
+        <section>
+          <h4>滑块布局</h4>
+          
+          <div className="form-group">
+            <label>初始值</label>
+            <input
+              type="number"
+              step="0.01"
+              value={selectedFrame.sliderInitialValue ?? ''}
+              onWheel={handleNumberInputWheel}
+              onChange={(e) => {
+                const val = e.target.value;
+                handleChange('sliderInitialValue', val ? parseFloat(val) : undefined);
+              }}
+              placeholder="初始值"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>水平布局</label>
+            <input
+              type="text"
+              value={typeof selectedFrame.sliderLayoutHorizontal === 'string' ? selectedFrame.sliderLayoutHorizontal : ''}
+              onChange={(e) => handleChange('sliderLayoutHorizontal', e.target.value || undefined)}
+              placeholder="水平布局设置"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>垂直布局</label>
+            <input
+              type="text"
+              value={typeof selectedFrame.sliderLayoutVertical === 'string' ? selectedFrame.sliderLayoutVertical : ''}
+              onChange={(e) => handleChange('sliderLayoutVertical', e.target.value || undefined)}
+              placeholder="垂直布局设置"
+            />
+          </div>
+        </section>
+      )}
+
+      {/* LISTBOX 特定属性 */}
+      {selectedFrame.type === FrameType.LISTBOX && (
+        <section>
+          <h4>列表框设置</h4>
+          
+          <div className="form-group">
+            <label>列表项（每行一项）</label>
+            <textarea
+              value={selectedFrame.listBoxItems?.join('\n') || ''}
+              onChange={(e) => {
+                const items = e.target.value.split('\n').filter(line => line.trim());
+                handleChange('listBoxItems', items.length > 0 ? items : undefined);
+              }}
+              rows={5}
+              placeholder="项目1&#10;项目2&#10;项目3"
+            />
+          </div>
+        </section>
+      )}
+
+      {/* HIGHLIGHT 特定属性 */}
+      {selectedFrame.type === FrameType.HIGHLIGHT && (
+        <section>
+          <h4>高亮设置</h4>
+          
+          <div className="form-group">
+            <label>高亮类型</label>
+            <input
+              type="text"
+              value={selectedFrame.highlightType || ''}
+              onChange={(e) => handleChange('highlightType', e.target.value)}
+              placeholder="FILETEXTURE, GOLDICON等"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Alpha文件</label>
+            <input
+              type="text"
+              value={selectedFrame.highlightAlphaFile || ''}
+              onChange={(e) => handleChange('highlightAlphaFile', e.target.value)}
+              placeholder="Alpha纹理路径"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Alpha模式</label>
+            <select
+              value={selectedFrame.highlightAlphaMode || ''}
+              onChange={(e) => handleChange('highlightAlphaMode', e.target.value || undefined)}
+            >
+              <option value="">默认</option>
+              <option value="BLEND">BLEND</option>
+              <option value="ALPHAKEY">ALPHAKEY</option>
+              <option value="ADD">ADD</option>
+            </select>
           </div>
         </section>
       )}
@@ -927,20 +1821,35 @@ const GeneralSettings: React.FC = () => {
 function shouldShowField(type: FrameType, field: string): boolean {
   const textTypes = [
     FrameType.TEXT_FRAME,
-    FrameType.BROWSER_BUTTON,
-    FrameType.SCRIPT_DIALOG_BUTTON,
+    FrameType.SIMPLEFONTSTRING,
     FrameType.TEXTAREA,
+    FrameType.BROWSER_BUTTON,
+    FrameType.GLUETEXTBUTTON,
+    FrameType.SCRIPT_DIALOG_BUTTON,
     FrameType.EDITBOX,
+    FrameType.TIMERTEXT,
   ];
 
   const textureTypes = [
     FrameType.BACKDROP,
     FrameType.BUTTON,
+    FrameType.GLUEBUTTON,
+    FrameType.SIMPLEBUTTON,
+    FrameType.GLUETEXTBUTTON,
+    FrameType.BROWSER_BUTTON,
+    FrameType.SCRIPT_DIALOG_BUTTON,
     FrameType.HORIZONTAL_BAR,
+    FrameType.SPRITE,
+    FrameType.MODEL,
+    FrameType.SIMPLESTATUSBAR,
+    FrameType.STATUSBAR,
   ];
 
   const triggerTypes = [
     FrameType.BUTTON,
+    FrameType.GLUEBUTTON,
+    FrameType.GLUETEXTBUTTON,
+    FrameType.SIMPLEBUTTON,
     FrameType.BROWSER_BUTTON,
     FrameType.SCRIPT_DIALOG_BUTTON,
     FrameType.INVIS_BUTTON,
