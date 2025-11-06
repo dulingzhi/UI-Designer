@@ -718,9 +718,14 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       ? { ...frame, ...calculatedPos }
       : frame;
     
-    // 调试日志
-    if (calculatedPos) {
-      console.log(`[Canvas] Frame ${frame.name} uses relative anchors, calculated pos:`, calculatedPos);
+    // 调试日志 - 显示两个按钮的详细信息
+    if (frame.name === 'ConfirmQuitQuitButton' || frame.name === 'ConfirmQuitCancelButton') {
+      console.log(`\n[Canvas DEBUG] ${frame.name}:`);
+      console.log('  Original:', { x: frame.x, y: frame.y, width: frame.width, height: frame.height });
+      console.log('  Anchors:', frame.anchors);
+      console.log('  Calculated:', calculatedPos);
+      console.log('  Actual frame:', { x: actualFrame.x, y: actualFrame.y, width: actualFrame.width, height: actualFrame.height });
+      console.log('  Canvas position:', { left: (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN, bottom: (actualFrame.y / 0.6) * CANVAS_HEIGHT });
     }
     
     // 计算实际位置（从底部左侧开始）

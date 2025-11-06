@@ -54,14 +54,50 @@ export class FDFTransformer {
    */
   public transform(ast: FDFProgram): FrameData[] {
     const frames: FrameData[] = [];
+    const allFramesFlat: FrameData[] = []; // 扁平化的所有Frame列表(包括嵌套Frame)
     
     for (const node of ast.body) {
       if (node.type === FDFNodeType.FRAME_DEFINITION) {
         const frame = this.transformFrame(node);
         frames.push(frame);
         
-        // 递归处理嵌套的 Frame
-        this.collectNestedFrames(node, frame, frames);
+        // 添加到扁平列表
+        allFramesFlat.push(frame);
+        
+        // 对于顶层 Frame，如果锚点引用了 __PARENT__，需要特殊处理
+        // （顶层 Frame 没有父元素，应该相对于画布定位）
+        if (frame.anchors && frame.anchors.length > 0) {
+          for (const anchor of frame.anchors) {
+            if (anchor.relativeTo === '__PARENT__') {
+              // 顶层 Frame 没有父元素，使用画布的绝对坐标
+              delete anchor.relativeTo;
+              delete anchor.relativePoint;
+              
+              // 根据锚点类型设置画布坐标
+              if (anchor.point === 0) {
+                // TOPLEFT → 画布左上角 (0, 0.6)
+                anchor.x = 0;
+                anchor.y = 0.6;
+              } else if (anchor.point === 8) {
+                // BOTTOMRIGHT → 画布右下角 (0.8, 0)
+                anchor.x = 0.8;
+                anchor.y = 0;
+              } else if (anchor.point === 4) {
+                // CENTER → 画布中心 (0.4, 0.3)
+                anchor.x = 0.4;
+                anchor.y = 0.3;
+              } else {
+                // 其他锚点类型，根据 FramePoint 计算画布坐标
+                const canvasCoords = this.getCanvasCoordinateForPoint(anchor.point);
+                anchor.x = canvasCoords.x;
+                anchor.y = canvasCoords.y;
+              }
+            }
+          }
+        }
+        
+        // 递归处理嵌套的 Frame，并添加到 allFramesFlat
+        this.collectNestedFrames(node, frame, allFramesFlat);
         
         // 注册为模板（如果有名称）
         if (node.name) {
@@ -71,16 +107,23 @@ export class FDFTransformer {
     }
     
     // 后处理：将锚点的 relativeTo 从名称映射到 ID
-    this.resolveRelativeFrames(frames);
+    // 使用 allFramesFlat 确保能找到所有 Frame（包括嵌套）
+    this.resolveRelativeFrames(allFramesFlat);
     
     // 第二次尺寸计算：现在所有 Frame 都已创建，可以正确计算相对锚点的尺寸
-    this.recalculateSizesWithRelativeAnchors(frames);
+    this.recalculateSizesWithRelativeAnchors(allFramesFlat);
     
-    return frames;
+    // ⚠️ 重要: 必须返回 allFramesFlat 而不是 frames
+    // frames 只包含顶层Frame,会导致嵌套Frame丢失
+    // allFramesFlat 包含所有Frame(顶层 + 嵌套)
+    return allFramesFlat;
   }
   
   /**
    * 收集嵌套的 Frame 并建立父子关系
+   * @param node 父Frame的定义节点
+   * @param parentFrame 父Frame对象
+   * @param allFrames 扁平化的所有Frame数组(包括顶层和嵌套),会被修改
    */
   private collectNestedFrames(node: FDFFrameDefinition, parentFrame: FrameData, allFrames: FrameData[]): void {
     for (const prop of node.properties) {
@@ -105,8 +148,9 @@ export class FDFTransformer {
           childFrame.parentId = parentFrame.id;
           parentFrame.children.push(childFrame.id);
           
-          // 如果子 Frame 使用了 SetAllPoints，将 __PARENT__ 替换为父元素名称
-          if (childFrame.fdfMetadata?.setAllPoints) {
+          // 将所有锚点中的 __PARENT__ 替换为父元素名称
+          // （不仅是 SetAllPoints，其他情况也可能有 __PARENT__ 占位符）
+          if (childFrame.anchors && childFrame.anchors.length > 0) {
             for (const anchor of childFrame.anchors) {
               if (anchor.relativeTo === '__PARENT__') {
                 anchor.relativeTo = parentFrame.name;
@@ -114,7 +158,7 @@ export class FDFTransformer {
             }
           }
           
-          // 添加到数组
+          // 添加到扁平数组(重要:使所有Frame可被名称查找)
           allFrames.push(childFrame);
           
           // 递归处理更深层的嵌套
@@ -171,7 +215,12 @@ export class FDFTransformer {
     if (node.inherits && this.options.resolveInheritance) {
       const template = this.templateRegistry.get(node.inherits);
       if (template) {
-        Object.assign(frame, { ...template, id: frame.id, name: frame.name });
+        // 继承模板属性，但保留 id、name，并重置 anchors 和 children
+        // anchors 应该由子 Frame 自己定义，不应该从模板继承（避免引用冲突）
+        const { id: _id, name: _name, anchors: _anchors, children: _children, ...templateProps } = template;
+        Object.assign(frame, templateProps);
+        // 深拷贝 anchors（如果需要的话，但通常不需要）
+        // frame.anchors = template.anchors.map(a => ({ ...a }));
       }
     }
     
@@ -181,20 +230,23 @@ export class FDFTransformer {
     // 如果没有明确的宽高，尝试从锚点计算
     this.calculateSizeFromAnchors(frame);
     
-    // 如果 Frame 没有锚点且使用默认尺寸（0.1x0.1），给它一个更合理的默认配置
-    // 这通常发生在容器 Frame 上，它们依赖子元素的相对定位
-    if (frame.anchors.length === 0 && frame.width === 0.1 && frame.height === 0.1) {
-      // 创建一个默认配置：使用 40% 的画布尺寸
-      frame.width = 0.4;   // 0.4 相对单位（画布宽度 0.8 的 50%）
-      frame.height = 0.4;  // 0.4 相对单位（画布高度 0.6 的 67%）
-      frame.x = 0.2;       // 居中偏左
-      frame.y = 0.1;       // 居中偏下
+    // 如果 Frame 没有锚点，添加默认居中锚点
+    // 在 WC3 中，没有 SetPoint 的 Frame 默认在父元素中居中
+    if (frame.anchors.length === 0) {
+      // 如果使用默认尺寸（0.1x0.1），给它一个更合理的默认配置
+      if (frame.width === 0.1 && frame.height === 0.1) {
+        frame.width = 0.4;   // 0.4 相对单位（画布宽度 0.8 的 50%）
+        frame.height = 0.4;  // 0.4 相对单位（画布高度 0.6 的 67%）
+      }
       
-      // 添加默认锚点
+      // 添加 CENTER 锚点，相对于父元素居中
+      // 注意：这里暂时不设置 relativeTo，将在 collectNestedFrames 中设置
       frame.anchors = [{
-        point: 0, // TOPLEFT
-        x: frame.x,
-        y: frame.y + frame.height,
+        point: 4, // CENTER
+        relativeTo: '__PARENT__', // 占位符，后续会被替换
+        relativePoint: 4, // CENTER
+        x: 0,
+        y: 0,
       }];
     }
     
@@ -223,11 +275,23 @@ export class FDFTransformer {
     
     switch (name.toLowerCase()) {
       case 'width':
-        frame.width = this.toPixels(value as number, 'x');
+        // FDF 解析器可能将多个属性值合并成数组，取第一个元素
+        const widthValue = Array.isArray(value) ? value[0] : value;
+        if (typeof widthValue === 'number') {
+          frame.width = this.toPixels(widthValue, 'x');
+        } else {
+          console.warn(`[FDF Transformer] Invalid width value for frame ${frame.name}:`, value, typeof value);
+        }
         break;
       
       case 'height':
-        frame.height = this.toPixels(value as number, 'y');
+        // FDF 解析器可能将多个属性值合并成数组，取第一个元素
+        const heightValue = Array.isArray(value) ? value[0] : value;
+        if (typeof heightValue === 'number') {
+          frame.height = this.toPixels(heightValue, 'y');
+        } else {
+          console.warn(`[FDF Transformer] Invalid height value for frame ${frame.name}:`, value, typeof value);
+        }
         break;      case 'setpoint':
       case 'anchor':
         if (Array.isArray(value)) {
@@ -652,6 +716,42 @@ export class FDFTransformer {
           }
         }
       }
+    }
+  }
+  
+  /**
+   * 获取锚点类型对应的画布坐标
+   */
+  private getCanvasCoordinateForPoint(point: number): { x: number; y: number } {
+    // FramePoint 枚举值：
+    // 0: TOPLEFT, 1: TOP, 2: TOPRIGHT
+    // 3: LEFT, 4: CENTER, 5: RIGHT
+    // 6: BOTTOMLEFT, 7: BOTTOM, 8: BOTTOMRIGHT
+    
+    const canvasWidth = 0.8;
+    const canvasHeight = 0.6;
+    
+    switch (point) {
+      case 0: // TOPLEFT
+        return { x: 0, y: canvasHeight };
+      case 1: // TOP
+        return { x: canvasWidth / 2, y: canvasHeight };
+      case 2: // TOPRIGHT
+        return { x: canvasWidth, y: canvasHeight };
+      case 3: // LEFT
+        return { x: 0, y: canvasHeight / 2 };
+      case 4: // CENTER
+        return { x: canvasWidth / 2, y: canvasHeight / 2 };
+      case 5: // RIGHT
+        return { x: canvasWidth, y: canvasHeight / 2 };
+      case 6: // BOTTOMLEFT
+        return { x: 0, y: 0 };
+      case 7: // BOTTOM
+        return { x: canvasWidth / 2, y: 0 };
+      case 8: // BOTTOMRIGHT
+        return { x: canvasWidth, y: 0 };
+      default:
+        return { x: canvasWidth / 2, y: canvasHeight / 2 }; // 默认居中
     }
   }
   

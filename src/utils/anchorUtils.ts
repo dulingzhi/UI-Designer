@@ -349,6 +349,9 @@ export function calculatePositionFromAnchors(
 ): { x: number; y: number; width: number; height: number } | null {
   // 检查锚点数组是否存在
   if (!frame.anchors || frame.anchors.length === 0) {
+    if (frame.name === 'ConfirmQuitQuitButton' || frame.name === 'ConfirmQuitCancelButton') {
+      console.warn(`[calculatePositionFromAnchors] ${frame.name} has NO anchors!`);
+    }
     return null;
   }
 
@@ -357,6 +360,9 @@ export function calculatePositionFromAnchors(
   
   if (!hasRelativeAnchors) {
     // 没有相对锚点，使用绝对位置
+    if (frame.name === 'ConfirmQuitQuitButton' || frame.name === 'ConfirmQuitCancelButton') {
+      console.warn(`[calculatePositionFromAnchors] ${frame.name} has NO relative anchors!`, frame.anchors);
+    }
     return null;
   }
 
@@ -369,7 +375,18 @@ export function calculatePositionFromAnchors(
       if (relativeFrame) {
         // 如果 relativePoint 未定义，默认使用 TOPLEFT
         const relativePoint = anchor.relativePoint !== undefined ? anchor.relativePoint : FramePoint.TOPLEFT;
-        const relativePos = getAnchorPosition(relativeFrame, relativePoint);
+        
+        // ⚠️ 关键修复: 如果 relativeFrame 也有相对锚点,需要先递归计算它的位置
+        let relativeFrameWithPos = relativeFrame;
+        if (relativeFrame.anchors && relativeFrame.anchors.some(a => a.relativeTo)) {
+          const calculatedRelativePos = calculatePositionFromAnchors(relativeFrame, allFrames);
+          if (calculatedRelativePos) {
+            // 使用计算后的位置创建新的 Frame 对象(避免修改原始数据)
+            relativeFrameWithPos = { ...relativeFrame, ...calculatedRelativePos };
+          }
+        }
+        
+        const relativePos = getAnchorPosition(relativeFrameWithPos, relativePoint);
         const absX = relativePos.x + anchor.x;
         const absY = relativePos.y + anchor.y;
         console.log(`[Anchor] ${frame.name} ${FramePoint[anchor.point]}: relative to ${relativeFrame.name} at ${FramePoint[relativePoint]}, offset (${anchor.x.toFixed(3)}, ${anchor.y.toFixed(3)}), result (${absX.toFixed(3)}, ${absY.toFixed(3)})`);
@@ -509,24 +526,65 @@ export function calculatePositionFromAnchors(
     height = frame.height;
     console.log(`[Anchor] ${frame.name}: Using CENTER only, fixed size`);
   }
-  // 策略9: 其他单锚点类型（固定尺寸）
+  // 策略9: 单锚点 TOP（固定尺寸）
+  else if (topPos) {
+    x = topPos.x - frame.width / 2;
+    y = topPos.y - frame.height;
+    width = frame.width;
+    height = frame.height;
+    console.log(`[Anchor] ${frame.name}: Using TOP only, fixed size`);
+  }
+  // 策略10: 单锚点 TOPRIGHT（固定尺寸）
+  else if (topRightPos) {
+    x = topRightPos.x - frame.width;
+    y = topRightPos.y - frame.height;
+    width = frame.width;
+    height = frame.height;
+    console.log(`[Anchor] ${frame.name}: Using TOPRIGHT only, fixed size`);
+  }
+  // 策略11: 单锚点 LEFT（固定尺寸）
+  else if (leftPos) {
+    x = leftPos.x;
+    y = leftPos.y - frame.height / 2;
+    width = frame.width;
+    height = frame.height;
+    console.log(`[Anchor] ${frame.name}: Using LEFT only, fixed size`);
+  }
+  // 策略12: 单锚点 RIGHT（固定尺寸）
+  else if (rightPos) {
+    x = rightPos.x - frame.width;
+    y = rightPos.y - frame.height / 2;
+    width = frame.width;
+    height = frame.height;
+    console.log(`[Anchor] ${frame.name}: Using RIGHT only, fixed size`);
+  }
+  // 策略13: 单锚点 BOTTOMLEFT（固定尺寸）
+  else if (bottomLeftPos) {
+    x = bottomLeftPos.x;
+    y = bottomLeftPos.y;
+    width = frame.width;
+    height = frame.height;
+    console.log(`[Anchor] ${frame.name}: Using BOTTOMLEFT only, fixed size`);
+  }
+  // 策略14: 单锚点 BOTTOM（固定尺寸）
+  else if (bottomPos) {
+    x = bottomPos.x - frame.width / 2;
+    y = bottomPos.y;
+    width = frame.width;
+    height = frame.height;
+    console.log(`[Anchor] ${frame.name}: Using BOTTOM only, fixed size`);
+  }
+  // 策略15: 其他情况（不应该到达这里）
   else {
-    const firstAnchor = frame.anchors.find(a => a.relativeTo);
-    if (firstAnchor) {
-      const pos = calculateAnchorPos(firstAnchor);
-      if (pos) {
-        const offset = getOffsetFromAnchorPoint(firstAnchor.point, frame.width, frame.height);
-        x = pos.x + offset.x;
-        y = pos.y + offset.y;
-        width = frame.width;
-        height = frame.height;
-        console.log(`[Anchor] ${frame.name}: Using ${FramePoint[firstAnchor.point]} only, fixed size`);
-      } else {
-        return null;
-      }
-    } else {
-      return null;
-    }
+    console.warn(`[Anchor] ${frame.name}: No anchor strategy matched!`);
+    return null;
+  }
+
+  // 安全检查：确保所有值都是有效的数字
+  if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number' ||
+      isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height)) {
+    console.error(`[Anchor] Invalid calculation for ${frame.name}: x=${x}, y=${y}, width=${width}, height=${height}`);
+    return null;
   }
 
   console.log(`[Anchor] Calculated position for ${frame.name}: (${x.toFixed(3)}, ${y.toFixed(3)}), size: (${width.toFixed(3)}, ${height.toFixed(3)})`);
@@ -682,6 +740,7 @@ function getAnchorPointName(point: FramePoint): string {
 
 /**
  * 根据锚点类型计算到左下角的偏移量
+ * @deprecated 不再使用,保留以备将来参考
  */
 function getOffsetFromAnchorPoint(
   point: FramePoint,
