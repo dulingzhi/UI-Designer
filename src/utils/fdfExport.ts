@@ -165,24 +165,78 @@ function checkSetAllPoints(anchors: any[]): boolean {
  */
 function getFrameTypeString(type: FrameType): string {
   switch (type) {
+    // 基础容器
     case FrameType.ORIGIN:
+      return 'FRAME';
+    case FrameType.FRAME:
       return 'FRAME';
     case FrameType.BACKDROP:
       return 'BACKDROP';
+    case FrameType.SIMPLEFRAME:
+      return 'SIMPLEFRAME';
+    
+    // 文本控件
+    case FrameType.TEXT_FRAME:
+      return 'TEXT';
+    case FrameType.SIMPLEFONTSTRING:
+      return 'SIMPLEFONTSTRING';
+    case FrameType.TEXTAREA:
+      return 'TEXTAREA';
+    
+    // 按钮控件
     case FrameType.BUTTON:
       return 'BUTTON';
+    case FrameType.GLUETEXTBUTTON:
+      return 'GLUETEXTBUTTON';
+    case FrameType.GLUEBUTTON:
+      return 'GLUEBUTTON';
+    case FrameType.SIMPLEBUTTON:
+      return 'SIMPLEBUTTON';
     case FrameType.BROWSER_BUTTON:
       return 'BROWSER_BUTTON';
     case FrameType.SCRIPT_DIALOG_BUTTON:
       return 'SCRIPT_DIALOG_BUTTON';
+    case FrameType.INVIS_BUTTON:
+      return 'INVIS_BUTTON';
+    
+    // 交互控件
     case FrameType.CHECKBOX:
       return 'CHECKBOX';
-    case FrameType.TEXT_FRAME:
-      return 'TEXT';
     case FrameType.EDITBOX:
       return 'EDITBOX';
     case FrameType.SLIDER:
       return 'SLIDER';
+    case FrameType.SCROLLBAR:
+      return 'SCROLLBAR';
+    case FrameType.LISTBOX:
+      return 'LISTBOX';
+    case FrameType.MENU:
+      return 'MENU';
+    case FrameType.POPUPMENU:
+      return 'POPUPMENU';
+    
+    // 图形控件
+    case FrameType.SPRITE:
+      return 'SPRITE';
+    case FrameType.MODEL:
+      return 'MODEL';
+    case FrameType.HIGHLIGHT:
+      return 'HIGHLIGHT';
+    
+    // 状态栏
+    case FrameType.SIMPLESTATUSBAR:
+      return 'SIMPLESTATUSBAR';
+    case FrameType.STATUSBAR:
+      return 'STATUSBAR';
+    
+    // 其他控件
+    case FrameType.CONTROL:
+      return 'CONTROL';
+    case FrameType.DIALOG:
+      return 'DIALOG';
+    case FrameType.TIMERTEXT:
+      return 'TIMERTEXT';
+    
     default:
       return 'FRAME';
   }

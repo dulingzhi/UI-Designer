@@ -22,27 +22,60 @@ export interface FrameAnchor {
 }
 
 export enum FrameType {
+  // 基础容器
   ORIGIN = 0,
-  BACKDROP = 1,
-  BUTTON = 2,
-  BROWSER_BUTTON = 3,
-  SCRIPT_DIALOG_BUTTON = 4,
-  CHECKLIST_BOX = 5,
-  ESC_MENU_BACKDROP = 6,
-  OPTIONS_POPUP_MENU_BACKDROP_TEMPLATE = 7,
-  QUEST_BUTTON_BASE_TEMPLATE = 8,
-  QUEST_BUTTON_DISABLED_BACKDROP_TEMPLATE = 9,
-  QUEST_BUTTON_PUSHED_BACKDROP_TEMPLATE = 10,
-  CHECKBOX = 11,
-  INVIS_BUTTON = 12,
-  TEXT_FRAME = 13,
-  HORIZONTAL_BAR = 14,
-  HOR_BAR_BACKGROUND = 15,
-  HOR_BAR_TEXT = 16,
-  HOR_BAR_BACKGROUND_TEXT = 17,
-  TEXTAREA = 18,
-  EDITBOX = 19,
-  SLIDER = 20,
+  FRAME = 1,
+  BACKDROP = 2,
+  SIMPLEFRAME = 3,
+  
+  // 文本控件
+  TEXT_FRAME = 4,
+  SIMPLEFONTSTRING = 5,
+  TEXTAREA = 6,
+  
+  // 按钮控件
+  BUTTON = 7,
+  GLUETEXTBUTTON = 8,
+  GLUEBUTTON = 9,
+  SIMPLEBUTTON = 10,
+  BROWSER_BUTTON = 11,
+  SCRIPT_DIALOG_BUTTON = 12,
+  INVIS_BUTTON = 13,
+  
+  // 交互控件
+  CHECKBOX = 14,
+  EDITBOX = 15,
+  SLIDER = 16,
+  SCROLLBAR = 17,
+  LISTBOX = 18,
+  MENU = 19,
+  POPUPMENU = 20,
+  
+  // 图形控件
+  SPRITE = 21,
+  MODEL = 22,
+  HIGHLIGHT = 23,
+  
+  // 状态栏
+  SIMPLESTATUSBAR = 24,
+  STATUSBAR = 25,
+  
+  // 其他控件
+  CONTROL = 26,
+  DIALOG = 27,
+  TIMERTEXT = 28,
+  
+  // 兼容旧枚举值（已废弃，保留向后兼容）
+  CHECKLIST_BOX = 100,
+  ESC_MENU_BACKDROP = 101,
+  OPTIONS_POPUP_MENU_BACKDROP_TEMPLATE = 102,
+  QUEST_BUTTON_BASE_TEMPLATE = 103,
+  QUEST_BUTTON_DISABLED_BACKDROP_TEMPLATE = 104,
+  QUEST_BUTTON_PUSHED_BACKDROP_TEMPLATE = 105,
+  HORIZONTAL_BAR = 106,
+  HOR_BAR_BACKGROUND = 107,
+  HOR_BAR_TEXT = 108,
+  HOR_BAR_BACKGROUND_TEXT = 109,
 }
 
 // FDF 元数据 - 保留原始 FDF 信息
@@ -104,39 +137,103 @@ export interface FrameData {
   // 锚点系统 (用于 FDF 导出)
   anchors: FrameAnchor[];
   
-  // 显示控制
+  // ========== 显示控制 ==========
   locked?: boolean;
   visible?: boolean;
-  tooltip?: boolean;
+  tooltip?: boolean | string;
+  alpha?: number;                      // 透明度 0-255
   
-  // 基础属性 (简化，主要用于编辑器显示)
-  diskTexture?: string;
-  wc3Texture?: string;
-  backDiskTexture?: string;
-  backWc3Texture?: string;
-  text?: string;
-  textScale?: number;
-  textColor?: string;
-  horAlign?: 'left' | 'center' | 'right';
-  verAlign?: 'start' | 'center' | 'flex-end';
+  // ========== 基础纹理 ==========
+  diskTexture?: string;                // 主纹理文件路径
+  wc3Texture?: string;                 // WC3资源纹理名
+  backDiskTexture?: string;            // 背景纹理文件路径
+  backWc3Texture?: string;             // 背景WC3资源纹理名
   
-  // 特殊控件属性
-  multiline?: boolean;      // EDITBOX
-  minValue?: number;        // SLIDER
-  maxValue?: number;        // SLIDER
-  stepSize?: number;        // SLIDER
-  checked?: boolean;        // CHECKBOX
+  // ========== 文本属性 ==========
+  text?: string;                       // 文本内容
+  textScale?: number;                  // 文本缩放
+  textLength?: number;                 // 最大文本长度
   
-  // 功能属性
-  trigVar?: string;
-  arrayId?: string;
-  isRelative?: boolean;     // 保留兼容性
+  // 文本颜色 (RGBA格式，值范围0-1)
+  textColor?: string;                  // 主文本颜色
+  fontColor?: [number, number, number, number];         // 字体颜色 RGBA
+  fontHighlightColor?: [number, number, number, number]; // 高亮颜色
+  fontDisabledColor?: [number, number, number, number];  // 禁用颜色
+  fontShadowColor?: [number, number, number, number];    // 阴影颜色
+  
+  // 文本对齐
+  horAlign?: 'left' | 'center' | 'right';              // 水平对齐
+  verAlign?: 'start' | 'center' | 'flex-end';          // 垂直对齐
+  fontJustificationH?: 'JUSTIFYLEFT' | 'JUSTIFYCENTER' | 'JUSTIFYRIGHT';
+  fontJustificationV?: 'JUSTIFYTOP' | 'JUSTIFYMIDDLE' | 'JUSTIFYBOTTOM';
+  
+  // 字体设置
+  font?: string;                       // 字体名称
+  fontSize?: number;                   // 字体大小
+  fontFlags?: string[];                // 字体标志 ['FIXEDSIZE', 'THICKOUTLINE']
+  fontShadowOffset?: [number, number]; // 阴影偏移 [x, y]
+  
+  // ========== EDITBOX 属性 ==========
+  multiline?: boolean;                 // 多行文本
+  maxChars?: number;                   // 最大字符数
+  editTextColor?: [number, number, number, number];      // 编辑文本颜色
+  editCursorColor?: [number, number, number, number];    // 光标颜色
+  editBorderColor?: [number, number, number, number];    // 边框颜色
+  
+  // ========== SLIDER 属性 ==========
+  minValue?: number;                   // 最小值
+  maxValue?: number;                   // 最大值
+  stepSize?: number;                   // 步进值
+  sliderInitialValue?: number;         // 初始值
+  sliderLayoutHorizontal?: boolean;    // 水平布局
+  sliderLayoutVertical?: boolean;      // 垂直布局
+  
+  // ========== CHECKBOX 属性 ==========
+  checked?: boolean;                   // 勾选状态
+  
+  // ========== BUTTON 属性 ==========
+  controlStyle?: string;               // 控件样式标志 "AUTOTRACK|HIGHLIGHTONMOUSEOVER"
+  controlBackdrop?: string;            // 默认背景
+  controlPushedBackdrop?: string;      // 按下背景
+  controlDisabledBackdrop?: string;    // 禁用背景
+  controlMouseOverHighlight?: string;  // 鼠标悬停高亮
+  buttonPushedTextOffset?: [number, number]; // 按下文本偏移
+  
+  // ========== LISTBOX 属性 ==========
+  listBoxItems?: string[];             // 列表项
+  
+  // ========== HIGHLIGHT 属性 ==========
+  highlightType?: string;              // 高亮类型
+  highlightAlphaFile?: string;         // 高亮Alpha文件
+  highlightAlphaMode?: string;         // 高亮混合模式
+  
+  // ========== BACKDROP 背景属性 ==========
+  backdropBackground?: string;         // 背景纹理
+  backdropTileBackground?: boolean;    // 平铺背景
+  backdropBackgroundSize?: number;     // 背景尺寸
+  backdropBackgroundInsets?: [number, number, number, number]; // 背景内边距
+  backdropEdgeFile?: string;           // 边框纹理
+  backdropCornerFlags?: string;        // 角标志 "UL|UR|BL|BR|T|L|B|R"
+  backdropCornerSize?: number;         // 角尺寸
+  backdropBlendAll?: boolean;          // 混合所有层
+  
+  // ========== TEXTURE 属性 ==========
+  textureFile?: string;                // 纹理文件路径
+  texCoord?: [number, number, number, number]; // 纹理坐标 [left, right, top, bottom]
+  alphaMode?: 'ALPHAKEY' | 'BLEND' | 'ADD';    // Alpha混合模式
+  decorateFileNames?: boolean;         // 装饰文件名
+  
+  // ========== 功能属性 ==========
+  trigVar?: string;                    // 触发器变量名
+  arrayId?: string;                    // 数组ID
+  isRelative?: boolean;                // 保留兼容性
+  layer?: string;                      // 图层名称
   
   // ===== FDF 扩展数据 =====
-  fdfMetadata?: FDFMetadata;        // FDF 元数据
-  fdfTexture?: FDFTextureData;      // FDF 纹理数据
-  fdfString?: FDFStringData;        // FDF 文本数据
-  fdfBackdrop?: FDFBackdropData;    // FDF Backdrop 数据
+  fdfMetadata?: FDFMetadata;           // FDF 元数据
+  fdfTexture?: FDFTextureData;         // FDF 纹理数据
+  fdfString?: FDFStringData;           // FDF 文本数据
+  fdfBackdrop?: FDFBackdropData;       // FDF Backdrop 数据
 }
 
 export interface TableArrayData {

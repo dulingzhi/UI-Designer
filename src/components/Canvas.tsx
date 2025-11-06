@@ -850,16 +850,60 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
   const getFrameBackgroundColor = (type: FrameType): string => {
     switch (type) {
+      // 容器类型 - 灰色
+      case FrameType.ORIGIN:
+      case FrameType.FRAME:
       case FrameType.BACKDROP:
+      case FrameType.SIMPLEFRAME:
         return 'rgba(128, 128, 128, 0.3)';
+      
+      // 按钮类型 - 蓝色
       case FrameType.BUTTON:
+      case FrameType.GLUETEXTBUTTON:
+      case FrameType.GLUEBUTTON:
+      case FrameType.SIMPLEBUTTON:
       case FrameType.BROWSER_BUTTON:
       case FrameType.SCRIPT_DIALOG_BUTTON:
+      case FrameType.INVIS_BUTTON:
         return 'rgba(0, 100, 200, 0.3)';
+      
+      // 文本类型 - 透明
       case FrameType.TEXT_FRAME:
+      case FrameType.SIMPLEFONTSTRING:
+      case FrameType.TEXTAREA:
         return 'transparent';
+      
+      // 交互控件 - 黄色
       case FrameType.CHECKBOX:
         return 'rgba(255, 255, 0, 0.3)';
+      case FrameType.EDITBOX:
+        return 'rgba(255, 200, 100, 0.3)';
+      case FrameType.SLIDER:
+        return 'rgba(200, 255, 100, 0.3)';
+      case FrameType.SCROLLBAR:
+        return 'rgba(150, 255, 150, 0.3)';
+      case FrameType.LISTBOX:
+        return 'rgba(255, 150, 255, 0.3)';
+      case FrameType.MENU:
+      case FrameType.POPUPMENU:
+        return 'rgba(255, 100, 150, 0.3)';
+      
+      // 图形控件 - 紫色
+      case FrameType.SPRITE:
+      case FrameType.MODEL:
+        return 'rgba(200, 100, 255, 0.3)';
+      case FrameType.HIGHLIGHT:
+        return 'rgba(255, 255, 100, 0.2)';
+      
+      // 状态栏 - 绿色
+      case FrameType.SIMPLESTATUSBAR:
+      case FrameType.STATUSBAR:
+        return 'rgba(100, 255, 100, 0.3)';
+      
+      // 其他 - 默认灰色
+      case FrameType.CONTROL:
+      case FrameType.DIALOG:
+      case FrameType.TIMERTEXT:
       default:
         return 'rgba(100, 100, 100, 0.3)';
     }

@@ -542,59 +542,123 @@ export class FDFTransformer {
     
     // 导入 FrameType 枚举
     const FrameType = {
+      // 基础容器
       ORIGIN: 0,
-      BACKDROP: 1,
-      BUTTON: 2,
-      BROWSER_BUTTON: 3,
-      SCRIPT_DIALOG_BUTTON: 4,
-      CHECKLIST_BOX: 5,
-      ESC_MENU_BACKDROP: 6,
-      OPTIONS_POPUP_MENU_BACKDROP_TEMPLATE: 7,
-      QUEST_BUTTON_BASE_TEMPLATE: 8,
-      QUEST_BUTTON_DISABLED_BACKDROP_TEMPLATE: 9,
-      QUEST_BUTTON_PUSHED_BACKDROP_TEMPLATE: 10,
-      CHECKBOX: 11,
-      INVIS_BUTTON: 12,
-      TEXT_FRAME: 13,
-      HORIZONTAL_BAR: 14,
-      HOR_BAR_BACKGROUND: 15,
-      HOR_BAR_TEXT: 16,
-      HOR_BAR_BACKGROUND_TEXT: 17,
-      TEXTAREA: 18,
-      EDITBOX: 19,
-      SLIDER: 20,
+      FRAME: 1,
+      BACKDROP: 2,
+      SIMPLEFRAME: 3,
+      
+      // 文本控件
+      TEXT_FRAME: 4,
+      SIMPLEFONTSTRING: 5,
+      TEXTAREA: 6,
+      
+      // 按钮控件
+      BUTTON: 7,
+      GLUETEXTBUTTON: 8,
+      GLUEBUTTON: 9,
+      SIMPLEBUTTON: 10,
+      BROWSER_BUTTON: 11,
+      SCRIPT_DIALOG_BUTTON: 12,
+      INVIS_BUTTON: 13,
+      
+      // 交互控件
+      CHECKBOX: 14,
+      EDITBOX: 15,
+      SLIDER: 16,
+      SCROLLBAR: 17,
+      LISTBOX: 18,
+      MENU: 19,
+      POPUPMENU: 20,
+      
+      // 图形控件
+      SPRITE: 21,
+      MODEL: 22,
+      HIGHLIGHT: 23,
+      
+      // 状态栏
+      SIMPLESTATUSBAR: 24,
+      STATUSBAR: 25,
+      
+      // 其他控件
+      CONTROL: 26,
+      DIALOG: 27,
+      TIMERTEXT: 28,
     };
     
     switch (type) {
+      // 基础容器
+      case 'FRAME':
+        return FrameType.FRAME;
       case 'BACKDROP':
-      case 'SIMPLEFRAME':
         return FrameType.BACKDROP;
-        
+      case 'SIMPLEFRAME':
+        return FrameType.SIMPLEFRAME;
+      
+      // 文本控件
       case 'TEXT':
-      case 'SIMPLEFONTSTRING':
         return FrameType.TEXT_FRAME;
-        
+      case 'SIMPLEFONTSTRING':
+        return FrameType.SIMPLEFONTSTRING;
+      case 'TEXTAREA':
+        return FrameType.TEXTAREA;
+      
+      // 按钮控件
       case 'BUTTON':
-      case 'GLUETEXTBUTTON':
-      case 'GLUEBUTTON':
-      case 'SIMPLEBUTTON':
         return FrameType.BUTTON;
-        
-      case 'SPRITE':
-      case 'MODEL':
-        return FrameType.BACKDROP; // 使用 BACKDROP 作为通用容器
-        
-      case 'EDITBOX':
-        return FrameType.EDITBOX;
-        
+      case 'GLUETEXTBUTTON':
+        return FrameType.GLUETEXTBUTTON;
+      case 'GLUEBUTTON':
+        return FrameType.GLUEBUTTON;
+      case 'SIMPLEBUTTON':
+        return FrameType.SIMPLEBUTTON;
+      case 'BROWSER_BUTTON':
+        return FrameType.BROWSER_BUTTON;
+      case 'SCRIPT_DIALOG_BUTTON':
+        return FrameType.SCRIPT_DIALOG_BUTTON;
+      case 'INVIS_BUTTON':
+        return FrameType.INVIS_BUTTON;
+      
+      // 交互控件
       case 'CHECKBOX':
         return FrameType.CHECKBOX;
-        
+      case 'EDITBOX':
+        return FrameType.EDITBOX;
       case 'SLIDER':
         return FrameType.SLIDER;
-        
+      case 'SCROLLBAR':
+        return FrameType.SCROLLBAR;
+      case 'LISTBOX':
+        return FrameType.LISTBOX;
+      case 'MENU':
+        return FrameType.MENU;
+      case 'POPUPMENU':
+        return FrameType.POPUPMENU;
+      
+      // 图形控件
+      case 'SPRITE':
+        return FrameType.SPRITE;
+      case 'MODEL':
+        return FrameType.MODEL;
+      case 'HIGHLIGHT':
+        return FrameType.HIGHLIGHT;
+      
+      // 状态栏
+      case 'SIMPLESTATUSBAR':
+        return FrameType.SIMPLESTATUSBAR;
+      case 'STATUSBAR':
+        return FrameType.STATUSBAR;
+      
+      // 其他控件
+      case 'CONTROL':
+        return FrameType.CONTROL;
+      case 'DIALOG':
+        return FrameType.DIALOG;
+      case 'TIMERTEXT':
+        return FrameType.TIMERTEXT;
+      
       default:
-        return FrameType.BACKDROP; // 默认使用 BACKDROP
+        return FrameType.FRAME; // 默认使用 FRAME
     }
   }
   
