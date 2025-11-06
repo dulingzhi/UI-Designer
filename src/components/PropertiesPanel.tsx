@@ -848,58 +848,64 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
       {shouldShowField(selectedFrame.type, 'text') && (
         <section>
           <h4>文本属性</h4>
-          <div className="form-group">
-            <label>文本</label>
-            <textarea
-              value={selectedFrame.text || ''}
-              onChange={(e) => handleChange('text', e.target.value)}
-              rows={3}
-            />
-          </div>
+          <TextArea
+            label="文本内容"
+            value={selectedFrame.text || ''}
+            onChange={(value) => handleChange('text', value)}
+            rows={3}
+            placeholder="输入文本内容..."
+          />
           
-          <div className="form-group">
-            <label>文本缩放</label>
-            <input
-              type="number"
-              step="0.1"
-              value={selectedFrame.textScale || 1}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => handleChange('textScale', parseFloat(e.target.value))}
-            />
-          </div>
+          <Slider
+            label="文本缩放"
+            value={selectedFrame.textScale ?? 1}
+            onChange={(value) => handleChange('textScale', value)}
+            min={0.1}
+            max={5}
+            step={0.1}
+            showInput={true}
+          />
 
-          <div className="form-group">
+          <div className="property-editor">
             <label>文本颜色</label>
-            <input
-              type="color"
-              value={selectedFrame.textColor || '#FFFFFF'}
-              onChange={(e) => handleChange('textColor', e.target.value)}
-            />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="color"
+                value={selectedFrame.textColor || '#FFFFFF'}
+                onChange={(e) => handleChange('textColor', e.target.value)}
+                style={{ width: '60px', height: '32px' }}
+              />
+              <input
+                type="text"
+                value={selectedFrame.textColor || '#FFFFFF'}
+                onChange={(e) => handleChange('textColor', e.target.value)}
+                placeholder="#FFFFFF"
+                style={{ flex: 1, fontFamily: 'monospace', textTransform: 'uppercase' }}
+              />
+            </div>
           </div>
 
           <div className="form-row">
-            <div className="form-group">
-              <label>水平对齐</label>
-              <select
-                value={selectedFrame.horAlign || 'left'}
-                onChange={(e) => handleChange('horAlign', e.target.value)}
-              >
-                <option value="left">左对齐</option>
-                <option value="center">居中</option>
-                <option value="right">右对齐</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>垂直对齐</label>
-              <select
-                value={selectedFrame.verAlign || 'start'}
-                onChange={(e) => handleChange('verAlign', e.target.value)}
-              >
-                <option value="start">顶部</option>
-                <option value="center">居中</option>
-                <option value="flex-end">底部</option>
-              </select>
-            </div>
+            <Select
+              label="水平对齐"
+              value={selectedFrame.horAlign || 'left'}
+              onChange={(value) => handleChange('horAlign', value)}
+              options={[
+                { value: 'left', label: '左对齐' },
+                { value: 'center', label: '居中' },
+                { value: 'right', label: '右对齐' },
+              ]}
+            />
+            <Select
+              label="垂直对齐"
+              value={selectedFrame.verAlign || 'start'}
+              onChange={(value) => handleChange('verAlign', value)}
+              options={[
+                { value: 'start', label: '顶部' },
+                { value: 'center', label: '居中' },
+                { value: 'flex-end', label: '底部' },
+              ]}
+            />
           </div>
 
           <FilePath
@@ -994,16 +1000,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
       {selectedFrame.type === FrameType.EDITBOX && (
         <section>
           <h4>编辑框设置</h4>
-          <div className="form-group checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedFrame.multiline || false}
-                onChange={(e) => handleChange('multiline', e.target.checked)}
-              />
-              多行编辑
-            </label>
-          </div>
+          <Switch
+            label="多行编辑"
+            value={selectedFrame.multiline ?? false}
+            onChange={(value) => handleChange('multiline', value)}
+          />
         </section>
       )}
 
@@ -1011,36 +1012,33 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
       {selectedFrame.type === FrameType.SLIDER && (
         <section>
           <h4>滑块设置</h4>
-          <div className="form-group">
-            <label>最小值</label>
-            <input
-              type="number"
-              step="0.01"
-              value={selectedFrame.minValue || 0}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => handleChange('minValue', parseFloat(e.target.value))}
-            />
-          </div>
-          <div className="form-group">
-            <label>最大值</label>
-            <input
-              type="number"
-              step="0.01"
-              value={selectedFrame.maxValue || 100}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => handleChange('maxValue', parseFloat(e.target.value))}
-            />
-          </div>
-          <div className="form-group">
-            <label>步长</label>
-            <input
-              type="number"
-              step="0.01"
-              value={selectedFrame.stepSize || 1}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => handleChange('stepSize', parseFloat(e.target.value))}
-            />
-          </div>
+          <Slider
+            label="最小值"
+            value={selectedFrame.minValue ?? 0}
+            onChange={(value) => handleChange('minValue', value)}
+            min={-1000}
+            max={1000}
+            step={0.1}
+            showInput={true}
+          />
+          <Slider
+            label="最大值"
+            value={selectedFrame.maxValue ?? 100}
+            onChange={(value) => handleChange('maxValue', value)}
+            min={-1000}
+            max={1000}
+            step={0.1}
+            showInput={true}
+          />
+          <Slider
+            label="步长"
+            value={selectedFrame.stepSize ?? 1}
+            onChange={(value) => handleChange('stepSize', value)}
+            min={0.01}
+            max={100}
+            step={0.01}
+            showInput={true}
+          />
         </section>
       )}
 
@@ -1048,16 +1046,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
       {selectedFrame.type === FrameType.CHECKBOX && (
         <section>
           <h4>复选框设置</h4>
-          <div className="form-group checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedFrame.checked || false}
-                onChange={(e) => handleChange('checked', e.target.checked)}
-              />
-              默认选中
-            </label>
-          </div>
+          <Switch
+            label="默认选中"
+            value={selectedFrame.checked ?? false}
+            onChange={(value) => handleChange('checked', value)}
+          />
         </section>
       )}
 
@@ -1066,133 +1059,86 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         <section>
           <h4>BACKDROP设置</h4>
           
-          <div className="form-group">
-            <label>背景纹理</label>
-            <input
-              type="text"
-              value={selectedFrame.backdropBackground || ''}
-              onChange={(e) => handleChange('backdropBackground', e.target.value)}
-              placeholder="背景纹理路径"
-            />
-          </div>
+          <FilePath
+            label="背景纹理"
+            value={selectedFrame.backdropBackground || ''}
+            onChange={(value) => handleChange('backdropBackground', value || undefined)}
+            placeholder="背景纹理路径"
+            suggestions={[
+              'UI/Widgets/Glues/',
+              'UI/Widgets/Console/Human/',
+            ]}
+          />
 
-          <div className="form-group checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedFrame.backdropTileBackground ?? false}
-                onChange={(e) => handleChange('backdropTileBackground', e.target.checked)}
-              />
-              平铺背景
-            </label>
-          </div>
+          <Switch
+            label="平铺背景"
+            value={selectedFrame.backdropTileBackground ?? false}
+            onChange={(value) => handleChange('backdropTileBackground', value)}
+          />
 
-          <div className="form-group">
-            <label>背景尺寸</label>
-            <input
-              type="number"
-              step="0.001"
-              value={selectedFrame.backdropBackgroundSize ?? ''}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => {
-                const val = e.target.value;
-                handleChange('backdropBackgroundSize', val ? parseFloat(val) : undefined);
-              }}
-              placeholder="背景尺寸"
-            />
-          </div>
+          <Slider
+            label="背景尺寸"
+            value={selectedFrame.backdropBackgroundSize ?? 0.032}
+            onChange={(value) => handleChange('backdropBackgroundSize', value)}
+            min={0}
+            max={0.1}
+            step={0.001}
+            showInput={true}
+          />
 
-          <div className="form-group">
-            <label>背景内边距 (上, 右, 下, 左)</label>
-            <div className="form-row">
-              <input type="number" step="0.001" placeholder="上"
-                value={selectedFrame.backdropBackgroundInsets?.[0] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
-                  arr[0] = val ? parseFloat(val) : 0;
-                  handleChange('backdropBackgroundInsets', [...arr]);
-                }}
-              />
-              <input type="number" step="0.001" placeholder="右"
-                value={selectedFrame.backdropBackgroundInsets?.[1] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
-                  arr[1] = val ? parseFloat(val) : 0;
-                  handleChange('backdropBackgroundInsets', [...arr]);
-                }}
-              />
-              <input type="number" step="0.001" placeholder="下"
-                value={selectedFrame.backdropBackgroundInsets?.[2] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
-                  arr[2] = val ? parseFloat(val) : 0;
-                  handleChange('backdropBackgroundInsets', [...arr]);
-                }}
-              />
-              <input type="number" step="0.001" placeholder="左"
-                value={selectedFrame.backdropBackgroundInsets?.[3] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0];
-                  arr[3] = val ? parseFloat(val) : 0;
-                  handleChange('backdropBackgroundInsets', [...arr]);
-                }}
-              />
-            </div>
-          </div>
+          <VectorEditor
+            label="背景内边距 (上, 右, 下, 左)"
+            value={selectedFrame.backdropBackgroundInsets || [0, 0, 0, 0]}
+            onChange={(value) => handleChange('backdropBackgroundInsets', value)}
+            dimensions={4}
+            labels={['上', '右', '下', '左']}
+            step={0.001}
+          />
 
-          <div className="form-group">
-            <label>边框纹理</label>
-            <input
-              type="text"
-              value={selectedFrame.backdropEdgeFile || ''}
-              onChange={(e) => handleChange('backdropEdgeFile', e.target.value)}
-              placeholder="边框纹理路径"
-            />
-          </div>
+          <FilePath
+            label="边框纹理"
+            value={selectedFrame.backdropEdgeFile || ''}
+            onChange={(value) => handleChange('backdropEdgeFile', value || undefined)}
+            placeholder="边框纹理路径"
+            suggestions={[
+              'UI/Widgets/Glues/',
+            ]}
+          />
 
-          <div className="form-group">
-            <label>边角尺寸</label>
-            <input
-              type="number"
-              step="0.001"
-              value={selectedFrame.backdropCornerSize ?? ''}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => {
-                const val = e.target.value;
-                handleChange('backdropCornerSize', val ? parseFloat(val) : undefined);
-              }}
-              placeholder="边角尺寸"
-            />
-          </div>
+          <Slider
+            label="边角尺寸"
+            value={selectedFrame.backdropCornerSize ?? 0.008}
+            onChange={(value) => handleChange('backdropCornerSize', value)}
+            min={0}
+            max={0.05}
+            step={0.001}
+            showInput={true}
+          />
 
-          <div className="form-group">
-            <label>边角标志</label>
-            <input
-              type="text"
-              value={selectedFrame.backdropCornerFlags || ''}
-              onChange={(e) => handleChange('backdropCornerFlags', e.target.value)}
-              placeholder="例如: UL|UR|BL|BR"
-            />
-          </div>
+          <Select
+            label="边角标志"
+            value={selectedFrame.backdropCornerFlags || ''}
+            onChange={(value) => handleChange('backdropCornerFlags', value || undefined)}
+            options={[
+              { value: '', label: '默认' },
+              { value: 'UL', label: 'UL (左上)' },
+              { value: 'UR', label: 'UR (右上)' },
+              { value: 'BL', label: 'BL (左下)' },
+              { value: 'BR', label: 'BR (右下)' },
+              { value: 'UL|UR', label: 'UL|UR (上)' },
+              { value: 'BL|BR', label: 'BL|BR (下)' },
+              { value: 'UL|BL', label: 'UL|BL (左)' },
+              { value: 'UR|BR', label: 'UR|BR (右)' },
+              { value: 'UL|UR|BL|BR', label: 'UL|UR|BL|BR (全部)' },
+            ]}
+            allowClear
+          />
 
-          <div className="form-group checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedFrame.backdropBlendAll ?? false}
-                onChange={(e) => handleChange('backdropBlendAll', e.target.checked)}
-              />
-              全部混合
-            </label>
-          </div>
+          <Switch
+            label="全部混合"
+            value={selectedFrame.backdropBlendAll ?? false}
+            onChange={(value) => handleChange('backdropBlendAll', value)}
+          />
         </section>
       )}
 
@@ -1206,81 +1152,66 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         <section>
           <h4>按钮状态设置</h4>
           
-          <div className="form-group">
-            <label>控件样式</label>
-            <input
-              type="text"
-              value={selectedFrame.controlStyle || ''}
-              onChange={(e) => handleChange('controlStyle', e.target.value)}
-              placeholder="AUTOCAST, AUTOTARGET等"
-            />
-          </div>
+          <Select
+            label="控件样式"
+            value={selectedFrame.controlStyle || ''}
+            onChange={(value) => handleChange('controlStyle', value || undefined)}
+            options={[
+              { value: '', label: '默认' },
+              { value: 'AUTOCAST', label: 'AUTOCAST' },
+              { value: 'AUTOTARGET', label: 'AUTOTARGET' },
+              { value: 'MENU', label: 'MENU' },
+              { value: 'CHECKBOX', label: 'CHECKBOX' },
+            ]}
+            allowClear
+          />
 
-          <div className="form-group">
-            <label>正常状态背景</label>
-            <input
-              type="text"
-              value={selectedFrame.controlBackdrop || ''}
-              onChange={(e) => handleChange('controlBackdrop', e.target.value)}
-              placeholder="正常状态纹理"
-            />
-          </div>
+          <FilePath
+            label="正常状态背景"
+            value={selectedFrame.controlBackdrop || ''}
+            onChange={(value) => handleChange('controlBackdrop', value || undefined)}
+            placeholder="正常状态纹理路径"
+            suggestions={[
+              'UI/Widgets/Console/Human/CommandButton/',
+              'UI/Widgets/Glues/GlueScreen-Button',
+            ]}
+          />
 
-          <div className="form-group">
-            <label>按下状态背景</label>
-            <input
-              type="text"
-              value={selectedFrame.controlPushedBackdrop || ''}
-              onChange={(e) => handleChange('controlPushedBackdrop', e.target.value)}
-              placeholder="按下状态纹理"
-            />
-          </div>
+          <FilePath
+            label="按下状态背景"
+            value={selectedFrame.controlPushedBackdrop || ''}
+            onChange={(value) => handleChange('controlPushedBackdrop', value || undefined)}
+            placeholder="按下状态纹理路径"
+            suggestions={[
+              'UI/Widgets/Console/Human/CommandButton/',
+            ]}
+          />
 
-          <div className="form-group">
-            <label>禁用状态背景</label>
-            <input
-              type="text"
-              value={selectedFrame.controlDisabledBackdrop || ''}
-              onChange={(e) => handleChange('controlDisabledBackdrop', e.target.value)}
-              placeholder="禁用状态纹理"
-            />
-          </div>
+          <FilePath
+            label="禁用状态背景"
+            value={selectedFrame.controlDisabledBackdrop || ''}
+            onChange={(value) => handleChange('controlDisabledBackdrop', value || undefined)}
+            placeholder="禁用状态纹理路径"
+            suggestions={[
+              'UI/Widgets/Console/Human/CommandButton/',
+            ]}
+          />
 
-          <div className="form-group">
-            <label>鼠标悬停高亮</label>
-            <input
-              type="text"
-              value={selectedFrame.controlMouseOverHighlight || ''}
-              onChange={(e) => handleChange('controlMouseOverHighlight', e.target.value)}
-              placeholder="悬停高亮名称"
-            />
-          </div>
+          <FilePath
+            label="鼠标悬停高亮"
+            value={selectedFrame.controlMouseOverHighlight || ''}
+            onChange={(value) => handleChange('controlMouseOverHighlight', value || undefined)}
+            placeholder="悬停高亮控件名称"
+          />
 
-          <div className="form-group">
-            <label>按下文本偏移 (X, Y)</label>
-            <div className="form-row">
-              <input type="number" step="0.001" placeholder="X"
-                value={selectedFrame.buttonPushedTextOffset?.[0] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.buttonPushedTextOffset || [0, 0];
-                  arr[0] = val ? parseFloat(val) : 0;
-                  handleChange('buttonPushedTextOffset', [...arr]);
-                }}
-              />
-              <input type="number" step="0.001" placeholder="Y"
-                value={selectedFrame.buttonPushedTextOffset?.[1] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.buttonPushedTextOffset || [0, 0];
-                  arr[1] = val ? parseFloat(val) : 0;
-                  handleChange('buttonPushedTextOffset', [...arr]);
-                }}
-              />
-            </div>
-          </div>
+          <VectorEditor
+            label="按下文本偏移 (X, Y)"
+            value={selectedFrame.buttonPushedTextOffset || [0, 0]}
+            onChange={(value) => handleChange('buttonPushedTextOffset', value)}
+            dimensions={2}
+            labels={['X偏移', 'Y偏移']}
+            step={0.001}
+          />
         </section>
       )}
 
@@ -1307,20 +1238,15 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             onChange={(value) => handleChange('editBorderColor', value)}
           />
 
-          <div className="form-group">
-            <label>最大字符数</label>
-            <input
-              type="number"
-              step="1"
-              value={selectedFrame.maxChars ?? ''}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => {
-                const val = e.target.value;
-                handleChange('maxChars', val ? parseInt(val) : undefined);
-              }}
-              placeholder="最大字符数"
-            />
-          </div>
+          <Slider
+            label="最大字符数"
+            value={selectedFrame.maxChars ?? 256}
+            onChange={(value) => handleChange('maxChars', Math.round(value))}
+            min={1}
+            max={2048}
+            step={1}
+            showInput={true}
+          />
         </section>
       )}
 
@@ -1329,40 +1255,31 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         <section>
           <h4>滑块布局</h4>
           
-          <div className="form-group">
-            <label>初始值</label>
-            <input
-              type="number"
-              step="0.01"
-              value={selectedFrame.sliderInitialValue ?? ''}
-              onWheel={handleNumberInputWheel}
-              onChange={(e) => {
-                const val = e.target.value;
-                handleChange('sliderInitialValue', val ? parseFloat(val) : undefined);
-              }}
-              placeholder="初始值"
-            />
-          </div>
+          <Slider
+            label="初始值"
+            value={selectedFrame.sliderInitialValue ?? 0}
+            onChange={(value) => handleChange('sliderInitialValue', value)}
+            min={selectedFrame.minValue ?? 0}
+            max={selectedFrame.maxValue ?? 100}
+            step={selectedFrame.stepSize ?? 1}
+            showInput={true}
+          />
 
-          <div className="form-group">
-            <label>水平布局</label>
-            <input
-              type="text"
-              value={typeof selectedFrame.sliderLayoutHorizontal === 'string' ? selectedFrame.sliderLayoutHorizontal : ''}
-              onChange={(e) => handleChange('sliderLayoutHorizontal', e.target.value || undefined)}
-              placeholder="水平布局设置"
-            />
-          </div>
+          <TextArea
+            label="水平布局"
+            value={typeof selectedFrame.sliderLayoutHorizontal === 'string' ? selectedFrame.sliderLayoutHorizontal : ''}
+            onChange={(value) => handleChange('sliderLayoutHorizontal', value || undefined)}
+            rows={2}
+            placeholder="水平布局设置"
+          />
 
-          <div className="form-group">
-            <label>垂直布局</label>
-            <input
-              type="text"
-              value={typeof selectedFrame.sliderLayoutVertical === 'string' ? selectedFrame.sliderLayoutVertical : ''}
-              onChange={(e) => handleChange('sliderLayoutVertical', e.target.value || undefined)}
-              placeholder="垂直布局设置"
-            />
-          </div>
+          <TextArea
+            label="垂直布局"
+            value={typeof selectedFrame.sliderLayoutVertical === 'string' ? selectedFrame.sliderLayoutVertical : ''}
+            onChange={(value) => handleChange('sliderLayoutVertical', value || undefined)}
+            rows={2}
+            placeholder="垂直布局设置"
+          />
         </section>
       )}
 
@@ -1371,18 +1288,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         <section>
           <h4>列表框设置</h4>
           
-          <div className="form-group">
-            <label>列表项（每行一项）</label>
-            <textarea
-              value={selectedFrame.listBoxItems?.join('\n') || ''}
-              onChange={(e) => {
-                const items = e.target.value.split('\n').filter(line => line.trim());
-                handleChange('listBoxItems', items.length > 0 ? items : undefined);
-              }}
-              rows={5}
-              placeholder="项目1&#10;项目2&#10;项目3"
-            />
-          </div>
+          <TextArea
+            label="列表项（每行一项）"
+            value={selectedFrame.listBoxItems?.join('\n') || ''}
+            onChange={(value) => {
+              const items = value.split('\n').filter(line => line.trim());
+              handleChange('listBoxItems', items.length > 0 ? items : undefined);
+            }}
+            rows={5}
+            placeholder="项目1&#10;项目2&#10;项目3"
+          />
         </section>
       )}
 
@@ -1391,38 +1306,41 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         <section>
           <h4>高亮设置</h4>
           
-          <div className="form-group">
-            <label>高亮类型</label>
-            <input
-              type="text"
-              value={selectedFrame.highlightType || ''}
-              onChange={(e) => handleChange('highlightType', e.target.value)}
-              placeholder="FILETEXTURE, GOLDICON等"
-            />
-          </div>
+          <Select
+            label="高亮类型"
+            value={selectedFrame.highlightType || ''}
+            onChange={(value) => handleChange('highlightType', value || undefined)}
+            options={[
+              { value: '', label: '默认' },
+              { value: 'FILETEXTURE', label: 'FILETEXTURE (文件纹理)' },
+              { value: 'GOLDICON', label: 'GOLDICON (金币图标)' },
+              { value: 'LUMBERICON', label: 'LUMBERICON (木材图标)' },
+            ]}
+            allowClear
+          />
 
-          <div className="form-group">
-            <label>Alpha文件</label>
-            <input
-              type="text"
-              value={selectedFrame.highlightAlphaFile || ''}
-              onChange={(e) => handleChange('highlightAlphaFile', e.target.value)}
-              placeholder="Alpha纹理路径"
-            />
-          </div>
+          <FilePath
+            label="Alpha文件"
+            value={selectedFrame.highlightAlphaFile || ''}
+            onChange={(value) => handleChange('highlightAlphaFile', value || undefined)}
+            placeholder="Alpha纹理路径"
+            suggestions={[
+              'UI/Widgets/',
+            ]}
+          />
 
-          <div className="form-group">
-            <label>Alpha模式</label>
-            <select
-              value={selectedFrame.highlightAlphaMode || ''}
-              onChange={(e) => handleChange('highlightAlphaMode', e.target.value || undefined)}
-            >
-              <option value="">默认</option>
-              <option value="BLEND">BLEND</option>
-              <option value="ALPHAKEY">ALPHAKEY</option>
-              <option value="ADD">ADD</option>
-            </select>
-          </div>
+          <Select
+            label="Alpha模式"
+            value={selectedFrame.highlightAlphaMode || ''}
+            onChange={(value) => handleChange('highlightAlphaMode', value || undefined)}
+            options={[
+              { value: '', label: '默认' },
+              { value: 'BLEND', label: 'BLEND' },
+              { value: 'ALPHAKEY', label: 'ALPHAKEY' },
+              { value: 'ADD', label: 'ADD' },
+            ]}
+            allowClear
+          />
         </section>
       )}
     </div>
