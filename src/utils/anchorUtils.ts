@@ -1,5 +1,47 @@
 import { FrameAnchor, FramePoint, FrameData } from '../types';
 
+// ========== 性能优化：位置计算缓存 ==========
+interface PositionCache {
+  frameVersion: string; // 用于版本控制的哈希
+  position: { x: number; y: number; width: number; height: number } | null;
+}
+
+const positionCache = new Map<string, PositionCache>();
+let globalCacheVersion = 0;
+
+/**
+ * 清除所有缓存（在frames更新时调用）
+ */
+export function clearPositionCache(): void {
+  positionCache.clear();
+  globalCacheVersion++;
+}
+
+/**
+ * 生成frame的版本哈希（用于判断frame是否变化）
+ */
+function getFrameVersion(frame: FrameData): string {
+  return `${globalCacheVersion}-${frame.id}-${frame.x}-${frame.y}-${frame.width}-${frame.height}-${JSON.stringify(frame.anchors)}`;
+}
+
+/**
+ * 从缓存获取位置，如果不存在或过期则返回null
+ */
+function getCachedPosition(frameId: string, currentVersion: string): { x: number; y: number; width: number; height: number } | null {
+  const cached = positionCache.get(frameId);
+  if (cached && cached.frameVersion === currentVersion) {
+    return cached.position;
+  }
+  return null;
+}
+
+/**
+ * 缓存计算的位置
+ */
+function setCachedPosition(frameId: string, version: string, position: { x: number; y: number; width: number; height: number } | null): void {
+  positionCache.set(frameId, { frameVersion: version, position });
+}
+
 /**
  * 获取锚点在控件上的相对偏移（用于可视化，浏览器坐标系）
  */
@@ -347,11 +389,19 @@ export function calculatePositionFromAnchors(
   frame: FrameData,
   allFrames: Record<string, FrameData>
 ): { x: number; y: number; width: number; height: number } | null {
+  // 检查缓存
+  const frameVersion = getFrameVersion(frame);
+  const cached = getCachedPosition(frame.id, frameVersion);
+  if (cached !== null) {
+    return cached;
+  }
+  
   // 检查锚点数组是否存在
   if (!frame.anchors || frame.anchors.length === 0) {
     if (frame.name === 'ConfirmQuitQuitButton' || frame.name === 'ConfirmQuitCancelButton') {
       console.warn(`[calculatePositionFromAnchors] ${frame.name} has NO anchors!`);
     }
+    setCachedPosition(frame.id, frameVersion, null);
     return null;
   }
 
@@ -363,6 +413,7 @@ export function calculatePositionFromAnchors(
     if (frame.name === 'ConfirmQuitQuitButton' || frame.name === 'ConfirmQuitCancelButton') {
       console.warn(`[calculatePositionFromAnchors] ${frame.name} has NO relative anchors!`, frame.anchors);
     }
+    setCachedPosition(frame.id, frameVersion, null);
     return null;
   }
 
@@ -584,12 +635,15 @@ export function calculatePositionFromAnchors(
   if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number' ||
       isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height)) {
     console.error(`[Anchor] Invalid calculation for ${frame.name}: x=${x}, y=${y}, width=${width}, height=${height}`);
+    setCachedPosition(frame.id, frameVersion, null);
     return null;
   }
 
   console.log(`[Anchor] Calculated position for ${frame.name}: (${x.toFixed(3)}, ${y.toFixed(3)}), size: (${width.toFixed(3)}, ${height.toFixed(3)})`);
   
-  return { x, y, width, height };
+  const result = { x, y, width, height };
+  setCachedPosition(frame.id, frameVersion, result);
+  return result;
 }
 
 /**

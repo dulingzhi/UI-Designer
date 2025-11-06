@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ProjectData, FrameData, TableArrayData, CircleArrayData, GuideLine, StylePreset, FrameGroup } from '../types';
-import { createDefaultAnchors } from '../utils/anchorUtils';
+import { createDefaultAnchors, clearPositionCache } from '../utils/anchorUtils';
 
 interface ProjectState {
   project: ProjectData;
@@ -225,6 +225,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   updateFrame: (id, updates) => set((state) => {
     const frame = state.project.frames[id];
     if (!frame) return state;
+
+    // 清除缓存（因为frame可能被修改）
+    clearPositionCache();
 
     const updatedFrames = {
       ...state.project.frames,

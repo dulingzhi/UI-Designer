@@ -4,7 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { UpdateFrameCommand, RemoveFrameCommand, CopyFrameCommand, PasteFrameCommand } from '../commands/FrameCommands';
 import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
-import { FrameType, FramePoint } from '../types';
+import { FrameType, FramePoint, FrameData } from '../types';
 import { ResizeHandles, ResizeDirection } from './ResizeHandles';
 import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
 import { AnchorVisualizer } from './AnchorVisualizer';
@@ -623,9 +623,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       const frame = project.frames[frameId];
       if (!frame) return;
 
-      // 检查是否锁定
-      if (frame.locked) {
-        console.log('[Canvas] Frame is locked:', frame.name);
+      // 检查控件或其父控件是否锁定
+      if (isFrameOrParentLocked(frameId)) {
+        console.log('[Canvas] Frame or parent is locked:', frame.name);
         return;
       }
 
@@ -683,9 +683,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       const frame = project.frames[frameId];
       if (!frame) return;
 
-      // 检查是否锁定
-      if (frame.locked) {
-        console.log('[Canvas] Frame is locked:', frame.name);
+      // 检查控件或其父控件是否锁定
+      if (isFrameOrParentLocked(frameId)) {
+        console.log('[Canvas] Frame or parent is locked:', frame.name);
         return;
       }
 
@@ -700,13 +700,37 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     };
   };
 
+  // 检查控件或其任何父控件是否被锁定
+  const isFrameOrParentLocked = (frameId: string): boolean => {
+    let currentId: string | null | undefined = frameId;
+    while (currentId) {
+      const currentFrame: FrameData | undefined = project.frames[currentId];
+      if (!currentFrame) break;
+      if (currentFrame.locked) return true;
+      currentId = currentFrame.parentId;
+    }
+    return false;
+  };
+
+  // 检查控件或其任何父控件是否被隐藏
+  const isFrameOrParentHidden = (frameId: string): boolean => {
+    let currentId: string | null | undefined = frameId;
+    while (currentId) {
+      const currentFrame: FrameData | undefined = project.frames[currentId];
+      if (!currentFrame) break;
+      if (currentFrame.visible === false) return true;
+      currentId = currentFrame.parentId;
+    }
+    return false;
+  };
+
   // 渲染单个Frame
   const renderFrame = (frameId: string) => {
     const frame = project.frames[frameId];
     if (!frame) return null;
 
-    // 如果控件被隐藏，不渲染
-    if (frame.visible === false) return null;
+    // 如果控件或其任何父控件被隐藏，不渲染
+    if (isFrameOrParentHidden(frameId)) return null;
 
     const store = useProjectStore.getState();
     const isSelected = store.selectedFrameIds.includes(frameId);
@@ -718,21 +742,14 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       ? { ...frame, ...calculatedPos }
       : frame;
     
-    // 调试日志 - 显示两个按钮的详细信息
-    if (frame.name === 'ConfirmQuitQuitButton' || frame.name === 'ConfirmQuitCancelButton') {
-      console.log(`\n[Canvas DEBUG] ${frame.name}:`);
-      console.log('  Original:', { x: frame.x, y: frame.y, width: frame.width, height: frame.height });
-      console.log('  Anchors:', frame.anchors);
-      console.log('  Calculated:', calculatedPos);
-      console.log('  Actual frame:', { x: actualFrame.x, y: actualFrame.y, width: actualFrame.width, height: actualFrame.height });
-      console.log('  Canvas position:', { left: (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN, bottom: (actualFrame.y / 0.6) * CANVAS_HEIGHT });
-    }
-    
     // 计算实际位置（从底部左侧开始）
     const left = (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN;
     const bottom = (actualFrame.y / 0.6) * CANVAS_HEIGHT;
     const width = (actualFrame.width / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
     const height = (actualFrame.height / 0.6) * CANVAS_HEIGHT;
+
+    // 检查控件或父控件是否锁定
+    const isLockedOrParentLocked = isFrameOrParentLocked(frameId);
 
     const style: React.CSSProperties = {
       position: 'absolute',
@@ -740,7 +757,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       bottom: `${bottom}px`,
       width: `${width}px`,
       height: `${height}px`,
-      border: frame.locked 
+      border: isLockedOrParentLocked 
         ? '2px dashed #888888' 
         : isSelected 
           ? '2px solid #f22613' 
@@ -748,7 +765,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             ? '2px solid #00aaff'  // 搜索高亮：蓝色边框
             : '1px solid #00e640',
       boxSizing: 'border-box',
-      cursor: frame.locked ? 'not-allowed' : 'pointer',
+      cursor: isLockedOrParentLocked ? 'not-allowed' : 'pointer',
       zIndex: frame.z,
       backgroundColor: getFrameBackgroundColor(frame.type),
       backgroundImage: frame.diskTexture ? `url(${frame.diskTexture})` : undefined,
@@ -759,7 +776,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       justifyContent: frame.horAlign === 'left' ? 'flex-start' : frame.horAlign === 'center' ? 'center' : 'flex-end',
       fontSize: `${(frame.textScale || 1) * 14}px`,
       pointerEvents: 'auto',
-      opacity: frame.locked ? 0.7 : 1,
+      opacity: isLockedOrParentLocked ? 0.7 : 1,
       boxShadow: isHighlighted ? '0 0 10px rgba(0, 170, 255, 0.5)' : undefined,  // 添加发光效果
     };
 
@@ -790,7 +807,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         {frame.text && <span>{frame.text}</span>}
         
         {/* 锁定图标 */}
-        {frame.locked && (
+        {isLockedOrParentLocked && (
           <div style={{
             position: 'absolute',
             top: '2px',
@@ -808,7 +825,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         
         {/* 调整大小手柄 */}
         <ResizeHandles
-          isSelected={isSelected && !frame.locked}
+          isSelected={isSelected && !isLockedOrParentLocked}
           onResizeStart={handleResizeStart(frameId)}
         />
       </div>
