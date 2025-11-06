@@ -340,10 +340,12 @@
 
 .filepath-input-container {
   position: relative;
+  display: flex;
+  gap: 4px;
 }
 
 .filepath-input-container input {
-  width: 100%;
+  flex: 1;
   padding: 6px 10px;
   background-color: #2a2a2a;
   border: 1px solid #444;
@@ -357,6 +359,28 @@
   border-color: #4a9eff;
   outline: none;
   box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+}
+
+.filepath-input-container .wc3-browser-button {
+  background-color: #4a9eff;
+  border: 1px solid #4a9eff;
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.filepath-input-container .wc3-browser-button:hover:not(:disabled) {
+  background-color: #3a8eef;
+  border-color: #3a8eef;
+}
+
+.filepath-input-container .wc3-browser-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .filepath-suggestions {

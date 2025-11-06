@@ -306,6 +306,7 @@ interface FilePathProps extends BaseEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   suggestions?: string[];
+  showWC3Browser?: boolean; // 是否显示 WC3 资源浏览器按钮
 }
 
 export const FilePath: React.FC<FilePathProps> = ({
@@ -314,11 +315,13 @@ export const FilePath: React.FC<FilePathProps> = ({
   onChange,
   placeholder = '输入文件路径',
   suggestions = [],
+  showWC3Browser = true,
   disabled,
   tooltip,
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [showBrowser, setShowBrowser] = useState(false);
 
   useEffect(() => {
     if (value && suggestions.length > 0) {
@@ -344,6 +347,16 @@ export const FilePath: React.FC<FilePathProps> = ({
           placeholder={placeholder}
           disabled={disabled}
         />
+        {showWC3Browser && (
+          <button
+            className="wc3-browser-button"
+            onClick={() => setShowBrowser(true)}
+            disabled={disabled}
+            title="浏览 WC3 资源"
+          >
+            📁
+          </button>
+        )}
         {showSuggestions && filteredSuggestions.length > 0 && (
           <div className="filepath-suggestions">
             {filteredSuggestions.slice(0, 10).map((suggestion, idx) => (
@@ -361,6 +374,24 @@ export const FilePath: React.FC<FilePathProps> = ({
           </div>
         )}
       </div>
+      
+      {showBrowser && (
+        <React.Suspense fallback={<div>加载中...</div>}>
+          {(() => {
+            const WC3TextureBrowser = require('./WC3TextureBrowser').WC3TextureBrowser;
+            return (
+              <WC3TextureBrowser
+                onSelect={(path: string) => {
+                  onChange(path);
+                  setShowBrowser(false);
+                }}
+                onClose={() => setShowBrowser(false)}
+                currentPath={value}
+              />
+            );
+          })()}
+        </React.Suspense>
+      )}
     </div>
   );
 };
