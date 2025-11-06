@@ -9,6 +9,7 @@ import { ExportLanguage } from '../types';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
 import { ShortcutHelp } from './ShortcutHelp';
+import { WC3TextureBrowser } from './WC3TextureBrowser';
 import {
   NewFileIcon, OpenFileIcon, SaveIcon,
   UndoIcon, RedoIcon,
@@ -17,7 +18,7 @@ import {
   DistributeHIcon, DistributeVIcon,
   SameWidthIcon, SameHeightIcon, SameSizeIcon,
   BringToFrontIcon, BringForwardIcon, SendBackwardIcon, SendToBackIcon,
-  ExportIcon, HelpIcon,
+  ExportIcon, HelpIcon, TextureBrowserIcon,
 } from './icons/ToolbarIcons';
 import './Toolbar.css';
 
@@ -30,6 +31,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   const { selectedFrameId, selectedFrameIds, project, setProject } = useProjectStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
   const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
+  const [showTextureBrowser, setShowTextureBrowser] = React.useState(false);
 
   // 监听 F1 快捷键事件
   React.useEffect(() => {
@@ -48,6 +50,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   const handleNewProject = () => {
     if (confirm('创建新项目将清除当前项目，是否继续？')) {
       setProject({
+        version: 2,
         libraryName: 'UILib',
         originMode: 'gameui',
         hideGameUI: false,
@@ -412,6 +415,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
         </button>
       </div>
 
+      {/* WC3 资源浏览器 */}
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-btn-icon" 
+          onClick={() => setShowTextureBrowser(true)}
+          title="WC3 资源浏览器"
+        >
+          <TextureBrowserIcon />
+        </button>
+      </div>
+
       {/* 帮助 */}
       <div className="toolbar-group">
         <button 
@@ -424,6 +438,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       </div>
 
       <ShortcutHelp isOpen={showShortcutHelp} onClose={() => setShowShortcutHelp(false)} />
+      
+      {showTextureBrowser && (
+        <WC3TextureBrowser
+          onSelect={(path) => {
+            // 复制路径到剪贴板
+            navigator.clipboard.writeText(path).then(() => {
+              console.log('已复制路径:', path);
+            });
+          }}
+          onClose={() => setShowTextureBrowser(false)}
+        />
+      )}
     </div>
   );
 };

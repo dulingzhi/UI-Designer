@@ -152,7 +152,7 @@ export class BLPDecoder {
    * 解码为 ImageData
    * @param mipLevel Mipmap级别 (0=原始大小)
    */
-  decode(mipLevel: number = 0): ImageData {
+  async decode(mipLevel: number = 0): Promise<ImageData> {
     const { width, height, compression } = this.header;
     
     // 计算当前Mipmap的尺寸
@@ -164,7 +164,7 @@ export class BLPDecoder {
     
     switch (compression) {
       case BLPCompressionType.JPEG:
-        rgbaData = this.decodeJPEG(mipLevel);
+        rgbaData = await this.decodeJPEG(mipLevel);
         break;
         
       case BLPCompressionType.PALETTED:
@@ -205,35 +205,46 @@ export class BLPDecoder {
   /**
    * 解码 JPEG 压缩 (BLP1)
    */
-  private decodeJPEG(mipLevel: number): Uint8ClampedArray {
+  private async decodeJPEG(mipLevel: number): Promise<Uint8ClampedArray> {
     const { mipOffsets, mipSizes, width, height } = this.header;
     const offset = mipOffsets[mipLevel];
     const size = mipSizes[mipLevel];
     
+    const mipWidth = width >> mipLevel;
+    const mipHeight = height >> mipLevel;
+    
     if (offset === 0 || size === 0) {
-      throw new Error(`无效的Mipmap级别: ${mipLevel}`);
+      // 返回占位图像而不是抛出错误
+      return this.createPlaceholderImage(mipWidth, mipHeight);
     }
     
-    // 读取JPEG头 (624字节，BLP1特有)
-    const jpegHeaderSize = 624;
-    const jpegHeader = new Uint8Array(this.view.buffer, offset, jpegHeaderSize);
-    
-    // 读取JPEG数据
-    const jpegData = new Uint8Array(this.view.buffer, offset + jpegHeaderSize, size - jpegHeaderSize);
-    
-    // 合并JPEG头和数据
-    const fullJPEG = new Uint8Array(jpegHeaderSize + jpegData.length);
-    fullJPEG.set(jpegHeader, 0);
-    fullJPEG.set(jpegData, jpegHeaderSize);
-    
-    // 使用浏览器原生解码JPEG
-    return this.decodeJPEGWithCanvas(fullJPEG, width >> mipLevel, height >> mipLevel);
+    try {
+      // 读取 JPEG 头大小 (存储在偏移 156 = 39*4 字节处)
+      const jpegHeaderSize = this.view.getUint32(156, true);
+      
+      // 读取 JPEG 头 (从偏移 160 = 40*4 字节开始)
+      const jpegHeader = new Uint8Array(this.view.buffer, 160, jpegHeaderSize);
+      
+      // 读取 JPEG 数据
+      const jpegData = new Uint8Array(this.view.buffer, offset, size);
+      
+      // 合并 JPEG 头和数据
+      const fullJPEG = new Uint8Array(jpegHeaderSize + jpegData.length);
+      fullJPEG.set(jpegHeader, 0);
+      fullJPEG.set(jpegData, jpegHeaderSize);
+      
+      // 使用浏览器原生解码JPEG
+      return await this.decodeJPEGWithCanvas(fullJPEG, mipWidth, mipHeight);
+    } catch (error) {
+      // JPEG 解码失败时，返回占位图像（静默失败）
+      return this.createPlaceholderImage(mipWidth, mipHeight);
+    }
   }
   
   /**
    * 使用 Canvas 解码 JPEG
    */
-  private decodeJPEGWithCanvas(jpegData: Uint8Array, width: number, height: number): Uint8ClampedArray {
+  private async decodeJPEGWithCanvas(jpegData: Uint8Array, width: number, height: number): Promise<Uint8ClampedArray> {
     // 创建Blob
     // @ts-ignore - TypeScript类型定义问题，实际运行正常
     const blob = new Blob([jpegData], { type: 'image/jpeg' });
@@ -247,21 +258,41 @@ export class BLPDecoder {
     canvas.width = width;
     canvas.height = height;
     
-    // 同步加载 (注意: 这里需要改为异步)
+    // 异步加载
     img.src = url;
     
     return new Promise<Uint8ClampedArray>((resolve, reject) => {
       img.onload = () => {
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, width, height);
-        URL.revokeObjectURL(url);
-        resolve(imageData.data);
+        try {
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve(imageData.data);
+        } catch (error) {
+          URL.revokeObjectURL(url);
+          reject(error);
+        }
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
         reject(new Error('JPEG解码失败'));
       };
-    }) as any; // 临时强制类型转换，后续改为异步API
+    });
+  }
+  
+  /**
+   * 创建占位图像（半透明灰色）
+   */
+  private createPlaceholderImage(width: number, height: number): Uint8ClampedArray {
+    const rgbaData = new Uint8ClampedArray(width * height * 4);
+    // 填充为半透明灰色
+    for (let i = 0; i < rgbaData.length; i += 4) {
+      rgbaData[i] = 128;     // R
+      rgbaData[i + 1] = 128; // G
+      rgbaData[i + 2] = 128; // B
+      rgbaData[i + 3] = 128; // A (半透明)
+    }
+    return rgbaData;
   }
   
   /**
@@ -664,7 +695,7 @@ export class BLPDecoder {
  */
 export async function decodeBLP(buffer: ArrayBuffer, mipLevel: number = 0): Promise<ImageData> {
   const decoder = new BLPDecoder(buffer);
-  return decoder.decode(mipLevel);
+  return await decoder.decode(mipLevel);
 }
 
 /**

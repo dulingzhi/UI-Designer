@@ -163,7 +163,11 @@ export class TextureLoader {
       return url;
       
     } catch (error) {
-      console.error(`[TextureLoader] 加载失败: ${path}`, error);
+      // 只在非常规错误时记录详细日志
+      // "WC3 纹理未找到" 是正常情况（某些文件在 listfile 中但实际不存在或无法读取）
+      if (error instanceof Error && !error.message.includes('WC3 纹理未找到')) {
+        console.error(`[TextureLoader] 加载失败: ${path}`, error);
+      }
       throw error;
     }
   }
@@ -179,6 +183,7 @@ export class TextureLoader {
     const buffer = await mpqManager.readFile(normalizedPath);
     
     if (!buffer) {
+      // 静默失败，不记录日志（很多文件在 listfile 中但无法读取）
       throw new Error(`WC3 纹理未找到: ${wc3Path}`);
     }
     

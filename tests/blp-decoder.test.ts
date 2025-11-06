@@ -31,7 +31,7 @@ async function testBLPDecoder() {
     console.log(`  - Mipmap数: ${info1.mipmapCount}`);
     
     // 尝试解码
-    const imageData = decoder1.decode(0);
+    const imageData = await decoder1.decode(0);
     console.log(`✓ 图像解码成功: ${imageData.width}x${imageData.height}`);
     console.log(`  - 数据大小: ${imageData.data.length} 字节`);
     
@@ -52,7 +52,7 @@ async function testBLPDecoder() {
     console.log(`  - 尺寸: ${info2.width}x${info2.height}`);
     console.log(`  - 压缩: ${info2.compression}`);
     
-    const imageData = decoder2.decode(0);
+    const imageData = await decoder2.decode(0);
     console.log(`✓ DXT1解码成功: ${imageData.width}x${imageData.height}`);
     
   } catch (error: any) {

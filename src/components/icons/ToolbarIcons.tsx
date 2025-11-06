@@ -177,3 +177,15 @@ export const HelpIcon: React.FC<IconProps> = ({ size = 16, color = 'currentColor
     <circle cx="8" cy="11.5" r="0.5" fill={color}/>
   </svg>
 );
+
+// WC3 资源浏览器图标
+export const TextureBrowserIcon: React.FC<IconProps> = ({ size = 16, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <rect x="2" y="3" width="12" height="10" rx="1" stroke={color}/>
+    <path d="M2 6H14" stroke={color}/>
+    <rect x="4" y="8" width="3" height="3" fill={color} fillOpacity="0.3" stroke={color} strokeWidth="0.5"/>
+    <rect x="8.5" y="8" width="3" height="3" fill={color} fillOpacity="0.3" stroke={color} strokeWidth="0.5"/>
+    <circle cx="5.5" cy="9.5" r="0.8" fill={color}/>
+    <circle cx="10" cy="9.5" r="0.8" fill={color}/>
+  </svg>
+);

@@ -3,12 +3,20 @@
  * 
  * 用于加载和访问 Warcraft 3 客户端内的资源文件
  * 支持从多个 MPQ 档案中读取 BLP 纹理、FDF 文件等
+ * 
+ * 使用 Tauri 后端的 Rust MPQ 库来处理 MPQ 文件
  */
 
-import MPQArchive from 'mpq-file';
 import { open } from '@tauri-apps/plugin-dialog';
-import { exists, readFile } from '@tauri-apps/plugin-fs';
+import { invoke } from '@tauri-apps/api/core';
 import { join } from '@tauri-apps/api/path';
+import { exists } from '@tauri-apps/plugin-fs';
+
+// MPQ 文件信息接口
+interface MpqFileInfo {
+  name: string;
+  size: number;
+}
 
 /**
  * War3 1.27 标准 MPQ 档案列表
@@ -26,7 +34,7 @@ const WAR3_127_MPQS = [
 interface MPQArchiveInfo {
   name: string;
   path: string;
-  archive: MPQArchive | null;
+  files: MpqFileInfo[];  // 文件列表
   fileCount: number;
   loaded: boolean;
   error?: string;
@@ -59,6 +67,12 @@ export class MPQManager {
     this.unloadAll();
     
     console.log(`[MPQManager] War3 路径已设置: ${path}`);
+    
+    // 自动加载标准 MPQ 档案
+    console.log('[MPQManager] 开始加载 MPQ 档案...');
+    const result = await this.loadStandardArchives();
+    console.log(`[MPQManager] MPQ 加载结果: ${result.success} 成功, ${result.failed} 失败`);
+    console.log(`[MPQManager] 文件缓存大小: ${this.fileListCache.size} 个文件`);
   }
   
   /**
@@ -100,10 +114,13 @@ export class MPQManager {
       throw new Error('未设置 Warcraft 3 路径');
     }
     
+    console.log(`[MPQManager] 准备加载 ${WAR3_127_MPQS.length} 个 MPQ 档案...`);
+    
     let success = 0;
     let failed = 0;
     
     for (const mpqName of WAR3_127_MPQS) {
+      console.log(`[MPQManager] 正在加载: ${mpqName}...`);
       try {
         const loaded = await this.loadArchive(mpqName);
         if (loaded) {
@@ -112,12 +129,15 @@ export class MPQManager {
           failed++;
         }
       } catch (error) {
-        console.error(`[MPQManager] 加载 ${mpqName} 失败:`, error);
+        console.error(`[MPQManager] 加载 ${mpqName} 异常:`, error);
         failed++;
       }
     }
     
+    console.log(`[MPQManager] ========================================`);
     console.log(`[MPQManager] MPQ 加载完成: ${success} 成功, ${failed} 失败`);
+    console.log(`[MPQManager] 总文件数: ${this.fileListCache.size}`);
+    console.log(`[MPQManager] ========================================`);
     return { success, failed };
   }
   
@@ -127,59 +147,46 @@ export class MPQManager {
   async loadArchive(mpqName: string): Promise<boolean> {
     try {
       const mpqPath = await join(this.war3Path, mpqName);
+      console.log(`[MPQManager]   检查文件: ${mpqPath}`);
       
-      // 检查文件是否存在
-      const fileExists = await exists(mpqPath);
-      if (!fileExists) {
-        console.warn(`[MPQManager] MPQ 文件不存在: ${mpqPath}`);
-        this.archives.set(mpqName, {
-          name: mpqName,
-          path: mpqPath,
-          archive: null,
-          fileCount: 0,
-          loaded: false,
-          error: '文件不存在',
-        });
-        return false;
-      }
+      console.log(`[MPQManager]   调用 Rust 后端加载 MPQ...`);
       
-      // 读取 MPQ 文件
-      const buffer = await readFile(mpqPath);
-      
-      // 创建 MPQ 档案实例
-      const archive = new MPQArchive(buffer.buffer);
-      
-      // 获取文件列表
-      const files = archive.getFileList();
+      // 使用 Tauri 后端加载 MPQ 档案
+      const files = await invoke<MpqFileInfo[]>('load_mpq_archive', { path: mpqPath });
       const fileCount = files.length;
+      console.log(`[MPQManager]   找到 ${fileCount} 个文件`);
       
       // 缓存文件列表
-      files.forEach((fileName: string) => {
-        this.fileListCache.set(fileName.toLowerCase(), {
-          fileName,
+      let cachedCount = 0;
+      files.forEach((file) => {
+        this.fileListCache.set(file.name.toLowerCase(), {
+          fileName: file.name,
           archiveName: mpqName,
-          size: 0, // mpq-file 可能不提供大小信息
+          size: file.size,
         });
+        cachedCount++;
       });
+      console.log(`[MPQManager]   缓存了 ${cachedCount} 个文件路径`);
       
       // 保存档案信息
       this.archives.set(mpqName, {
         name: mpqName,
         path: mpqPath,
-        archive,
+        files,
         fileCount,
         loaded: true,
       });
       
-      console.log(`[MPQManager] ✓ ${mpqName} 已加载 (${fileCount} 个文件)`);
+      console.log(`[MPQManager]   ✓✓✓ ${mpqName} 加载成功 (${fileCount} 个文件)`);
       return true;
       
     } catch (error: any) {
-      console.error(`[MPQManager] 加载 ${mpqName} 失败:`, error);
+      console.error(`[MPQManager]   ✗✗✗ 加载 ${mpqName} 失败:`, error);
+      console.error(`[MPQManager]   错误详情:`, error.stack || error.message);
       this.archives.set(mpqName, {
         name: mpqName,
         path: '',
-        archive: null,
+        files: [],
         fileCount: 0,
         loaded: false,
         error: error.message,
@@ -202,41 +209,68 @@ export class MPQManager {
     
     if (cached) {
       const archiveInfo = this.archives.get(cached.archiveName);
-      if (archiveInfo?.archive) {
+      if (archiveInfo?.loaded) {
         try {
-          const buffer = archiveInfo.archive.getFile(normalizedPath);
-          return buffer;
-        } catch (error) {
-          console.error(`[MPQManager] 读取文件失败 (${cached.archiveName}): ${filePath}`, error);
+          // 使用 Tauri 后端读取文件
+          const data = await invoke<number[]>('read_mpq_file', {
+            archivePath: archiveInfo.path,
+            fileName: normalizedPath
+          });
+          // 将数字数组转换为 ArrayBuffer
+          return new Uint8Array(data).buffer;
+        } catch (error: any) {
+          // 如果是内部错误，静默失败，不记录日志（避免控制台污染）
+          const errorMsg = error?.message || String(error);
+          if (errorMsg.includes('内部错误')) {
+            // 从缓存中移除这个有问题的文件
+            this.fileListCache.delete(lowerPath);
+            // 静默返回 null，让调用者处理
+            return null;
+          }
+          // 其他错误才记录
+          console.warn(`[MPQManager] 读取文件失败 (${cached.archiveName}): ${filePath}`, errorMsg);
         }
       }
     }
     
-    // 如果缓存未命中，遍历所有档案查找
+    // 如果缓存未命中，遍历所有档案查找（但跳过详细日志）
     for (const [archiveName, info] of this.archives.entries()) {
-      if (!info.loaded || !info.archive) continue;
+      if (!info.loaded) continue;
       
       try {
-        const buffer = info.archive.getFile(normalizedPath);
-        if (buffer) {
-          console.log(`[MPQManager] ✓ 从 ${archiveName} 读取: ${filePath}`);
+        // 使用 Tauri 后端读取文件
+        const data = await invoke<number[]>('read_mpq_file', {
+          archivePath: info.path,
+          fileName: normalizedPath
+        });
+        
+        if (data && data.length > 0) {
+          // 只在成功时记录日志
+          // console.log(`[MPQManager] ✓ 从 ${archiveName} 读取: ${filePath}`);
           
           // 更新缓存
           this.fileListCache.set(lowerPath, {
             fileName: normalizedPath,
             archiveName,
-            size: buffer.byteLength,
+            size: data.length,
           });
           
-          return buffer;
+          // 将数字数组转换为 ArrayBuffer
+          return new Uint8Array(data).buffer;
         }
-      } catch (error) {
-        // 文件不在此档案中，继续查找
+      } catch (error: any) {
+        // 如果是内部错误，静默跳过
+        const errorMsg = error?.message || String(error);
+        if (errorMsg.includes('内部错误')) {
+          continue;
+        }
+        // 其他错误继续查找
         continue;
       }
     }
     
-    console.warn(`[MPQManager] 文件未找到: ${filePath}`);
+    // 只在真正找不到时记录一次警告
+    // console.warn(`[MPQManager] 文件未找到: ${filePath}`);
     return null;
   }
   
@@ -281,16 +315,153 @@ export class MPQManager {
   }
   
   /**
-   * 列出目录中的文件
+   * 列出目录中的文件（不包括子目录）
    * @param directory 目录路径，如 "UI\\Widgets\\EscMenu\\"
    */
   listDirectory(directory: string): FileSearchResult[] {
     const normalizedDir = directory.replace(/\//g, '\\').toLowerCase();
-    const pattern = normalizedDir.endsWith('\\') 
-      ? `${normalizedDir}*` 
-      : `${normalizedDir}\\*`;
+    console.log(`[MPQManager] listDirectory - 目录: ${normalizedDir}`);
     
-    return this.searchFiles(pattern);
+    const results: FileSearchResult[] = [];
+    
+    for (const fileInfo of this.fileListCache.values()) {
+      const fileName = fileInfo.fileName.toLowerCase();
+      
+      // 跳过地图文件内部的路径（检查路径的第一部分）
+      const firstPart = fileName.split(/[/\\]/)[0];
+      if (firstPart && firstPart.match(/\.(w3m|w3x)$/)) {
+        continue;
+      }
+      
+      // 检查文件是否在该目录下
+      if (!fileName.startsWith(normalizedDir)) {
+        continue;
+      }
+      
+      // 获取相对路径
+      const relativePath = fileName.substring(normalizedDir.length);
+      
+      // 只返回直接在该目录下的文件（不在子目录中）
+      // 即相对路径中不应该包含 \ 或 /
+      if (!relativePath.includes('\\') && !relativePath.includes('/')) {
+        results.push(fileInfo);
+      }
+    }
+    
+    console.log(`[MPQManager] listDirectory - 找到 ${results.length} 个文件`);
+    if (results.length > 0 && results.length <= 5) {
+      console.log(`[MPQManager] listDirectory - 文件列表:`, results.map(r => r.fileName));
+    }
+    return results;
+  }
+
+  /**
+   * 获取目录树结构
+   * @param rootPath 根路径，如 "UI\\" 或 "" (空字符串表示根目录)
+   * @returns 目录树节点数组
+   */
+  getDirectoryTree(rootPath: string = ''): string[] {
+    const normalizedRoot = rootPath.replace(/\//g, '\\').toLowerCase();
+    const directories = new Set<string>();
+    
+    // 遍历所有文件，提取目录结构
+    for (const fileInfo of this.fileListCache.values()) {
+      const fileName = fileInfo.fileName.toLowerCase();
+      
+      // 如果指定了根路径，只处理该路径下的文件
+      if (normalizedRoot && !fileName.startsWith(normalizedRoot)) {
+        continue;
+      }
+      
+      // 提取相对于根路径的部分
+      const relativePath = normalizedRoot 
+        ? fileName.substring(normalizedRoot.length)
+        : fileName;
+      
+      // 分割路径，获取所有目录层级
+      const parts = relativePath.split('\\').filter(Boolean);
+      
+      // 构建所有层级的目录路径
+      let currentPath = normalizedRoot;
+      for (let i = 0; i < parts.length - 1; i++) { // -1 因为最后一部分是文件名
+        currentPath += parts[i] + '\\';
+        directories.add(currentPath);
+      }
+    }
+    
+    return Array.from(directories).sort();
+  }
+
+  /**
+   * 获取根目录列表
+   */
+  getRootDirectories(): string[] {
+    console.log(`[MPQManager] getRootDirectories - 文件缓存大小: ${this.fileListCache.size}`);
+    const rootDirs = new Set<string>();
+    
+    for (const fileInfo of this.fileListCache.values()) {
+      const fileName = fileInfo.fileName;
+      const parts = fileName.split(/[/\\]/).filter(Boolean);
+      
+      if (parts.length > 0) {
+        const rootDir = parts[0];
+        
+        // 跳过地图文件（以 .w3m 或 .w3x 结尾）
+        if (rootDir.toLowerCase().match(/\.(w3m|w3x)$/)) {
+          continue;
+        }
+        
+        // 只添加真正的目录（至少有2个路径部分，即包含子路径）
+        if (parts.length > 1) {
+          rootDirs.add(rootDir + '\\');
+        }
+      }
+    }
+    
+    const result = Array.from(rootDirs).sort();
+    console.log(`[MPQManager] getRootDirectories - 找到 ${result.length} 个根目录:`, result.slice(0, 10));
+    return result;
+  }
+
+  /**
+   * 获取指定目录的直接子目录
+   * @param directory 目录路径
+   */
+  getSubDirectories(directory: string): string[] {
+    const normalizedDir = directory.replace(/\//g, '\\').toLowerCase();
+    console.log(`[MPQManager] getSubDirectories - 目录: ${normalizedDir}`);
+    const subDirs = new Set<string>();
+    
+    let matchCount = 0;
+    for (const fileInfo of this.fileListCache.values()) {
+      const fileName = fileInfo.fileName.toLowerCase();
+      
+      // 跳过地图文件内部的路径（检查路径的第一部分）
+      const firstPart = fileName.split(/[/\\]/)[0];
+      if (firstPart && firstPart.match(/\.(w3m|w3x)$/)) {
+        continue;
+      }
+      
+      // 只处理该目录下的文件
+      if (!fileName.startsWith(normalizedDir)) {
+        continue;
+      }
+      
+      matchCount++;
+      
+      // 获取相对路径
+      const relativePath = fileName.substring(normalizedDir.length);
+      const parts = relativePath.split(/[/\\]/).filter(Boolean);
+      
+      // 如果有多于1个部分，第一个部分就是子目录
+      if (parts.length > 1) {
+        subDirs.add(normalizedDir + parts[0] + '\\');
+      }
+    }
+    
+    const result = Array.from(subDirs).sort();
+    console.log(`[MPQManager] getSubDirectories - 匹配文件: ${matchCount}, 子目录: ${result.length}`, result.slice(0, 5));
+    return result;
   }
   
   /**
@@ -320,7 +491,7 @@ export class MPQManager {
         }
       }
       
-      info.archive = null;
+      info.files = [];
       info.loaded = false;
       
       console.log(`[MPQManager] ${mpqName} 已卸载`);
@@ -331,9 +502,18 @@ export class MPQManager {
    * 卸载所有档案
    */
   unloadAll(): void {
+    const archiveCount = this.archives.size;
+    const fileCount = this.fileListCache.size;
+    
     this.archives.clear();
     this.fileListCache.clear();
-    console.log('[MPQManager] 所有 MPQ 档案已卸载');
+    
+    // 清理 Rust 后端的缓存
+    invoke('clear_mpq_cache').catch(err => {
+      console.warn('[MPQManager] 清理后端缓存失败:', err);
+    });
+    
+    console.log(`[MPQManager] 所有 MPQ 档案已卸载 (清除了 ${archiveCount} 个档案, ${fileCount} 个文件)`);
   }
   
   /**
