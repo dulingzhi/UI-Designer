@@ -773,83 +773,53 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
       {shouldShowField(selectedFrame.type, 'texture') && (
         <section>
           <h4>纹理</h4>
-          <div className="form-group">
-            <label>应用内纹理路径</label>
-            <input
-              type="text"
-              value={selectedFrame.diskTexture}
-              onChange={(e) => handleChange('diskTexture', e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label>游戏内纹理路径</label>
-            <input
-              type="text"
-              value={selectedFrame.wc3Texture}
-              onChange={(e) => handleChange('wc3Texture', e.target.value)}
-            />
-          </div>
+          <FilePath
+            label="应用内纹理路径"
+            value={selectedFrame.diskTexture || ''}
+            onChange={(value) => handleChange('diskTexture', value)}
+            suggestions={[
+              'UI/Widgets/Console/Human/',
+              'UI/Widgets/Glues/Human/',
+              'UI/Widgets/BattleNet/',
+              'UI/Widgets/ToolTips/',
+            ]}
+          />
+          <FilePath
+            label="游戏内纹理路径"
+            value={selectedFrame.wc3Texture || ''}
+            onChange={(value) => handleChange('wc3Texture', value)}
+            suggestions={[
+              'ReplaceableTextures/CommandButtons/',
+              'UI/Widgets/Console/Human/',
+              'war3mapImported/',
+            ]}
+          />
           
           <details style={{ marginBottom: '12px' }}>
             <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '8px' }}>
               高级纹理设置
             </summary>
             
-            <div className="form-group">
-              <label>纹理文件 (textureFile)</label>
-              <input
-                type="text"
-                value={selectedFrame.textureFile || ''}
-                onChange={(e) => handleChange('textureFile', e.target.value)}
-                placeholder="纹理路径"
-              />
-            </div>
+            <FilePath
+              label="纹理文件 (textureFile)"
+              value={selectedFrame.textureFile || ''}
+              onChange={(value) => handleChange('textureFile', value)}
+              placeholder="纹理路径"
+              suggestions={[
+                'UI/Widgets/',
+                'ReplaceableTextures/',
+                'war3mapImported/',
+              ]}
+            />
 
-            <div className="form-group">
-              <label>纹理坐标 (UVs: minU, minV, maxU, maxV)</label>
-              <div className="form-row">
-                <input type="number" step="0.01" placeholder="minU"
-                  value={selectedFrame.texCoord?.[0] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
-                    arr[0] = val ? parseFloat(val) : 0;
-                    handleChange('texCoord', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" placeholder="minV"
-                  value={selectedFrame.texCoord?.[1] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
-                    arr[1] = val ? parseFloat(val) : 0;
-                    handleChange('texCoord', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" placeholder="maxU"
-                  value={selectedFrame.texCoord?.[2] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
-                    arr[2] = val ? parseFloat(val) : 1;
-                    handleChange('texCoord', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" placeholder="maxV"
-                  value={selectedFrame.texCoord?.[3] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.texCoord || [0, 0, 1, 1];
-                    arr[3] = val ? parseFloat(val) : 1;
-                    handleChange('texCoord', [...arr]);
-                  }}
-                />
-              </div>
-            </div>
+            <VectorEditor
+              label="纹理坐标 (UVs: minU, minV, maxU, maxV)"
+              value={selectedFrame.texCoord || [0, 0, 1, 1]}
+              onChange={(value) => handleChange('texCoord', value)}
+              dimensions={4}
+              labels={['minU', 'minV', 'maxU', 'maxV']}
+              step={0.01}
+            />
 
             <Select
               label="Alpha模式"
@@ -974,169 +944,32 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               高级文本颜色设置
             </summary>
             
-            <div className="form-group">
-              <label>高亮颜色 (RGB)</label>
-              <div className="form-row">
-                <input type="number" step="0.01" min="0" max="1" placeholder="R"
-                  value={selectedFrame.fontHighlightColor?.[0] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
-                    arr[0] = val ? parseFloat(val) : 1;
-                    handleChange('fontHighlightColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="G"
-                  value={selectedFrame.fontHighlightColor?.[1] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
-                    arr[1] = val ? parseFloat(val) : 1;
-                    handleChange('fontHighlightColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="B"
-                  value={selectedFrame.fontHighlightColor?.[2] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
-                    arr[2] = val ? parseFloat(val) : 1;
-                    handleChange('fontHighlightColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="A"
-                  value={selectedFrame.fontHighlightColor?.[3] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontHighlightColor || [1, 1, 1, 1];
-                    arr[3] = val ? parseFloat(val) : 1;
-                    handleChange('fontHighlightColor', [...arr]);
-                  }}
-                />
-              </div>
-            </div>
+            <ColorPicker
+              label="高亮颜色 (RGBA)"
+              value={selectedFrame.fontHighlightColor || [1, 1, 1, 1]}
+              onChange={(value) => handleChange('fontHighlightColor', value)}
+            />
 
-            <div className="form-group">
-              <label>禁用状态颜色 (RGB)</label>
-              <div className="form-row">
-                <input type="number" step="0.01" min="0" max="1" placeholder="R"
-                  value={selectedFrame.fontDisabledColor?.[0] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
-                    arr[0] = val ? parseFloat(val) : 0.5;
-                    handleChange('fontDisabledColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="G"
-                  value={selectedFrame.fontDisabledColor?.[1] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
-                    arr[1] = val ? parseFloat(val) : 0.5;
-                    handleChange('fontDisabledColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="B"
-                  value={selectedFrame.fontDisabledColor?.[2] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
-                    arr[2] = val ? parseFloat(val) : 0.5;
-                    handleChange('fontDisabledColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="A"
-                  value={selectedFrame.fontDisabledColor?.[3] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1];
-                    arr[3] = val ? parseFloat(val) : 1;
-                    handleChange('fontDisabledColor', [...arr]);
-                  }}
-                />
-              </div>
-            </div>
+            <ColorPicker
+              label="禁用状态颜色 (RGBA)"
+              value={selectedFrame.fontDisabledColor || [0.5, 0.5, 0.5, 1]}
+              onChange={(value) => handleChange('fontDisabledColor', value)}
+            />
 
-            <div className="form-group">
-              <label>阴影偏移 (X, Y)</label>
-              <div className="form-row">
-                <input type="number" step="0.001" placeholder="X"
-                  value={selectedFrame.fontShadowOffset?.[0] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontShadowOffset || [0, 0];
-                    arr[0] = val ? parseFloat(val) : 0;
-                    handleChange('fontShadowOffset', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.001" placeholder="Y"
-                  value={selectedFrame.fontShadowOffset?.[1] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontShadowOffset || [0, 0];
-                    arr[1] = val ? parseFloat(val) : 0;
-                    handleChange('fontShadowOffset', [...arr]);
-                  }}
-                />
-              </div>
-            </div>
+            <VectorEditor
+              label="阴影偏移 (X, Y)"
+              value={selectedFrame.fontShadowOffset || [0, 0]}
+              onChange={(value) => handleChange('fontShadowOffset', value)}
+              dimensions={2}
+              labels={['X', 'Y']}
+              step={0.001}
+            />
 
-            <div className="form-group">
-              <label>阴影颜色 (RGBA)</label>
-              <div className="form-row">
-                <input type="number" step="0.01" min="0" max="1" placeholder="R"
-                  value={selectedFrame.fontShadowColor?.[0] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
-                    arr[0] = val ? parseFloat(val) : 0;
-                    handleChange('fontShadowColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="G"
-                  value={selectedFrame.fontShadowColor?.[1] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
-                    arr[1] = val ? parseFloat(val) : 0;
-                    handleChange('fontShadowColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="B"
-                  value={selectedFrame.fontShadowColor?.[2] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
-                    arr[2] = val ? parseFloat(val) : 0;
-                    handleChange('fontShadowColor', [...arr]);
-                  }}
-                />
-                <input type="number" step="0.01" min="0" max="1" placeholder="A"
-                  value={selectedFrame.fontShadowColor?.[3] ?? ''}
-                  onWheel={handleNumberInputWheel}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const arr = selectedFrame.fontShadowColor || [0, 0, 0, 1];
-                    arr[3] = val ? parseFloat(val) : 1;
-                    handleChange('fontShadowColor', [...arr]);
-                  }}
-                />
-              </div>
-            </div>
+            <ColorPicker
+              label="阴影颜色 (RGBA)"
+              value={selectedFrame.fontShadowColor || [0, 0, 0, 1]}
+              onChange={(value) => handleChange('fontShadowColor', value)}
+            />
           </details>
         </section>
       )}
@@ -1462,97 +1295,17 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             onChange={(value) => handleChange('editTextColor', value)}
           />
 
-          <div className="form-group">
-            <label>光标颜色 (RGBA)</label>
-            <div className="form-row">
-              <input type="number" step="0.01" min="0" max="1" placeholder="R"
-                value={selectedFrame.editCursorColor?.[0] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
-                  arr[0] = val ? parseFloat(val) : 1;
-                  handleChange('editCursorColor', [...arr]);
-                }}
-              />
-              <input type="number" step="0.01" min="0" max="1" placeholder="G"
-                value={selectedFrame.editCursorColor?.[1] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
-                  arr[1] = val ? parseFloat(val) : 1;
-                  handleChange('editCursorColor', [...arr]);
-                }}
-              />
-              <input type="number" step="0.01" min="0" max="1" placeholder="B"
-                value={selectedFrame.editCursorColor?.[2] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
-                  arr[2] = val ? parseFloat(val) : 1;
-                  handleChange('editCursorColor', [...arr]);
-                }}
-              />
-              <input type="number" step="0.01" min="0" max="1" placeholder="A"
-                value={selectedFrame.editCursorColor?.[3] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editCursorColor || [1, 1, 1, 1];
-                  arr[3] = val ? parseFloat(val) : 1;
-                  handleChange('editCursorColor', [...arr]);
-                }}
-              />
-            </div>
-          </div>
+          <ColorPicker
+            label="光标颜色 (RGBA)"
+            value={selectedFrame.editCursorColor || [1, 1, 1, 1]}
+            onChange={(value) => handleChange('editCursorColor', value)}
+          />
 
-          <div className="form-group">
-            <label>边框颜色 (RGBA)</label>
-            <div className="form-row">
-              <input type="number" step="0.01" min="0" max="1" placeholder="R"
-                value={selectedFrame.editBorderColor?.[0] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
-                  arr[0] = val ? parseFloat(val) : 0.5;
-                  handleChange('editBorderColor', [...arr]);
-                }}
-              />
-              <input type="number" step="0.01" min="0" max="1" placeholder="G"
-                value={selectedFrame.editBorderColor?.[1] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
-                  arr[1] = val ? parseFloat(val) : 0.5;
-                  handleChange('editBorderColor', [...arr]);
-                }}
-              />
-              <input type="number" step="0.01" min="0" max="1" placeholder="B"
-                value={selectedFrame.editBorderColor?.[2] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
-                  arr[2] = val ? parseFloat(val) : 0.5;
-                  handleChange('editBorderColor', [...arr]);
-                }}
-              />
-              <input type="number" step="0.01" min="0" max="1" placeholder="A"
-                value={selectedFrame.editBorderColor?.[3] ?? ''}
-                onWheel={handleNumberInputWheel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const arr = selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1];
-                  arr[3] = val ? parseFloat(val) : 1;
-                  handleChange('editBorderColor', [...arr]);
-                }}
-              />
-            </div>
-          </div>
+          <ColorPicker
+            label="边框颜色 (RGBA)"
+            value={selectedFrame.editBorderColor || [0.5, 0.5, 0.5, 1]}
+            onChange={(value) => handleChange('editBorderColor', value)}
+          />
 
           <div className="form-group">
             <label>最大字符数</label>
