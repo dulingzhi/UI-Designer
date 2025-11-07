@@ -129,6 +129,16 @@ export class FDFTransformer {
    * @param allFrames 扁平化的所有Frame数组(包括顶层和嵌套),会被修改
    */
   private collectNestedFrames(node: FDFFrameDefinition, parentFrame: FrameData, allFrames: FrameData[]): void {
+    // 1. 首先处理继承的子控件（WITHCHILDREN）
+    if (node.withChildren && node.inherits && parentFrame.fdfMetadata?.inheritedChildrenIds) {
+      const template = this.templateRegistry.get(node.inherits);
+      if (template && template.children.length > 0) {
+        // 深拷贝继承的子控件树
+        this.copyInheritedChildren(template, parentFrame, allFrames);
+      }
+    }
+    
+    // 2. 然后处理当前节点自己定义的子控件
     for (const prop of node.properties) {
       if (prop.type === FDFNodeType.NESTED_FRAME) {
         // 检查是否是真正的嵌套 Frame（不是 Texture、String 等特殊块）
@@ -140,6 +150,7 @@ export class FDFTransformer {
             frameType: prop.frameType,
             name: prop.name || `NestedFrame_${Date.now()}`,
             inherits: prop.inherits,
+            withChildren: prop.withChildren, // 传递 WITHCHILDREN 标记
             properties: prop.properties,
             loc: prop.loc,
           };
@@ -169,6 +180,105 @@ export class FDFTransformer {
         }
       }
     }
+  }
+  
+  /**
+   * 复制继承的子控件（WITHCHILDREN）
+   * @param templateFrame 模板Frame（包含子控件）
+   * @param parentFrame 当前Frame（继承模板的Frame）
+   * @param allFrames 所有Frame的扁平数组
+   */
+  private copyInheritedChildren(templateFrame: FrameData, parentFrame: FrameData, allFrames: FrameData[]): void {
+    const inheritedChildrenIds: string[] = []; // 记录继承的子控件的新ID
+    
+    // 需要一个辅助函数来递归复制整个子树
+    const copyFrameTree = (templateChildId: string, newParentId: string, newParentName: string): string => {
+      // 从 allFrames 或 templateRegistry 中查找模板子Frame
+      let templateChild = allFrames.find(f => f.id === templateChildId);
+      
+      // 如果在 allFrames 中找不到，尝试从其他已注册的模板中查找
+      if (!templateChild) {
+        for (const [, tmpl] of this.templateRegistry) {
+          const found = this.findFrameInTree(tmpl, templateChildId, allFrames);
+          if (found) {
+            templateChild = found;
+            break;
+          }
+        }
+      }
+      
+      if (!templateChild) {
+        console.warn(`[FDFTransformer] 继承的子控件未找到: ${templateChildId}`);
+        return '';
+      }
+      
+      // 深拷贝子Frame（生成新ID）
+      const newId = this.generateId();
+      const copiedChild: FrameData = {
+        ...templateChild,
+        id: newId, // 生成新ID
+        parentId: newParentId,
+        children: [], // 子控件列表稍后填充
+        anchors: templateChild.anchors.map(anchor => ({
+          ...anchor,
+          // 如果锚点引用父元素，更新为新的父元素名称
+          relativeTo: anchor.relativeTo === templateFrame.name ? newParentName : anchor.relativeTo,
+        })),
+        fdfMetadata: {
+          ...templateChild.fdfMetadata,
+          isTemplate: false, // 复制后不再是模板
+        },
+      };
+      
+      // 添加到全局Frame数组
+      allFrames.push(copiedChild);
+      
+      // 递归复制子Frame的子控件
+      for (const grandchildId of templateChild.children) {
+        const copiedGrandchildId = copyFrameTree(grandchildId, newId, copiedChild.name);
+        if (copiedGrandchildId) {
+          copiedChild.children.push(copiedGrandchildId);
+        }
+      }
+      
+      return newId;
+    };
+    
+    // 复制所有模板子控件
+    for (const childId of templateFrame.children) {
+      const copiedId = copyFrameTree(childId, parentFrame.id, parentFrame.name);
+      if (copiedId) {
+        inheritedChildrenIds.push(copiedId);
+        parentFrame.children.push(copiedId); // 添加到父Frame的子控件列表
+      }
+    }
+    
+    // 更新继承子控件ID列表（使用新ID）
+    if (inheritedChildrenIds.length > 0) {
+      parentFrame.fdfMetadata = {
+        ...parentFrame.fdfMetadata,
+        inheritedChildrenIds,
+      };
+    }
+  }
+  
+  /**
+   * 在Frame树中查找指定ID的Frame（递归）
+   */
+  private findFrameInTree(root: FrameData, targetId: string, allFrames: FrameData[]): FrameData | null {
+    if (root.id === targetId) {
+      return root;
+    }
+    
+    for (const childId of root.children) {
+      const child = allFrames.find(f => f.id === childId);
+      if (child) {
+        const found = this.findFrameInTree(child, targetId, allFrames);
+        if (found) return found;
+      }
+    }
+    
+    return null;
   }
   
   /**
@@ -214,16 +324,25 @@ export class FDFTransformer {
       };
     }
     
-    // 如果有继承，先应用模板属性
+    // 如果有继承，先应用模板属性和子控件
     if (node.inherits && this.options.resolveInheritance) {
       const template = this.templateRegistry.get(node.inherits);
       if (template) {
-        // 继承模板属性，但保留 id、name，并重置 anchors 和 children
-        // anchors 应该由子 Frame 自己定义，不应该从模板继承（避免引用冲突）
-        const { id: _id, name: _name, anchors: _anchors, children: _children, ...templateProps } = template;
+        // 1. 继承模板属性（但保留 id、name、anchors）
+        const { id: _id, name: _name, anchors: _anchors, children: _children, fdfMetadata: _meta, ...templateProps } = template;
         Object.assign(frame, templateProps);
-        // 深拷贝 anchors（如果需要的话，但通常不需要）
-        // frame.anchors = template.anchors.map(a => ({ ...a }));
+        
+        // 2. 如果指定了 WITHCHILDREN，则继承模板的子控件
+        if (node.withChildren && template.children && template.children.length > 0) {
+          // 记录继承的子控件ID（这些将在后续渲染时标记为只读）
+          frame.fdfMetadata = {
+            ...frame.fdfMetadata,
+            inheritedChildrenIds: template.children.slice(), // 复制ID数组
+          };
+          
+          // 注意：子控件的实际复制将在后续的collectNestedFrames阶段完成
+          // 这里只是标记哪些是继承来的
+        }
       }
     }
     

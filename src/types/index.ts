@@ -86,6 +86,8 @@ export interface FDFMetadata {
   comment?: string;                     // FDF 注释
   originalFDF?: string;                 // 原始 FDF 文本（用于精确还原）
   setAllPoints?: boolean;               // 是否使用了 SetAllPoints
+  isTemplate?: boolean;                 // 是否是模板定义（来自Include文件）
+  inheritedChildrenIds?: string[];      // 从模板继承的子控件ID列表（只读）
 }
 
 // FDF 纹理数据

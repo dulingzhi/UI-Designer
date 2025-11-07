@@ -171,6 +171,7 @@ export class FDFParser {
       frameType,
       name,
       inherits,
+      withChildren,
       properties,
       loc: {
         start: { line: startToken.line, column: startToken.column },
@@ -242,12 +243,14 @@ export class FDFParser {
     
     // 可选的 INHERITS [WITHCHILDREN] "Template"
     let inherits: string | undefined;
+    let withChildren = false;
     
     if (this.check(TokenType.INHERITS)) {
       this.advance();
       
       // 检查可选的 WITHCHILDREN
       if (this.check(TokenType.WITHCHILDREN)) {
+        withChildren = true;
         this.advance();
       }
       
@@ -269,6 +272,7 @@ export class FDFParser {
       frameType,
       name,
       inherits,
+      withChildren,
       properties,
       loc: {
         start: { line: startToken.line, column: startToken.column },

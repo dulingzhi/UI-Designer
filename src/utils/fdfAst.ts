@@ -78,6 +78,7 @@ export interface FDFFrameDefinition extends FDFNode {
   frameType: string; // "FRAME", "BACKDROP", "TEXT", "BUTTON", etc.
   name: string;
   inherits?: string; // INHERITS "TemplateName"
+  withChildren?: boolean; // INHERITS WITHCHILDREN - 是否继承子控件
   properties: (FDFProperty | FDFNestedFrame)[];
 }
 
@@ -102,6 +103,7 @@ export interface FDFNestedFrame extends FDFNode {
   frameType: string;
   name?: string;
   inherits?: string;
+  withChildren?: boolean; // INHERITS WITHCHILDREN
   properties: (FDFProperty | FDFNestedFrame)[];
 }
 

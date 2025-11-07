@@ -46,14 +46,23 @@ function exportFrame(
 ): void {
   const ind = indent.repeat(level);
   
-  // Frame定义开始
-  lines.push(`${ind}Frame "${getFrameTypeString(frame.type)}" "${frame.name}" {`);
+  // Frame定义开始 - 带INHERITS支持
+  let frameHeader = `${ind}Frame "${getFrameTypeString(frame.type)}" "${frame.name}"`;
   
-  // 继承模板
+  // 添加 INHERITS [WITHCHILDREN] "Template"
   if (frame.fdfMetadata?.inherits) {
-    lines.push(`${ind}${indent}UseActiveContext,`);
-    lines.push(`${ind}${indent}FrameTemplate "${frame.fdfMetadata.inherits}",`);
+    frameHeader += ` INHERITS`;
+    
+    // 检查是否有继承的子控件（WITHCHILDREN）
+    if (frame.fdfMetadata.inheritedChildrenIds && frame.fdfMetadata.inheritedChildrenIds.length > 0) {
+      frameHeader += ` WITHCHILDREN`;
+    }
+    
+    frameHeader += ` "${frame.fdfMetadata.inherits}"`;
   }
+  
+  frameHeader += ' {';
+  lines.push(frameHeader);
   
   // SetAllPoints
   if (frame.anchors) {
@@ -85,7 +94,7 @@ function exportFrame(
   }
   
   // Text相关
-  if (frame.text) {
+  if (frame.text !== undefined) {
     lines.push(`${ind}${indent}Text "${escapeString(frame.text)}",`);
   }
   if (frame.textScale !== undefined && frame.textScale !== 1) {
@@ -135,15 +144,21 @@ function exportFrame(
     lines.push(`${ind}${indent}Tooltip "${escapeString(frame.tooltip)}",`);
   }
   
-  // 子Frame
+  // 子Frame（排除继承的子控件）
   if (frame.children && frame.children.length > 0) {
-    lines.push('');
-    frame.children.forEach(childId => {
-      const childFrame = allFrames.find(f => f.id === childId);
-      if (childFrame) {
-        exportFrame(childFrame, allFrames, lines, indent, level + 1);
-      }
-    });
+    // 过滤掉继承的子控件（它们已经在模板中定义）
+    const inheritedIds = frame.fdfMetadata?.inheritedChildrenIds || [];
+    const customChildren = frame.children.filter(childId => !inheritedIds.includes(childId));
+    
+    if (customChildren.length > 0) {
+      lines.push('');
+      customChildren.forEach(childId => {
+        const childFrame = allFrames.find(f => f.id === childId);
+        if (childFrame) {
+          exportFrame(childFrame, allFrames, lines, indent, level + 1);
+        }
+      });
+    }
   }
   
   // Frame定义结束
@@ -180,8 +195,19 @@ function exportAnchor(
 function checkSetAllPoints(anchors: any[]): boolean {
   if (anchors.length !== 2) return false;
   
-  const points = anchors.map(a => a.point).sort();
-  return points[0] === 'TOPLEFT' && points[1] === 'BOTTOMRIGHT';
+  // 检查是否有TOPLEFT和BOTTOMRIGHT锚点
+  const points = new Set(anchors.map(a => a.point));
+  const hasTOPLEFT = points.has(FramePoint.TOPLEFT);
+  const hasBOTTOMRIGHT = points.has(FramePoint.BOTTOMRIGHT);
+  
+  if (!hasTOPLEFT || !hasBOTTOMRIGHT) return false;
+  
+  // 检查两个锚点是否指向同一个relativeTo
+  const relativeTo0 = anchors[0].relativeTo;
+  const relativeTo1 = anchors[1].relativeTo;
+  
+  // 两者都没有relativeTo，或者都指向同一个
+  return relativeTo0 === relativeTo1;
 }
 
 /**
