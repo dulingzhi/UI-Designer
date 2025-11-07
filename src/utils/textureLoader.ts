@@ -15,11 +15,42 @@ import { mpqManager } from './mpqManager';
 import { decodeBLPToDataURL } from './blpDecoder';
 
 /**
+ * WC3 内置纹理名称映射表
+ * 将内置纹理名称映射到实际的文件路径
+ */
+const WC3_BUILTIN_TEXTURES: Record<string, string> = {
+  // UI 边框和背景
+  'EscMenuBackground': 'UI\\Widgets\\EscMenu\\Human\\background.blp',
+  'EscMenuBorder': 'UI\\Widgets\\EscMenu\\Human\\border.blp',
+  'ToolTipBackground': 'UI\\Widgets\\ToolTips\\Human\\human-tooltip-background.blp',
+  'ToolTipBorder': 'UI\\Widgets\\ToolTips\\Human\\human-tooltip-border.blp',
+  'QuestBorder': 'UI\\Widgets\\QuestDialog\\questborder.blp',
+  'CommandButton': 'UI\\Widgets\\Console\\Human\\CommandButton\\human-commandbutton.blp',
+  'CommandButtonBorder': 'UI\\Widgets\\Console\\Human\\CommandButton\\human-commandbutton-border.blp',
+  'CommandButtonDisabled': 'UI\\Widgets\\Console\\Human\\CommandButton\\human-commandbutton-disabled.blp',
+  
+  // 资源图标
+  'GoldIcon': 'UI\\Widgets\\Console\\Human\\gold.blp',
+  'LumberIcon': 'UI\\Widgets\\Console\\Human\\lumber.blp',
+  'SupplyIcon': 'UI\\Widgets\\Console\\Human\\supply.blp',
+  'FoodIcon': 'UI\\Widgets\\Console\\Human\\food.blp',
+  
+  // 控件元素
+  'QuestButtonIcon': 'UI\\Widgets\\BattleNet\\bnet-button-quest.blp',
+  'HighlightAlpha': 'UI\\Widgets\\EscMenu\\Human\\editbox-highlight.blp',
+  'Feedback': 'Textures\\Feedback.blp',
+  'SelectionCircle': 'UI\\Feedback\\SelectionCircle\\SelectionCircle.blp',
+  
+  // 添加更多内置纹理...
+};
+
+/**
  * 纹理类型
  */
 export enum TextureType {
   LOCAL_FILE = 'local',      // 本地文件路径
   WC3_PATH = 'wc3',          // WC3 资源路径
+  WC3_BUILTIN = 'builtin',   // WC3 内置纹理名称
   DATA_URL = 'data',         // Data URL
   HTTP_URL = 'http',         // HTTP(S) URL
   UNKNOWN = 'unknown',
@@ -83,6 +114,11 @@ export class TextureLoader {
       return TextureType.WC3_PATH;
     }
     
+    // WC3 内置纹理名称 (不含路径分隔符的纯名称)
+    if (WC3_BUILTIN_TEXTURES[path]) {
+      return TextureType.WC3_BUILTIN;
+    }
+    
     return TextureType.UNKNOWN;
   }
   
@@ -141,6 +177,12 @@ export class TextureLoader {
         case TextureType.HTTP_URL:
           // HTTP URL 直接使用
           url = path;
+          break;
+          
+        case TextureType.WC3_BUILTIN:
+          // 内置纹理名称 - 转换为实际路径后加载
+          const actualPath = WC3_BUILTIN_TEXTURES[path];
+          url = await this.loadWC3Texture(actualPath);
           break;
           
         case TextureType.WC3_PATH:
@@ -364,6 +406,11 @@ export class TextureLoader {
     const type = this.getTextureType(path);
     
     switch (type) {
+      case TextureType.WC3_BUILTIN:
+        // 内置纹理 - 检查映射后的实际路径
+        const actualPath = WC3_BUILTIN_TEXTURES[path];
+        return await mpqManager.hasFile(actualPath.replace(/\//g, '\\'));
+      
       case TextureType.WC3_PATH:
         return await mpqManager.hasFile(path.replace(/\//g, '\\'));
         
