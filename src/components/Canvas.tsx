@@ -11,6 +11,7 @@ import { AnchorVisualizer } from './AnchorVisualizer';
 import { Ruler } from './Ruler';
 import { GuideLine } from './GuideLine';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
+import { BackdropEdge } from './BackdropEdge';
 import { useTextureLoaderBatch } from '../hooks/useTextureLoader';
 import './Canvas.css';
 
@@ -90,6 +91,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       }
       if (frame.wc3Texture && typeof frame.wc3Texture === 'string') {
         paths.push(frame.wc3Texture);
+      }
+      // 添加边框纹理路径
+      if (frame.backdropEdgeFile && typeof frame.backdropEdgeFile === 'string') {
+        paths.push(frame.backdropEdgeFile);
       }
     });
     return paths;
@@ -865,6 +870,21 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         }}
         title={frame.name}
       >
+        {/* Backdrop 边框纹理 */}
+        {frame.backdropEdgeFile && frame.backdropCornerFlags && frame.backdropCornerSize && (
+          <BackdropEdge
+            edgeFile={frame.backdropEdgeFile}
+            cornerFlags={frame.backdropCornerFlags}
+            cornerSize={frame.backdropCornerSize}
+            backgroundInsets={frame.backdropBackgroundInsets}
+            textureDataURL={(() => {
+              const textureState = textureMap.get(frame.backdropEdgeFile);
+              return textureState?.url || undefined;
+            })()}
+            canvasWidth={CANVAS_WIDTH - 2 * MARGIN}
+          />
+        )}
+        
         {frame.text && (
           <span 
             className={`frame-text ${
