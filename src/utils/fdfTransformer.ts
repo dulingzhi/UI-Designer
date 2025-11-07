@@ -353,6 +353,52 @@ export class FDFTransformer {
         frame.diskTexture = value as string;
         frame.wc3Texture = value as string;
         break;
+      
+      case 'backdropedgefile':
+        frame.backdropEdgeFile = value as string;
+        break;
+      
+      case 'backdropcornerflags':
+        frame.backdropCornerFlags = value as string;
+        break;
+      
+      case 'backdropcornersize':
+        frame.backdropCornerSize = value as number;
+        break;
+      
+      case 'backdropbackgroundsize':
+        frame.backdropBackgroundSize = value as number;
+        break;
+      
+      case 'backdropbackgroundinsets':
+        // 值可能是单个数字或数组
+        if (Array.isArray(value)) {
+          // 确保是4个值：[left, top, right, bottom]
+          if (value.length >= 4) {
+            frame.backdropBackgroundInsets = [
+              value[0] as number,
+              value[1] as number,
+              value[2] as number,
+              value[3] as number,
+            ];
+          } else if (value.length === 1) {
+            // 只有一个值，应用到所有四边
+            const val = value[0] as number;
+            frame.backdropBackgroundInsets = [val, val, val, val];
+          }
+        } else if (typeof value === 'number') {
+          // 单个值，应用到所有四边
+          frame.backdropBackgroundInsets = [value, value, value, value];
+        }
+        break;
+      
+      case 'backdroptilebackground':
+        frame.backdropTileBackground = true;
+        break;
+      
+      case 'backdropblendall':
+        frame.backdropBlendAll = true;
+        break;
         
       case 'texcoord':
         // 纹理坐标暂不处理，WC3 使用不同的系统

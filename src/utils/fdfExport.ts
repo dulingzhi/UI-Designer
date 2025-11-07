@@ -101,9 +101,33 @@ function exportFrame(
     lines.push(`${ind}${indent}VerticalAlignment "${frame.verAlign.toUpperCase()}",`);
   }
   
-  // 纹理
+  // 纹理和Backdrop属性
   if (frame.diskTexture) {
     lines.push(`${ind}${indent}BackdropBackground "${frame.diskTexture}",`);
+  }
+  
+  // Backdrop边框和装饰属性
+  if (frame.backdropTileBackground) {
+    lines.push(`${ind}${indent}BackdropTileBackground,`);
+  }
+  if (frame.backdropEdgeFile) {
+    lines.push(`${ind}${indent}BackdropEdgeFile "${frame.backdropEdgeFile}",`);
+  }
+  if (frame.backdropCornerFlags) {
+    lines.push(`${ind}${indent}BackdropCornerFlags "${frame.backdropCornerFlags}",`);
+  }
+  if (frame.backdropCornerSize !== undefined) {
+    lines.push(`${ind}${indent}BackdropCornerSize ${formatNumber(frame.backdropCornerSize)},`);
+  }
+  if (frame.backdropBackgroundSize !== undefined) {
+    lines.push(`${ind}${indent}BackdropBackgroundSize ${formatNumber(frame.backdropBackgroundSize)},`);
+  }
+  if (frame.backdropBackgroundInsets) {
+    const insets = frame.backdropBackgroundInsets;
+    lines.push(`${ind}${indent}BackdropBackgroundInsets ${formatNumber(insets[0])} ${formatNumber(insets[1])} ${formatNumber(insets[2])} ${formatNumber(insets[3])},`);
+  }
+  if (frame.backdropBlendAll) {
+    lines.push(`${ind}${indent}BackdropBlendAll,`);
   }
   
   // 按钮特定属性  
