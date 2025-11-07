@@ -75,6 +75,10 @@ interface ProjectState {
   addFramesToGroup: (groupId: string, frameIds: string[]) => void;
   removeFramesFromGroup: (groupId: string, frameIds: string[]) => void;
   selectGroup: (groupId: string) => void; // 选中组内所有控件
+  
+  // 种族纹理操作
+  setRace: (race: 'Human' | 'Orc' | 'NightElf' | 'Undead' | 'Default') => void;
+  loadWar3Skins: (content: string) => void;
 }
 
 const createDefaultProject = (): ProjectData => ({
@@ -94,6 +98,8 @@ const createDefaultProject = (): ProjectData => ({
   frames: {},
   rootFrameIds: [],
   fdfTemplates: {},  // FDF 模板库
+  currentRace: 'Human',  // 默认种族
+  war3Skins: null,  // 种族纹理配置
   tableArrays: [],
   circleArrays: [],
   guides: [],
@@ -690,5 +696,76 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (group) {
       set({ selectedFrameIds: [...group.frameIds] });
     }
+  },
+
+  // 种族纹理操作
+  setRace: async (race) => {
+    const state = get();
+    if (!state.project.war3Skins) return;
+    
+    const { findTextureKey, getTextureForRace } = await import('../utils/war3SkinsParser');
+    
+    // 遍历所有控件，更新种族相关纹理
+    Object.entries(state.project.frames).forEach(([id, frame]) => {
+      const updates: Partial<FrameData> = {};
+      
+      // 检查 diskTexture
+      if (frame.diskTexture) {
+        const key = findTextureKey(state.project.war3Skins!, frame.diskTexture);
+        if (key) {
+          const newPath = getTextureForRace(state.project.war3Skins!, race, key);
+          if (newPath && newPath !== frame.diskTexture) {
+            updates.diskTexture = newPath;
+          }
+        }
+      }
+      
+      // 检查 wc3Texture
+      if (frame.wc3Texture) {
+        const key = findTextureKey(state.project.war3Skins!, frame.wc3Texture);
+        if (key) {
+          const newPath = getTextureForRace(state.project.war3Skins!, race, key);
+          if (newPath && newPath !== frame.wc3Texture) {
+            updates.wc3Texture = newPath;
+          }
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        state.updateFrame(id, updates);
+      }
+    });
+    
+    // 更新种族状态
+    set((state) => ({
+      project: {
+        ...state.project,
+        currentRace: race,
+      },
+    }));
+  },
+
+  loadWar3Skins: async (content) => {
+    const { parseWar3Skins } = await import('../utils/war3SkinsParser');
+    const skins = parseWar3Skins(content);
+    
+    console.log('[ProjectStore] 正在加载 war3skins.txt...');
+    console.log('[ProjectStore] 解析结果:', {
+      races: skins.skins,
+      humanKeys: Object.keys(skins.Human).length,
+      orcKeys: Object.keys(skins.Orc).length,
+      nightElfKeys: Object.keys(skins.NightElf).length,
+      undeadKeys: Object.keys(skins.Undead).length,
+      defaultKeys: Object.keys(skins.Default).length,
+    });
+    
+    set((state) => ({
+      project: {
+        ...state.project,
+        war3Skins: skins,
+      },
+    }));
+    
+    console.log('[ProjectStore] war3skins.txt 已加载，种族切换器应该可见');
   },
 }));

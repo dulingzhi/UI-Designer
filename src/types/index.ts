@@ -1,5 +1,7 @@
 // 核心类型定义
 
+import type { War3Skins } from '../utils/war3SkinsParser';
+
 export enum FramePoint {
   TOPLEFT = 0,
   TOP = 1,
@@ -336,6 +338,10 @@ export interface ProjectData {
   
   // FDF 模板库
   fdfTemplates?: Record<string, FDFTemplate>;
+  
+  // 种族纹理配置
+  currentRace?: 'Human' | 'Orc' | 'NightElf' | 'Undead' | 'Default';
+  war3Skins?: War3Skins | null;
   
   // 辅助数据
   tableArrays: TableArrayData[];

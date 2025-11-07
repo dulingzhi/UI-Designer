@@ -74,7 +74,7 @@ export async function loadWar3Skins(): Promise<void> {
     const decoder = new TextDecoder('utf-8');
     const content = decoder.decode(buffer);
     
-    // 解析纹理映射
+    // 解析纹理映射（用于旧的纹理映射系统）
     const textures = parseWar3Skins(content);
     
     console.log(`[TextureLoader] 从 war3skins.txt 加载了 ${Object.keys(textures).length} 个内置纹理映射`);
@@ -84,6 +84,20 @@ export async function loadWar3Skins(): Promise<void> {
       ...WC3_BUILTIN_TEXTURES,
       ...textures,
     };
+    
+    // 加载到项目状态中以支持种族切换（使用新的解析器）
+    try {
+      const { useProjectStore } = await import('../store/projectStore');
+      const store = useProjectStore.getState();
+      store.loadWar3Skins(content);
+      console.log('[TextureLoader] war3skins.txt 已加载到项目状态，种族切换器应该显示');
+      
+      // 调试：检查状态
+      const currentState = useProjectStore.getState();
+      console.log('[TextureLoader] 当前 war3Skins 状态:', currentState.project.war3Skins ? '已加载' : '未加载');
+    } catch (error) {
+      console.error('[TextureLoader] 加载 war3skins.txt 到项目状态失败:', error);
+    }
     
   } catch (error) {
     console.error('[TextureLoader] 加载 war3skins.txt 失败:', error);

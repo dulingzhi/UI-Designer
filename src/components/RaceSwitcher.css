@@ -1,0 +1,78 @@
+.race-switcher-toolbar {
+  position: relative;
+  display: inline-block;
+}
+
+.race-switcher-button {
+  position: relative;
+  padding: 6px 8px;
+  transition: all 0.2s;
+}
+
+.race-switcher-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.race-icon {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-block;
+}
+
+.race-dropdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.race-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.race-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.race-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.race-option.active {
+  background: rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+}
+
+.race-option-icon {
+  font-size: 16px;
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+}
+
+.race-option-label {
+  flex: 1;
+}

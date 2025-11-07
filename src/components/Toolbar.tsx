@@ -10,6 +10,7 @@ import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
 import { ShortcutHelp } from './ShortcutHelp';
 import { WC3TextureBrowser } from './WC3TextureBrowser';
+import { RaceSwitcher } from './RaceSwitcher';
 import {
   NewFileIcon, OpenFileIcon, SaveIcon,
   UndoIcon, RedoIcon,
@@ -424,6 +425,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
         >
           <TextureBrowserIcon />
         </button>
+      </div>
+
+      {/* 种族切换器 */}
+      <div className="toolbar-group">
+        <RaceSwitcher />
       </div>
 
       {/* 帮助 */}
