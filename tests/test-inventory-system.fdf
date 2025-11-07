@@ -1,0 +1,719 @@
+// ============================================
+// WC3 背包系统 UI
+// 包含: 主面板、物品格子、关闭按钮、标题栏、金币显示等
+// ============================================
+
+// 包含官方模板
+IncludeFile "UI\FrameDef\UI\EscMenuTemplates.fdf",
+
+// ============================================
+// 主背包面板 - 带边框和背景
+// ============================================
+Frame "BACKDROP" "InventoryMainPanel" {
+    Width 0.320,
+    Height 0.400,
+    
+    // 居中显示
+    SetPoint CENTER, "UIParent", CENTER, 0.0, 0.0,
+    
+    // 背景样式 - 使用任务对话框样式
+    BackdropTileBackground,
+    BackdropBackground "QuestDialogBackground",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize 0.032,
+    BackdropBackgroundSize 0.256,
+    BackdropBackgroundInsets 0.006 0.006 0.006 0.006,
+    BackdropEdgeFile "QuestDialogBorder",
+    BackdropBlendAll,
+}
+
+// ============================================
+// 标题栏背景
+// ============================================
+Frame "BACKDROP" "InventoryTitleBar" {
+    Width 0.308,
+    Height 0.036,
+    SetPoint TOP, "InventoryMainPanel", TOP, 0.0, -0.006,
+    
+    BackdropTileBackground,
+    BackdropBackground "EscMenuButtonBackground",
+    BackdropBlendAll,
+}
+
+// ============================================
+// 标题文本
+// ============================================
+Frame "TEXT" "InventoryTitleText" {
+    SetPoint CENTER, "InventoryTitleBar", CENTER, 0.0, 0.0,
+    
+    Text "背包系统",
+    FontJustificationH JUSTIFYCENTER,
+    FontJustificationV JUSTIFYCENTER,
+    FontFlags "FIXEDSIZE",
+    FontHeight 0.014,
+    FontColor 1.0 0.8 0.2 1.0,  // 金色标题
+}
+
+// ============================================
+// 关闭按钮
+// ============================================
+Frame "GLUEBUTTON" "InventoryCloseButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+    Width 0.032,
+    Height 0.032,
+    SetPoint TOPRIGHT, "InventoryMainPanel", TOPRIGHT, -0.010, -0.010,
+    
+    ButtonText "InventoryCloseButtonText",
+    Frame "TEXT" "InventoryCloseButtonText" INHERITS "EscMenuButtonTextTemplate" {
+        Text "×",
+        FontHeight 0.020,
+        FontColor 1.0 0.3 0.3 1.0,  // 红色叉号
+    }
+}
+
+// ============================================
+// 物品格子容器
+// ============================================
+Frame "FRAME" "InventoryItemContainer" {
+    SetPoint TOP, "InventoryTitleBar", BOTTOM, 0.0, -0.015,
+    Width 0.300,
+    Height 0.240,
+}
+
+// ============================================
+// 物品格子 (6行 x 5列 = 30个格子)
+// ============================================
+
+// 第一行
+Frame "GLUEBUTTON" "InventorySlot_1_1" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint TOPLEFT, "InventoryItemContainer", TOPLEFT, 0.010, -0.010,
+    
+    ControlBackdrop "InventorySlot_1_1_Backdrop",
+    Frame "BACKDROP" "InventorySlot_1_1_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_1_2" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_1_1", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_1_2_Backdrop",
+    Frame "BACKDROP" "InventorySlot_1_2_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_1_3" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_1_2", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_1_3_Backdrop",
+    Frame "BACKDROP" "InventorySlot_1_3_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_1_4" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_1_3", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_1_4_Backdrop",
+    Frame "BACKDROP" "InventorySlot_1_4_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_1_5" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_1_4", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_1_5_Backdrop",
+    Frame "BACKDROP" "InventorySlot_1_5_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// 第二行
+Frame "GLUEBUTTON" "InventorySlot_2_1" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint TOP, "InventorySlot_1_1", BOTTOM, 0.0, -0.008,
+    
+    ControlBackdrop "InventorySlot_2_1_Backdrop",
+    Frame "BACKDROP" "InventorySlot_2_1_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_2_2" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_2_1", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_2_2_Backdrop",
+    Frame "BACKDROP" "InventorySlot_2_2_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_2_3" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_2_2", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_2_3_Backdrop",
+    Frame "BACKDROP" "InventorySlot_2_3_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_2_4" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_2_3", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_2_4_Backdrop",
+    Frame "BACKDROP" "InventorySlot_2_4_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_2_5" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_2_4", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_2_5_Backdrop",
+    Frame "BACKDROP" "InventorySlot_2_5_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// 第三行
+Frame "GLUEBUTTON" "InventorySlot_3_1" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint TOP, "InventorySlot_2_1", BOTTOM, 0.0, -0.008,
+    
+    ControlBackdrop "InventorySlot_3_1_Backdrop",
+    Frame "BACKDROP" "InventorySlot_3_1_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_3_2" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_3_1", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_3_2_Backdrop",
+    Frame "BACKDROP" "InventorySlot_3_2_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_3_3" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_3_2", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_3_3_Backdrop",
+    Frame "BACKDROP" "InventorySlot_3_3_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_3_4" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_3_3", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_3_4_Backdrop",
+    Frame "BACKDROP" "InventorySlot_3_4_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_3_5" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_3_4", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_3_5_Backdrop",
+    Frame "BACKDROP" "InventorySlot_3_5_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// 第四行
+Frame "GLUEBUTTON" "InventorySlot_4_1" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint TOP, "InventorySlot_3_1", BOTTOM, 0.0, -0.008,
+    
+    ControlBackdrop "InventorySlot_4_1_Backdrop",
+    Frame "BACKDROP" "InventorySlot_4_1_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_4_2" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_4_1", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_4_2_Backdrop",
+    Frame "BACKDROP" "InventorySlot_4_2_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_4_3" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_4_2", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_4_3_Backdrop",
+    Frame "BACKDROP" "InventorySlot_4_3_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_4_4" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_4_3", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_4_4_Backdrop",
+    Frame "BACKDROP" "InventorySlot_4_4_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+Frame "GLUEBUTTON" "InventorySlot_4_5" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint LEFT, "InventorySlot_4_4", RIGHT, 0.008, 0.0,
+    
+    ControlBackdrop "InventorySlot_4_5_Backdrop",
+    Frame "BACKDROP" "InventorySlot_4_5_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.008,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// ============================================
+// 示例物品图标 (第1行第1个格子有物品)
+// ============================================
+Frame "BACKDROP" "InventorySlot_1_1_Icon" {
+    Width 0.040,
+    Height 0.040,
+    SetPoint CENTER, "InventorySlot_1_1", CENTER, 0.0, 0.0,
+    
+    DecorateFileNames,
+    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNPotionGreenSmall.blp",
+}
+
+// 物品数量显示
+Frame "TEXT" "InventorySlot_1_1_Count" {
+    SetPoint BOTTOMRIGHT, "InventorySlot_1_1", BOTTOMRIGHT, -0.004, 0.004,
+    
+    Text "99",
+    FontHeight 0.010,
+    FontColor 1.0 1.0 1.0 1.0,
+    FontFlags "FIXEDSIZE",
+    FontJustificationH JUSTIFYRIGHT,
+}
+
+// ============================================
+// 示例物品图标 (第1行第2个格子)
+// ============================================
+Frame "BACKDROP" "InventorySlot_1_2_Icon" {
+    Width 0.040,
+    Height 0.040,
+    SetPoint CENTER, "InventorySlot_1_2", CENTER, 0.0, 0.0,
+    
+    DecorateFileNames,
+    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNScrollOfHealing.blp",
+}
+
+Frame "TEXT" "InventorySlot_1_2_Count" {
+    SetPoint BOTTOMRIGHT, "InventorySlot_1_2", BOTTOMRIGHT, -0.004, 0.004,
+    
+    Text "5",
+    FontHeight 0.010,
+    FontColor 1.0 1.0 1.0 1.0,
+    FontFlags "FIXEDSIZE",
+    FontJustificationH JUSTIFYRIGHT,
+}
+
+// ============================================
+// 示例物品图标 (第1行第3个格子)
+// ============================================
+Frame "BACKDROP" "InventorySlot_1_3_Icon" {
+    Width 0.040,
+    Height 0.040,
+    SetPoint CENTER, "InventorySlot_1_3", CENTER, 0.0, 0.0,
+    
+    DecorateFileNames,
+    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNRunedBracers.blp",
+}
+
+// ============================================
+// 底部信息栏
+// ============================================
+Frame "BACKDROP" "InventoryInfoBar" {
+    Width 0.308,
+    Height 0.030,
+    SetPoint BOTTOM, "InventoryMainPanel", BOTTOM, 0.0, 0.012,
+    
+    BackdropTileBackground,
+    BackdropBackground "EscMenuButtonBackground",
+    BackdropBlendAll,
+}
+
+// 金币图标
+Frame "BACKDROP" "InventoryGoldIcon" {
+    Width 0.020,
+    Height 0.020,
+    SetPoint LEFT, "InventoryInfoBar", LEFT, 0.015, 0.0,
+    
+    BackdropBackground "GoldIcon",
+    BackdropBlendAll,
+}
+
+// 金币数量
+Frame "TEXT" "InventoryGoldAmount" {
+    SetPoint LEFT, "InventoryGoldIcon", RIGHT, 0.008, 0.0,
+    
+    Text "9,999",
+    FontHeight 0.012,
+    FontColor 1.0 0.827 0.0705 1.0,  // 金色
+    FontFlags "FIXEDSIZE",
+    FontJustificationH JUSTIFYLEFT,
+}
+
+// 负重显示
+Frame "TEXT" "InventoryWeightLabel" {
+    SetPoint RIGHT, "InventoryInfoBar", RIGHT, -0.080, 0.0,
+    
+    Text "负重:",
+    FontHeight 0.010,
+    FontColor 0.8 0.8 0.8 1.0,
+    FontFlags "FIXEDSIZE",
+    FontJustificationH JUSTIFYRIGHT,
+}
+
+Frame "TEXT" "InventoryWeightValue" {
+    SetPoint LEFT, "InventoryWeightLabel", RIGHT, 0.005, 0.0,
+    
+    Text "45/100",
+    FontHeight 0.010,
+    FontColor 1.0 1.0 1.0 1.0,
+    FontFlags "FIXEDSIZE",
+    FontJustificationH JUSTIFYLEFT,
+}
+
+// ============================================
+// 功能按钮区
+// ============================================
+
+// 整理按钮
+Frame "GLUETEXTBUTTON" "InventorySortButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+    Width 0.080,
+    Height 0.028,
+    SetPoint BOTTOMLEFT, "InventoryInfoBar", TOPLEFT, 0.0, 0.008,
+    
+    ButtonText "InventorySortButtonText",
+    Frame "TEXT" "InventorySortButtonText" INHERITS "EscMenuButtonTextTemplate" {
+        Text "整理",
+        FontHeight 0.011,
+    }
+}
+
+// 丢弃按钮
+Frame "GLUETEXTBUTTON" "InventoryDropButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+    Width 0.080,
+    Height 0.028,
+    SetPoint LEFT, "InventorySortButton", RIGHT, 0.008, 0.0,
+    
+    ButtonText "InventoryDropButtonText",
+    Frame "TEXT" "InventoryDropButtonText" INHERITS "EscMenuButtonTextTemplate" {
+        Text "丢弃",
+        FontHeight 0.011,
+    }
+}
+
+// 使用按钮
+Frame "GLUETEXTBUTTON" "InventoryUseButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+    Width 0.080,
+    Height 0.028,
+    SetPoint LEFT, "InventoryDropButton", RIGHT, 0.008, 0.0,
+    
+    ButtonText "InventoryUseButtonText",
+    Frame "TEXT" "InventoryUseButtonText" INHERITS "EscMenuButtonTextTemplate" {
+        Text "使用",
+        FontHeight 0.011,
+    }
+}
+
+// ============================================
+// 装备栏 (可选扩展)
+// ============================================
+Frame "FRAME" "EquipmentPanel" {
+    Width 0.060,
+    Height 0.280,
+    SetPoint RIGHT, "InventoryMainPanel", LEFT, -0.015, 0.0,
+}
+
+// 头盔槽
+Frame "GLUEBUTTON" "EquipSlot_Head" {
+    Width 0.056,
+    Height 0.056,
+    SetPoint TOP, "EquipmentPanel", TOP, 0.0, -0.010,
+    
+    ControlBackdrop "EquipSlot_Head_Backdrop",
+    Frame "BACKDROP" "EquipSlot_Head_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.010,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// 头盔图标示例
+Frame "BACKDROP" "EquipSlot_Head_Icon" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint CENTER, "EquipSlot_Head", CENTER, 0.0, 0.0,
+    
+    DecorateFileNames,
+    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNHelmutOfValor.blp",
+}
+
+// 身体槽
+Frame "GLUEBUTTON" "EquipSlot_Armor" {
+    Width 0.056,
+    Height 0.056,
+    SetPoint TOP, "EquipSlot_Head", BOTTOM, 0.0, -0.008,
+    
+    ControlBackdrop "EquipSlot_Armor_Backdrop",
+    Frame "BACKDROP" "EquipSlot_Armor_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.010,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// 武器槽
+Frame "GLUEBUTTON" "EquipSlot_Weapon" {
+    Width 0.056,
+    Height 0.056,
+    SetPoint TOP, "EquipSlot_Armor", BOTTOM, 0.0, -0.008,
+    
+    ControlBackdrop "EquipSlot_Weapon_Backdrop",
+    Frame "BACKDROP" "EquipSlot_Weapon_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.010,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// 武器图标示例
+Frame "BACKDROP" "EquipSlot_Weapon_Icon" {
+    Width 0.048,
+    Height 0.048,
+    SetPoint CENTER, "EquipSlot_Weapon", CENTER, 0.0, 0.0,
+    
+    DecorateFileNames,
+    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNSteelMelee.blp",
+}
+
+// 饰品槽
+Frame "GLUEBUTTON" "EquipSlot_Accessory" {
+    Width 0.056,
+    Height 0.056,
+    SetPoint TOP, "EquipSlot_Weapon", BOTTOM, 0.0, -0.008,
+    
+    ControlBackdrop "EquipSlot_Accessory_Backdrop",
+    Frame "BACKDROP" "EquipSlot_Accessory_Backdrop" {
+        BackdropBackground "ConsoleButtonBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.010,
+        BackdropEdgeFile "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+}
+
+// ============================================
+// 物品详情提示框 (悬停时显示)
+// ============================================
+Frame "FRAME" "ItemTooltip" {
+    Width 0.200,
+    Height 0.100,
+    SetPoint BOTTOMLEFT, "InventoryMainPanel", TOPRIGHT, 0.015, 0.0,
+    
+    Frame "BACKDROP" "ItemTooltipBackground" {
+        SetAllPoints,
+        BackdropTileBackground,
+        BackdropBackground "ToolTipBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize 0.012,
+        BackdropEdgeFile "ToolTipBorder",
+        BackdropBlendAll,
+    }
+    
+    // 物品名称
+    Frame "TEXT" "ItemTooltipName" {
+        SetPoint TOPLEFT, "ItemTooltipBackground", TOPLEFT, 0.012, -0.012,
+        
+        Text "小型生命药水",
+        FontHeight 0.012,
+        FontColor 0.3 1.0 0.3 1.0,  // 绿色 (普通品质)
+        FontFlags "FIXEDSIZE",
+        FontJustificationH JUSTIFYLEFT,
+    }
+    
+    // 物品类型
+    Frame "TEXT" "ItemTooltipType" {
+        SetPoint TOPLEFT, "ItemTooltipName", BOTTOMLEFT, 0.0, -0.004,
+        
+        Text "消耗品",
+        FontHeight 0.009,
+        FontColor 0.7 0.7 0.7 1.0,
+        FontFlags "FIXEDSIZE",
+        FontJustificationH JUSTIFYLEFT,
+    }
+    
+    // 分隔线
+    Frame "BACKDROP" "ItemTooltipDivider" {
+        Width 0.176,
+        Height 0.002,
+        SetPoint TOP, "ItemTooltipType", BOTTOM, 0.0, -0.006,
+        
+        BackdropBackground "ConsoleButtonBorder",
+        BackdropBlendAll,
+    }
+    
+    // 物品描述
+    Frame "TEXT" "ItemTooltipDesc" {
+        SetPoint TOPLEFT, "ItemTooltipDivider", BOTTOMLEFT, 0.0, -0.006,
+        Width 0.176,
+        
+        Text "恢复 100 点生命值",
+        FontHeight 0.009,
+        FontColor 1.0 1.0 1.0 1.0,
+        FontFlags "FIXEDSIZE",
+        FontJustificationH JUSTIFYLEFT,
+    }
+    
+    // 物品售价
+    Frame "TEXT" "ItemTooltipPrice" {
+        SetPoint BOTTOMLEFT, "ItemTooltipBackground", BOTTOMLEFT, 0.012, 0.008,
+        
+        Text "售价: 50",
+        FontHeight 0.009,
+        FontColor 1.0 0.827 0.0705 1.0,
+        FontFlags "FIXEDSIZE",
+        FontJustificationH JUSTIFYLEFT,
+    }
+    
+    Frame "BACKDROP" "ItemTooltipPriceIcon" {
+        Width 0.012,
+        Height 0.012,
+        SetPoint LEFT, "ItemTooltipPrice", RIGHT, 0.004, 0.0,
+        
+        BackdropBackground "GoldIcon",
+        BackdropBlendAll,
+    }
+}
