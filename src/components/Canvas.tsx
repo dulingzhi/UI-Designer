@@ -85,8 +85,12 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const texturePaths = useMemo(() => {
     const paths: string[] = [];
     Object.values(project.frames).forEach(frame => {
-      if (frame.diskTexture) paths.push(frame.diskTexture);
-      if (frame.wc3Texture) paths.push(frame.wc3Texture);
+      if (frame.diskTexture && typeof frame.diskTexture === 'string') {
+        paths.push(frame.diskTexture);
+      }
+      if (frame.wc3Texture && typeof frame.wc3Texture === 'string') {
+        paths.push(frame.wc3Texture);
+      }
     });
     return paths;
   }, [project.frames]);
@@ -803,7 +807,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       backgroundImage: (() => {
         // 优先使用diskTexture,如果没有则使用wc3Texture
         const texturePath = frame.diskTexture || frame.wc3Texture;
-        if (!texturePath) return undefined;
+        if (!texturePath || typeof texturePath !== 'string') return undefined;
         
         // 如果纹理已加载,使用加载后的URL
         const textureState = textureMap.get(texturePath);
