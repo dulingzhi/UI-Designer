@@ -113,6 +113,9 @@ export class FDFTransformer {
     // 第二次尺寸计算：现在所有 Frame 都已创建，可以正确计算相对锚点的尺寸
     this.recalculateSizesWithRelativeAnchors(allFramesFlat);
     
+    // 第三步：根据锚点计算所有Frame的最终位置
+    this.calculateFinalPositions(allFramesFlat);
+    
     // ⚠️ 重要: 必须返回 allFramesFlat 而不是 frames
     // frames 只包含顶层Frame,会导致嵌套Frame丢失
     // allFramesFlat 包含所有Frame(顶层 + 嵌套)
@@ -949,6 +952,93 @@ export class FDFTransformer {
       return hex + toHex(a);
     }
     return hex;
+  }
+  
+  /**
+   * 根据锚点计算所有Frame的最终位置
+   * 这个方法必须在 resolveRelativeFrames 和 recalculateSizesWithRelativeAnchors 之后调用
+   */
+  private calculateFinalPositions(frames: FrameData[]): void {
+    // 构建 ID 到 Frame 的映射
+    const idToFrame = new Map<string, FrameData>();
+    for (const frame of frames) {
+      idToFrame.set(frame.id, frame);
+    }
+    
+    // 对每个Frame,根据其第一个锚点计算位置
+    for (const frame of frames) {
+      if (frame.anchors && frame.anchors.length > 0) {
+        const primaryAnchor = frame.anchors[0];
+        
+        // 计算锚点的绝对位置
+        let anchorAbsPos: { x: number; y: number };
+        
+        if (primaryAnchor.relativeTo) {
+          // 相对锚点
+          const absPos = this.calculateAbsoluteAnchorPosition(primaryAnchor, idToFrame);
+          if (absPos) {
+            anchorAbsPos = absPos;
+          } else {
+            // 如果无法解析相对Frame(如UIParent),使用画布的位置
+            const relativePoint = primaryAnchor.relativePoint !== undefined ? primaryAnchor.relativePoint : 4;
+            const canvasPos = this.getCanvasCoordinateForPoint(relativePoint);
+            anchorAbsPos = {
+              x: canvasPos.x + primaryAnchor.x,
+              y: canvasPos.y + primaryAnchor.y,
+            };
+          }
+        } else {
+          // 绝对锚点
+          anchorAbsPos = { x: primaryAnchor.x, y: primaryAnchor.y };
+        }
+        
+        // 根据锚点类型,计算Frame的左上角坐标 (x, y)
+        // 编辑器使用左上角作为Frame的基准点
+        const point = primaryAnchor.point;
+        switch (point) {
+          case 0: // TOPLEFT
+            frame.x = anchorAbsPos.x;
+            frame.y = anchorAbsPos.y - frame.height;
+            break;
+          case 1: // TOP
+            frame.x = anchorAbsPos.x - frame.width / 2;
+            frame.y = anchorAbsPos.y - frame.height;
+            break;
+          case 2: // TOPRIGHT
+            frame.x = anchorAbsPos.x - frame.width;
+            frame.y = anchorAbsPos.y - frame.height;
+            break;
+          case 3: // LEFT
+            frame.x = anchorAbsPos.x;
+            frame.y = anchorAbsPos.y - frame.height / 2;
+            break;
+          case 4: // CENTER
+            frame.x = anchorAbsPos.x - frame.width / 2;
+            frame.y = anchorAbsPos.y - frame.height / 2;
+            break;
+          case 5: // RIGHT
+            frame.x = anchorAbsPos.x - frame.width;
+            frame.y = anchorAbsPos.y - frame.height / 2;
+            break;
+          case 6: // BOTTOMLEFT
+            frame.x = anchorAbsPos.x;
+            frame.y = anchorAbsPos.y;
+            break;
+          case 7: // BOTTOM
+            frame.x = anchorAbsPos.x - frame.width / 2;
+            frame.y = anchorAbsPos.y;
+            break;
+          case 8: // BOTTOMRIGHT
+            frame.x = anchorAbsPos.x - frame.width;
+            frame.y = anchorAbsPos.y;
+            break;
+          default:
+            // 默认CENTER
+            frame.x = anchorAbsPos.x - frame.width / 2;
+            frame.y = anchorAbsPos.y - frame.height / 2;
+        }
+      }
+    }
   }
   
   /**
