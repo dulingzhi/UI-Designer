@@ -1164,7 +1164,7 @@ export class FDFTransformer {
           } else {
             // 如果无法解析相对Frame,使用画布的位置
             const relativePoint = hasRelativePoint ? primaryAnchor.relativePoint : 4;
-            const canvasPos = this.getCanvasCoordinateForPoint(relativePoint);
+            const canvasPos = this.getCanvasCoordinateForPoint(relativePoint ?? 4);
             anchorAbsPos = {
               x: canvasPos.x + primaryAnchor.x,
               y: canvasPos.y + primaryAnchor.y,
