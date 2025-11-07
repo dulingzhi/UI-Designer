@@ -290,6 +290,64 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         </button>
       </div>
       
+      {/* 继承信息提示 */}
+      {(() => {
+        const parentFrame = selectedFrame.parentId ? project.frames[selectedFrame.parentId] : null;
+        const isInheritedChild = selectedFrameId && parentFrame?.fdfMetadata?.inheritedChildrenIds?.includes(selectedFrameId) || false;
+        
+        if (isInheritedChild) {
+          return (
+            <div style={{
+              margin: '8px',
+              padding: '8px 12px',
+              background: '#3a3a3a',
+              border: '1px solid #555',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#ffa500'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🔗</span>
+                <div>
+                  <strong>继承的子控件（只读）</strong>
+                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
+                    此控件从模板 "{parentFrame?.fdfMetadata?.inherits}" 继承，不可编辑或删除
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
+        if (selectedFrame.fdfMetadata?.inherits) {
+          return (
+            <div style={{
+              margin: '8px',
+              padding: '8px 12px',
+              background: '#2d3748',
+              border: '1px solid #4a5568',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#90cdf4'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🔗</span>
+                <div>
+                  <strong>继承自模板: {selectedFrame.fdfMetadata.inherits}</strong>
+                  {selectedFrame.fdfMetadata.inheritedChildrenIds && selectedFrame.fdfMetadata.inheritedChildrenIds.length > 0 && (
+                    <div style={{ fontSize: '11px', color: '#cbd5e0', marginTop: '2px' }}>
+                      包含 {selectedFrame.fdfMetadata.inheritedChildrenIds.length} 个继承的子控件
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
+        return null;
+      })()}
+      
       {/* 基本信息 */}
       <section>
         <h4>详细信息</h4>

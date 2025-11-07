@@ -468,6 +468,10 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
     const frame = project.frames[frameId];
     if (!frame) return null;
 
+    // 检查是否是继承的子控件（只读）
+    const parentFrame = frame.parentId ? project.frames[frame.parentId] : null;
+    const isInheritedChild = parentFrame?.fdfMetadata?.inheritedChildrenIds?.includes(frameId) || false;
+
     // 应用筛选
     const matchesSearch = !searchQuery || frame.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'all' || frame.type === filterType;
@@ -529,7 +533,12 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
             <>
               {frame.locked && <span style={{ marginRight: '4px', opacity: 0.6 }}>🔒</span>}
               {frame.visible === false && <span style={{ marginRight: '4px', opacity: 0.6 }}>👁️</span>}
-              <span className="tree-node-name" style={{ opacity: frame.visible === false ? 0.5 : 1 }}>{frame.name}</span>
+              {isInheritedChild && <span style={{ marginRight: '4px', opacity: 0.6 }} title="继承的子控件（只读）">🔗</span>}
+              <span className="tree-node-name" style={{ 
+                opacity: frame.visible === false ? 0.5 : 1,
+                fontStyle: isInheritedChild ? 'italic' : 'normal',
+                color: isInheritedChild ? '#888' : 'inherit'
+              }}>{frame.name}</span>
             </>
           )}
           
@@ -726,82 +735,102 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
       </div>
 
       {/* 右键菜单 */}
-      {contextMenu && (
-        <>
-          <div 
-            className="context-menu-overlay"
-            onClick={() => setContextMenu(null)}
-          />
-          <div 
-            className="context-menu"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-          >
+      {contextMenu && (() => {
+        const frame = project.frames[contextMenu.frameId];
+        const parentFrame = frame?.parentId ? project.frames[frame.parentId] : null;
+        const isInheritedChild = parentFrame?.fdfMetadata?.inheritedChildrenIds?.includes(contextMenu.frameId) || false;
+        
+        return (
+          <>
             <div 
-              className="context-menu-item"
-              onClick={() => startRename(contextMenu.frameId)}
-            >
-              ✏️ 重命名
-            </div>
+              className="context-menu-overlay"
+              onClick={() => setContextMenu(null)}
+            />
             <div 
-              className="context-menu-item"
-              onClick={() => handleDuplicate(contextMenu.frameId)}
+              className="context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
             >
-              📋 复制
+              {isInheritedChild && (
+                <>
+                  <div className="context-menu-item disabled" title="继承的子控件只读">
+                    🔗 继承的子控件（只读）
+                  </div>
+                  <div className="context-menu-divider" />
+                </>
+              )}
+              <div 
+                className={`context-menu-item ${isInheritedChild ? 'disabled' : ''}`}
+                onClick={() => !isInheritedChild && startRename(contextMenu.frameId)}
+                title={isInheritedChild ? '继承的子控件不能重命名' : ''}
+              >
+                ✏️ 重命名
+              </div>
+              <div 
+                className="context-menu-item"
+                onClick={() => handleDuplicate(contextMenu.frameId)}
+              >
+                📋 复制
+              </div>
+              <div className="context-menu-divider" />
+              <div 
+                className={`context-menu-item ${isInheritedChild ? 'disabled' : ''}`}
+                onClick={() => !isInheritedChild && handleCreateTableArray(contextMenu.frameId)}
+                title={isInheritedChild ? '继承的子控件不能创建数组' : ''}
+              >
+                📊 创建表格数组
+              </div>
+              <div 
+                className={`context-menu-item ${isInheritedChild ? 'disabled' : ''}`}
+                onClick={() => !isInheritedChild && handleCreateCircleArray(contextMenu.frameId)}
+                title={isInheritedChild ? '继承的子控件不能创建数组' : ''}
+              >
+                ⭕ 创建环形数组
+              </div>
+              <div className="context-menu-divider" />
+              <div 
+                className={`context-menu-item ${isInheritedChild ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (isInheritedChild) return;
+                  setMoveToDialog({ frameId: contextMenu.frameId });
+                  setContextMenu(null);
+                }}
+                title={isInheritedChild ? '继承的子控件不能移动' : ''}
+              >
+                📁 移动到...
+              </div>
+              <div className="context-menu-divider" />
+              <div 
+                className="context-menu-item"
+                onClick={() => {
+                  const { toggleFrameLock } = useProjectStore.getState();
+                  toggleFrameLock(contextMenu.frameId);
+                  setContextMenu(null);
+                }}
+              >
+                {project.frames[contextMenu.frameId]?.locked ? '🔓 解锁' : '🔒 锁定'}
+              </div>
+              <div 
+                className="context-menu-item"
+                onClick={() => {
+                  const { toggleFrameVisibility } = useProjectStore.getState();
+                  toggleFrameVisibility(contextMenu.frameId);
+                  setContextMenu(null);
+                }}
+              >
+                {project.frames[contextMenu.frameId]?.visible === false ? '👁️ 显示' : '🙈 隐藏'}
+              </div>
+              <div className="context-menu-divider" />
+              <div 
+                className={`context-menu-item danger ${isInheritedChild ? 'disabled' : ''}`}
+                onClick={() => !isInheritedChild && handleDelete(contextMenu.frameId)}
+                title={isInheritedChild ? '继承的子控件不能删除' : ''}
+              >
+                🗑️ 删除
+              </div>
             </div>
-            <div className="context-menu-divider" />
-            <div 
-              className="context-menu-item"
-              onClick={() => handleCreateTableArray(contextMenu.frameId)}
-            >
-              📊 创建表格数组
-            </div>
-            <div 
-              className="context-menu-item"
-              onClick={() => handleCreateCircleArray(contextMenu.frameId)}
-            >
-              ⭕ 创建环形数组
-            </div>
-            <div className="context-menu-divider" />
-            <div 
-              className="context-menu-item"
-              onClick={() => {
-                setMoveToDialog({ frameId: contextMenu.frameId });
-                setContextMenu(null);
-              }}
-            >
-              📁 移动到...
-            </div>
-            <div className="context-menu-divider" />
-            <div 
-              className="context-menu-item"
-              onClick={() => {
-                const { toggleFrameLock } = useProjectStore.getState();
-                toggleFrameLock(contextMenu.frameId);
-                setContextMenu(null);
-              }}
-            >
-              {project.frames[contextMenu.frameId]?.locked ? '🔓 解锁' : '🔒 锁定'}
-            </div>
-            <div 
-              className="context-menu-item"
-              onClick={() => {
-                const { toggleFrameVisibility } = useProjectStore.getState();
-                toggleFrameVisibility(contextMenu.frameId);
-                setContextMenu(null);
-              }}
-            >
-              {project.frames[contextMenu.frameId]?.visible === false ? '👁️ 显示' : '🙈 隐藏'}
-            </div>
-            <div className="context-menu-divider" />
-            <div 
-              className="context-menu-item danger"
-              onClick={() => handleDelete(contextMenu.frameId)}
-            >
-              🗑️ 删除
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 移动到对话框 */}
       {moveToDialog && (
