@@ -602,6 +602,8 @@ export class FDFTransformer {
         return FrameType.SIMPLEFONTSTRING;
       case 'TEXTAREA':
         return FrameType.TEXTAREA;
+      case 'TEXTBUTTON':  // TEXTBUTTON → TEXT_FRAME
+        return FrameType.TEXT_FRAME;
       
       // 按钮控件
       case 'BUTTON':
@@ -622,7 +624,13 @@ export class FDFTransformer {
       // 交互控件
       case 'CHECKBOX':
         return FrameType.CHECKBOX;
+      case 'GLUECHECKBOX':  // GLUECHECKBOX → CHECKBOX
+        return FrameType.CHECKBOX;
+      case 'SIMPLECHECKBOX':  // SIMPLECHECKBOX → CHECKBOX
+        return FrameType.CHECKBOX;
       case 'EDITBOX':
+        return FrameType.EDITBOX;
+      case 'GLUEEDITBOX':  // GLUEEDITBOX → EDITBOX
         return FrameType.EDITBOX;
       case 'SLIDER':
         return FrameType.SLIDER;
@@ -633,6 +641,8 @@ export class FDFTransformer {
       case 'MENU':
         return FrameType.MENU;
       case 'POPUPMENU':
+        return FrameType.POPUPMENU;
+      case 'GLUEPOPUPMENU':  // GLUEPOPUPMENU → POPUPMENU
         return FrameType.POPUPMENU;
       
       // 图形控件
@@ -656,9 +666,15 @@ export class FDFTransformer {
         return FrameType.DIALOG;
       case 'TIMERTEXT':
         return FrameType.TIMERTEXT;
+      case 'SLASHCHATBOX':  // SLASHCHATBOX → EDITBOX
+        return FrameType.EDITBOX;
+      case 'CHATDISPLAY':  // CHATDISPLAY → TEXTAREA
+        return FrameType.TEXTAREA;
       
+      // 未知类型 - 使用 FRAME 作为默认值
       default:
-        return FrameType.FRAME; // 默认使用 FRAME
+        console.warn(`[FDF Transformer] Unknown frame type: ${fdfType}, using FRAME as default`);
+        return FrameType.FRAME;
     }
   }
   
@@ -686,10 +702,16 @@ export class FDFTransformer {
    * 将 Frame 名称映射到 Frame ID
    */
   private resolveRelativeFrames(frames: FrameData[]): void {
-    // 构建名称到 ID 的映射
-    const nameToId = new Map<string, string>();
+    // 构建名称到 Frame 的映射（支持多个同名Frame，优先使用同一父级下的）
+    const nameToFrames = new Map<string, FrameData[]>();
+    const idToFrame = new Map<string, FrameData>();
+    
     for (const frame of frames) {
-      nameToId.set(frame.name, frame.id);
+      idToFrame.set(frame.id, frame);
+      if (!nameToFrames.has(frame.name)) {
+        nameToFrames.set(frame.name, []);
+      }
+      nameToFrames.get(frame.name)!.push(frame);
     }
     
     // 解析所有锚点的 relativeTo
@@ -697,13 +719,47 @@ export class FDFTransformer {
       if (frame.anchors && frame.anchors.length > 0) {
         for (const anchor of frame.anchors) {
           if (anchor.relativeTo && typeof anchor.relativeTo === 'string') {
-            // 查找相对引用的 Frame ID
-            const targetId = nameToId.get(anchor.relativeTo);
-            if (targetId) {
+            const refName = anchor.relativeTo;
+            
+            // 跳过特殊标记
+            if (refName === '__PARENT__') {
+              // 如果有父Frame，替换为父Frame ID
+              if (frame.parentId) {
+                anchor.relativeTo = frame.parentId;
+              } else {
+                // 顶层Frame，删除相对引用
+                delete anchor.relativeTo;
+                delete anchor.relativePoint;
+              }
+              continue;
+            }
+            
+            // 查找目标Frame
+            let targetFrame: FrameData | undefined;
+            const candidates = nameToFrames.get(refName);
+            
+            if (candidates && candidates.length > 0) {
+              if (candidates.length === 1) {
+                // 只有一个匹配，直接使用
+                targetFrame = candidates[0];
+              } else {
+                // 多个匹配，优先查找同一父级下的Frame
+                if (frame.parentId) {
+                  targetFrame = candidates.find(f => f.parentId === frame.parentId);
+                }
+                // 如果没找到同父级的，使用第一个
+                if (!targetFrame) {
+                  targetFrame = candidates[0];
+                }
+              }
+            }
+            
+            if (targetFrame) {
               // 将名称替换为 ID
-              anchor.relativeTo = targetId;
+              anchor.relativeTo = targetFrame.id;
             } else {
-              console.warn(`[FDF Transformer] Cannot resolve relativeTo: ${anchor.relativeTo} for frame ${frame.name}`);
+              // 无法解析，保持原名称（可能是外部引用如 "UIParent"）
+              // 不输出警告，因为某些Frame可能引用游戏内置Frame
             }
           }
         }

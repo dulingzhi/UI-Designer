@@ -1,0 +1,9 @@
+Frame "SIMPLEFRAME" "ConsoleUI" {
+	Width 0.000500
+	Height 0.000667
+	Anchor CENTER, 0.000500, 0.000500
+	Texture {
+		File "ConsoleTexture04"
+	}
+}
+

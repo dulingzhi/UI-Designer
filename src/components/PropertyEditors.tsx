@@ -325,9 +325,11 @@ export const FilePath: React.FC<FilePathProps> = ({
 
   useEffect(() => {
     if (value && suggestions.length > 0) {
-      const filtered = suggestions.filter((s) =>
-        s.toLowerCase().includes(value.toLowerCase())
-      );
+      const valueStr = String(value).toLowerCase();
+      const filtered = suggestions.filter((s) => {
+        const sStr = String(s).toLowerCase();
+        return sStr.includes(valueStr);
+      });
       setFilteredSuggestions(filtered);
     } else {
       setFilteredSuggestions(suggestions);

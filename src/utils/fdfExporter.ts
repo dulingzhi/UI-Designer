@@ -181,30 +181,63 @@ export class FDFExporter {
    */
   protected mapFrameType(type: number): string {
     const FrameType: Record<number, string> = {
+      // 基础容器
       0: 'FRAME',          // ORIGIN
-      1: 'BACKDROP',       // BACKDROP
-      2: 'BUTTON',         // BUTTON
-      3: 'BUTTON',         // BROWSER_BUTTON
-      4: 'BUTTON',         // SCRIPT_DIALOG_BUTTON
-      5: 'CHECKBOX',       // CHECKLIST_BOX
-      6: 'BACKDROP',       // ESC_MENU_BACKDROP
-      7: 'BACKDROP',       // OPTIONS_POPUP_MENU_BACKDROP_TEMPLATE
-      8: 'BUTTON',         // QUEST_BUTTON_BASE_TEMPLATE
-      9: 'BACKDROP',       // QUEST_BUTTON_DISABLED_BACKDROP_TEMPLATE
-      10: 'BACKDROP',      // QUEST_BUTTON_PUSHED_BACKDROP_TEMPLATE
-      11: 'CHECKBOX',      // CHECKBOX
-      12: 'BUTTON',        // INVIS_BUTTON
-      13: 'TEXT',          // TEXT_FRAME
-      14: 'BACKDROP',      // HORIZONTAL_BAR
-      15: 'BACKDROP',      // HOR_BAR_BACKGROUND
-      16: 'TEXT',          // HOR_BAR_TEXT
-      17: 'TEXT',          // HOR_BAR_BACKGROUND_TEXT
-      18: 'TEXT',          // TEXTAREA
-      19: 'EDITBOX',       // EDITBOX
-      20: 'SLIDER',        // SLIDER
+      1: 'FRAME',          // FRAME
+      2: 'BACKDROP',       // BACKDROP
+      3: 'SIMPLEFRAME',    // SIMPLEFRAME
+      
+      // 文本控件
+      4: 'TEXT',           // TEXT_FRAME
+      5: 'SIMPLEFONTSTRING', // SIMPLEFONTSTRING
+      6: 'TEXTAREA',       // TEXTAREA
+      
+      // 按钮控件
+      7: 'BUTTON',         // BUTTON
+      8: 'GLUETEXTBUTTON', // GLUETEXTBUTTON
+      9: 'GLUEBUTTON',     // GLUEBUTTON
+      10: 'SIMPLEBUTTON',  // SIMPLEBUTTON
+      11: 'BUTTON',        // BROWSER_BUTTON → BUTTON
+      12: 'BUTTON',        // SCRIPT_DIALOG_BUTTON → BUTTON
+      13: 'BUTTON',        // INVIS_BUTTON → BUTTON
+      
+      // 交互控件
+      14: 'CHECKBOX',      // CHECKBOX
+      15: 'EDITBOX',       // EDITBOX
+      16: 'SLIDER',        // SLIDER
+      17: 'SCROLLBAR',     // SCROLLBAR
+      18: 'LISTBOX',       // LISTBOX
+      19: 'MENU',          // MENU
+      20: 'POPUPMENU',     // POPUPMENU
+      
+      // 图形控件
+      21: 'SPRITE',        // SPRITE
+      22: 'MODEL',         // MODEL
+      23: 'HIGHLIGHT',     // HIGHLIGHT
+      
+      // 状态栏
+      24: 'SIMPLESTATUSBAR', // SIMPLESTATUSBAR
+      25: 'STATUSBAR',     // STATUSBAR
+      
+      // 其他控件
+      26: 'CONTROL',       // CONTROL
+      27: 'DIALOG',        // DIALOG
+      28: 'TIMERTEXT',     // TIMERTEXT
+      
+      // 兼容旧枚举值（映射到对应的新类型）
+      100: 'CHECKBOX',     // CHECKLIST_BOX → CHECKBOX
+      101: 'BACKDROP',     // ESC_MENU_BACKDROP → BACKDROP
+      102: 'BACKDROP',     // OPTIONS_POPUP_MENU_BACKDROP_TEMPLATE → BACKDROP
+      103: 'BUTTON',       // QUEST_BUTTON_BASE_TEMPLATE → BUTTON
+      104: 'BACKDROP',     // QUEST_BUTTON_DISABLED_BACKDROP_TEMPLATE → BACKDROP
+      105: 'BACKDROP',     // QUEST_BUTTON_PUSHED_BACKDROP_TEMPLATE → BACKDROP
+      106: 'BACKDROP',     // HORIZONTAL_BAR → BACKDROP
+      107: 'BACKDROP',     // HOR_BAR_BACKGROUND → BACKDROP
+      108: 'TEXT',         // HOR_BAR_TEXT → TEXT
+      109: 'TEXT',         // HOR_BAR_BACKGROUND_TEXT → TEXT
     };
     
-    return FrameType[type] || 'BACKDROP';
+    return FrameType[type] || 'FRAME';
   }
   
   /**
@@ -273,9 +306,28 @@ export class FDFExporter {
   }
   
   /**
-   * 转义字符串
+   * 转义字符串（类型安全）
    */
-  protected escapeString(str: string): string {
+  protected escapeString(value: unknown): string {
+    // 处理 null/undefined
+    if (value === null || value === undefined) {
+      return '';
+    }
+    
+    // 处理数组（取第一个元素或连接）
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '';
+      // 如果数组只有一个元素，使用该元素
+      if (value.length === 1) {
+        return this.escapeString(value[0]);
+      }
+      // 多个元素，用空格连接
+      return value.map(v => String(v)).join(' ');
+    }
+    
+    // 转换为字符串
+    const str = String(value);
+    
     return str
       .replace(/\\/g, '\\\\')
       .replace(/"/g, '\\"')

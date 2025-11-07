@@ -1,0 +1,9 @@
+Frame "SIMPLEFRAME" "ResourceBarFrame" {
+	Width 0.000423
+	Height 0.000036
+	Anchor TOPLEFT, 0.000000, -0.000005
+	Texture {
+		File "GoldIcon"
+	}
+}
+
