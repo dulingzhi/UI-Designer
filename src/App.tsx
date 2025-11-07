@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCommandStore } from './store/commandStore';
 import { useProjectStore } from './store/projectStore';
 import { RemoveFrameCommand, BatchRemoveFrameCommand } from './commands/FrameCommands';
+import { mpqManager } from './utils/mpqManager';
 import './App.css';
 
 function App() {
@@ -37,6 +38,26 @@ function App() {
     getScale: () => number;
     getMousePosition: () => { x: number; y: number; wc3X: number; wc3Y: number };
   } | null>(null);
+
+  // 初始化 MPQ 管理器 - 自动加载用户设置的 WC3 路径
+  React.useEffect(() => {
+    const initMPQ = async () => {
+      const savedPath = localStorage.getItem('war3_install_path');
+      if (savedPath) {
+        console.log('[App] 自动加载 WC3 MPQ 档案:', savedPath);
+        try {
+          await mpqManager.setWar3Path(savedPath);
+          console.log('[App] MPQ 档案加载完成');
+        } catch (error) {
+          console.error('[App] MPQ 档案加载失败:', error);
+        }
+      } else {
+        console.log('[App] 未找到 WC3 安装路径,跳过 MPQ 加载');
+      }
+    };
+
+    initMPQ();
+  }, []);
 
   // 全局删除请求处理函数
   const handleDeleteRequest = React.useCallback((targets: string[]) => {
