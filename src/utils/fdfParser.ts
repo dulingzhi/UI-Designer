@@ -358,19 +358,16 @@ export class FDFParser {
         break;
       } else if (this.check(TokenType.IDENTIFIER)) {
         const identifierValue = this.currentToken().value;
-        // 检查是否是已知的属性名（首字母大写的常见属性）
-        const commonProperties = [
-          'Width', 'Height', 'SetPoint', 'SetAllPoints', 'Text', 'Anchor',
-          'FontColor', 'FontJustificationH', 'FontJustificationV',
-          'Frame', 'BackdropBackground', 'File', 'HighlightColor'
-        ];
-        
-        if (commonProperties.includes(identifierValue)) {
-          // 这是新属性名，停止读取
+        // 首字母大写的标识符通常是属性名，不是值
+        // 例如：BackdropBackground, BackdropCornerFlags, SetPoint 等
+        // 小写标识符或特定关键字才是值，如：true, false, TOPLEFT, CENTER 等
+        const firstChar = identifierValue.charAt(0);
+        if (firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase()) {
+          // 首字母是大写字母，认为这是新属性名，停止读取
           break;
         }
         
-        // 否则，当作值处理
+        // 否则，当作值处理（如枚举值、锚点等）
         values.push(this.parsePropertyValue());
       } else if (this.check(TokenType.STRING) || this.check(TokenType.NUMBER)) {
         // 逗号后是 STRING/NUMBER，继续读取
