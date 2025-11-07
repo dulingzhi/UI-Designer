@@ -1,6 +1,6 @@
 // ============================================
 // WC3 背包系统 UI
-// 包含: 主面板、物品格子、关闭按钮、标题栏、金币显示等
+// 简化版: 主面板、物品格子、关闭按钮、标题栏、金币显示
 // ============================================
 
 // 包含官方模板
@@ -10,11 +10,11 @@ IncludeFile "UI\FrameDef\UI\EscMenuTemplates.fdf",
 // 主背包面板 - 带边框和背景
 // ============================================
 Frame "BACKDROP" "InventoryMainPanel" {
-    Width 0.320,
-    Height 0.400,
+    Width 0.340,
+    Height 0.380,
     
     // 居中显示
-    SetPoint CENTER, "UIParent", CENTER, 0.0, 0.0,
+    SetPoint CENTER, "UIParent", CENTER, 0.0, 0.05,
     
     // 背景样式 - 使用任务对话框样式
     BackdropTileBackground,
@@ -31,8 +31,8 @@ Frame "BACKDROP" "InventoryMainPanel" {
 // 标题栏背景
 // ============================================
 Frame "BACKDROP" "InventoryTitleBar" {
-    Width 0.308,
-    Height 0.036,
+    Width 0.328,
+    Height 0.038,
     SetPoint TOP, "InventoryMainPanel", TOP, 0.0, -0.006,
     
     BackdropTileBackground,
@@ -448,9 +448,9 @@ Frame "BACKDROP" "InventorySlot_1_3_Icon" {
 // 底部信息栏
 // ============================================
 Frame "BACKDROP" "InventoryInfoBar" {
-    Width 0.308,
-    Height 0.030,
-    SetPoint BOTTOM, "InventoryMainPanel", BOTTOM, 0.0, 0.012,
+    Width 0.328,
+    Height 0.032,
+    SetPoint BOTTOM, "InventoryMainPanel", BOTTOM, 0.0, 0.010,
     
     BackdropTileBackground,
     BackdropBackground "EscMenuButtonBackground",
@@ -539,181 +539,5 @@ Frame "GLUETEXTBUTTON" "InventoryUseButton" INHERITS WITHCHILDREN "EscMenuButton
     Frame "TEXT" "InventoryUseButtonText" INHERITS "EscMenuButtonTextTemplate" {
         Text "使用",
         FontHeight 0.011,
-    }
-}
-
-// ============================================
-// 装备栏 (可选扩展)
-// ============================================
-Frame "FRAME" "EquipmentPanel" {
-    Width 0.060,
-    Height 0.280,
-    SetPoint RIGHT, "InventoryMainPanel", LEFT, -0.015, 0.0,
-}
-
-// 头盔槽
-Frame "GLUEBUTTON" "EquipSlot_Head" {
-    Width 0.056,
-    Height 0.056,
-    SetPoint TOP, "EquipmentPanel", TOP, 0.0, -0.010,
-    
-    ControlBackdrop "EquipSlot_Head_Backdrop",
-    Frame "BACKDROP" "EquipSlot_Head_Backdrop" {
-        BackdropBackground "ConsoleButtonBackground",
-        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
-        BackdropCornerSize 0.010,
-        BackdropEdgeFile "ConsoleButtonBorder",
-        BackdropBlendAll,
-    }
-}
-
-// 头盔图标示例
-Frame "BACKDROP" "EquipSlot_Head_Icon" {
-    Width 0.048,
-    Height 0.048,
-    SetPoint CENTER, "EquipSlot_Head", CENTER, 0.0, 0.0,
-    
-    DecorateFileNames,
-    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNHelmutOfValor.blp",
-}
-
-// 身体槽
-Frame "GLUEBUTTON" "EquipSlot_Armor" {
-    Width 0.056,
-    Height 0.056,
-    SetPoint TOP, "EquipSlot_Head", BOTTOM, 0.0, -0.008,
-    
-    ControlBackdrop "EquipSlot_Armor_Backdrop",
-    Frame "BACKDROP" "EquipSlot_Armor_Backdrop" {
-        BackdropBackground "ConsoleButtonBackground",
-        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
-        BackdropCornerSize 0.010,
-        BackdropEdgeFile "ConsoleButtonBorder",
-        BackdropBlendAll,
-    }
-}
-
-// 武器槽
-Frame "GLUEBUTTON" "EquipSlot_Weapon" {
-    Width 0.056,
-    Height 0.056,
-    SetPoint TOP, "EquipSlot_Armor", BOTTOM, 0.0, -0.008,
-    
-    ControlBackdrop "EquipSlot_Weapon_Backdrop",
-    Frame "BACKDROP" "EquipSlot_Weapon_Backdrop" {
-        BackdropBackground "ConsoleButtonBackground",
-        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
-        BackdropCornerSize 0.010,
-        BackdropEdgeFile "ConsoleButtonBorder",
-        BackdropBlendAll,
-    }
-}
-
-// 武器图标示例
-Frame "BACKDROP" "EquipSlot_Weapon_Icon" {
-    Width 0.048,
-    Height 0.048,
-    SetPoint CENTER, "EquipSlot_Weapon", CENTER, 0.0, 0.0,
-    
-    DecorateFileNames,
-    BackdropBackground "ReplaceableTextures\\CommandButtons\\BTNSteelMelee.blp",
-}
-
-// 饰品槽
-Frame "GLUEBUTTON" "EquipSlot_Accessory" {
-    Width 0.056,
-    Height 0.056,
-    SetPoint TOP, "EquipSlot_Weapon", BOTTOM, 0.0, -0.008,
-    
-    ControlBackdrop "EquipSlot_Accessory_Backdrop",
-    Frame "BACKDROP" "EquipSlot_Accessory_Backdrop" {
-        BackdropBackground "ConsoleButtonBackground",
-        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
-        BackdropCornerSize 0.010,
-        BackdropEdgeFile "ConsoleButtonBorder",
-        BackdropBlendAll,
-    }
-}
-
-// ============================================
-// 物品详情提示框 (悬停时显示)
-// ============================================
-Frame "FRAME" "ItemTooltip" {
-    Width 0.200,
-    Height 0.100,
-    SetPoint BOTTOMLEFT, "InventoryMainPanel", TOPRIGHT, 0.015, 0.0,
-    
-    Frame "BACKDROP" "ItemTooltipBackground" {
-        SetAllPoints,
-        BackdropTileBackground,
-        BackdropBackground "ToolTipBackground",
-        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
-        BackdropCornerSize 0.012,
-        BackdropEdgeFile "ToolTipBorder",
-        BackdropBlendAll,
-    }
-    
-    // 物品名称
-    Frame "TEXT" "ItemTooltipName" {
-        SetPoint TOPLEFT, "ItemTooltipBackground", TOPLEFT, 0.012, -0.012,
-        
-        Text "小型生命药水",
-        FontHeight 0.012,
-        FontColor 0.3 1.0 0.3 1.0,  // 绿色 (普通品质)
-        FontFlags "FIXEDSIZE",
-        FontJustificationH JUSTIFYLEFT,
-    }
-    
-    // 物品类型
-    Frame "TEXT" "ItemTooltipType" {
-        SetPoint TOPLEFT, "ItemTooltipName", BOTTOMLEFT, 0.0, -0.004,
-        
-        Text "消耗品",
-        FontHeight 0.009,
-        FontColor 0.7 0.7 0.7 1.0,
-        FontFlags "FIXEDSIZE",
-        FontJustificationH JUSTIFYLEFT,
-    }
-    
-    // 分隔线
-    Frame "BACKDROP" "ItemTooltipDivider" {
-        Width 0.176,
-        Height 0.002,
-        SetPoint TOP, "ItemTooltipType", BOTTOM, 0.0, -0.006,
-        
-        BackdropBackground "ConsoleButtonBorder",
-        BackdropBlendAll,
-    }
-    
-    // 物品描述
-    Frame "TEXT" "ItemTooltipDesc" {
-        SetPoint TOPLEFT, "ItemTooltipDivider", BOTTOMLEFT, 0.0, -0.006,
-        Width 0.176,
-        
-        Text "恢复 100 点生命值",
-        FontHeight 0.009,
-        FontColor 1.0 1.0 1.0 1.0,
-        FontFlags "FIXEDSIZE",
-        FontJustificationH JUSTIFYLEFT,
-    }
-    
-    // 物品售价
-    Frame "TEXT" "ItemTooltipPrice" {
-        SetPoint BOTTOMLEFT, "ItemTooltipBackground", BOTTOMLEFT, 0.012, 0.008,
-        
-        Text "售价: 50",
-        FontHeight 0.009,
-        FontColor 1.0 0.827 0.0705 1.0,
-        FontFlags "FIXEDSIZE",
-        FontJustificationH JUSTIFYLEFT,
-    }
-    
-    Frame "BACKDROP" "ItemTooltipPriceIcon" {
-        Width 0.012,
-        Height 0.012,
-        SetPoint LEFT, "ItemTooltipPrice", RIGHT, 0.004, 0.0,
-        
-        BackdropBackground "GoldIcon",
-        BackdropBlendAll,
     }
 }
