@@ -86,19 +86,12 @@ export const Ruler: React.FC<RulerProps> = ({
     // 每个 WC3 单位对应的像素数
     const pixelsPerUnit = length / maxWc3;
 
-    // 计算当前视图范围对应的 WC3 坐标
-    // offset 是画布的平移偏移（像素），正值表示向右/下平移
-    const startWc3 = -offset * scale / pixelsPerUnit;
-    const endWc3 = ((length - offset * scale) / pixelsPerUnit);
-
-    // 生成刻度（限制在 0 到 maxWc3 范围内）
-    const startTick = Math.max(0, Math.floor(startWc3 / interval) * interval);
-    const endTick = Math.min(maxWc3, Math.ceil(endWc3 / interval) * interval);
-
-    for (let wc3Coord = startTick; wc3Coord <= endTick; wc3Coord += interval) {
-      // 计算刻度在标尺上的像素位置
+    // 生成所有刻度（从 0 到 maxWc3，不受 offset 影响）
+    for (let wc3Coord = 0; wc3Coord <= maxWc3; wc3Coord += interval) {
+      // 计算刻度在标尺上的像素位置（这里才考虑 offset 和 scale）
       const pixelPos = wc3Coord * pixelsPerUnit + offset * scale;
       
+      // 只渲染在标尺可见范围内的刻度
       if (pixelPos >= 0 && pixelPos <= length) {
         // 修复浮点数精度问题：将坐标四舍五入到合理精度后再判断
         const roundedCoord = Math.round(wc3Coord / interval) * interval;
