@@ -4,7 +4,7 @@ import { join } from '@tauri-apps/api/path';
 import { exists, readFile } from '@tauri-apps/plugin-fs';
 import { mpqManager } from '../utils/mpqManager';
 // @ts-ignore - war3-model 是 TypeScript 源码，没有类型定义
-import { parseMDX, ModelRenderer } from 'war3-model';
+import { parseMDX, ModelRenderer, decodeBLP, getBLPImageData } from 'war3-model';
 
 interface ModelViewerProps {
   modelPath: string; // MDX 文件路径（相对或绝对）
@@ -130,6 +130,73 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         } catch (err) {
           console.error('WebGL 初始化失败:', err);
           throw err;
+        }
+
+        // 加载模型纹理
+        console.log('🖼️ 开始加载纹理:', model.Textures?.length || 0, '个');
+        
+        if (model.Textures && model.Textures.length > 0) {
+          // 异步加载所有纹理
+          const texturePromises = model.Textures.map(async (texture) => {
+            if (!texture.Image || texture.ReplaceableId) {
+              // 跳过可替换纹理（如团队颜色）
+              return;
+            }
+
+            try {
+              // 从 MPQ 加载 BLP 文件
+              const texturePath = texture.Image.replace(/\\/g, '/');
+              const blpBuffer = await mpqManager.readFile(texturePath);
+              
+              if (!blpBuffer) {
+                console.warn(`⚠️ 找不到纹理: ${texturePath}`);
+                return;
+              }
+
+              // 解码 BLP 为 BLPImage
+              const blpImage = decodeBLP(blpBuffer);
+              
+              // 获取 mipmap level 0 的 ImageData
+              const imageData = getBLPImageData(blpImage, 0);
+              
+              if (!imageData) {
+                console.warn(`⚠️ BLP 解码失败: ${texturePath}`);
+                return;
+              }
+
+              // 创建 Image 对象
+              const canvas = document.createElement('canvas');
+              canvas.width = imageData.width;
+              canvas.height = imageData.height;
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                // 将 ImageData 转换为标准 ImageData (处理 colorSpace)
+                const standardImageData = new ImageData(
+                  new Uint8ClampedArray(imageData.data),
+                  imageData.width,
+                  imageData.height
+                );
+                ctx.putImageData(standardImageData, 0, 0);
+                
+                const img = new Image();
+                img.onload = () => {
+                  modelRenderer.setTextureImage(texture.Image, img);
+                  console.log(`✅ 纹理已设置: ${texture.Image}`);
+                };
+                img.src = canvas.toDataURL();
+              }
+            } catch (err) {
+              console.warn(`⚠️ 加载纹理失败: ${texture.Image}`, err);
+            }
+          });
+
+          // 等待所有纹理加载完成（不阻塞渲染）
+          Promise.all(texturePromises).then(() => {
+            console.log('🖼️ 所有纹理处理完成');
+          });
+        } else {
+          console.log('ℹ️ 模型没有纹理');
         }
 
         // 设置相机和矩阵
