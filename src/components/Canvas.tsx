@@ -92,8 +92,12 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const { executeCommand } = useCommandStore();
   const { projectDir } = useProjectContext(); // 获取项目目录
   const canvasRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
+  
+  // 容器尺寸状态
+  const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = React.useState(false);
   const [panStart, setPanStart] = React.useState({ x: 0, y: 0 });
   
@@ -238,6 +242,28 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       canvas.removeEventListener('wheel', handleWheelNative);
     };
   }, []);
+
+  // 监听容器尺寸变化
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setContainerSize({ 
+          width: width - (showRulers ? 30 : 0), 
+          height: height - (showRulers ? 30 : 0) 
+        });
+      }
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [showRulers]);
 
   // 处理画布拖拽（平移）
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -1198,6 +1224,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
   return (
     <div 
+      ref={containerRef}
       className="canvas-container"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -1215,10 +1242,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       )}
 
       {/* 水平标尺 */}
-      {showRulers && (
+      {showRulers && containerSize.width > 0 && (
         <Ruler
           orientation="horizontal"
-          length={CANVAS_WIDTH - 2 * MARGIN}
+          length={containerSize.width}
           scale={scale}
           offset={offset.x}
           onCreateGuide={handleCreateGuide}
@@ -1226,10 +1253,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       )}
 
       {/* 垂直标尺 */}
-      {showRulers && (
+      {showRulers && containerSize.height > 0 && (
         <Ruler
           orientation="vertical"
-          length={CANVAS_HEIGHT - 2 * MARGIN}
+          length={containerSize.height}
           scale={scale}
           offset={offset.y}
           onCreateGuide={handleCreateGuide}
