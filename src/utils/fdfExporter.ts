@@ -149,7 +149,10 @@ export class FDFExporter {
       fdf += this.getIndent() + '}\n';
     }
     
-    // 背景纹理（已在 backdropBackground 属性中处理，这里不需要重复导出）
+    // 背景纹理
+    if (frame.backdropBackground) {
+      fdf += this.getIndent() + `BackdropBackground "${this.escapeString(frame.backdropBackground)}"\n`;
+    }
     
     this.indentLevel--;
     fdf += this.getIndent() + '}\n';
@@ -555,7 +558,10 @@ export class FDFExporterEnhanced extends FDFExporter {
       fdf += this.exportTexture(frame, indent);
     }
     
-    // 背景纹理（已在 backdropBackground 属性中处理）
+    // 背景纹理
+    if (!exportedProps.has('backdropbackground') && frame.backdropBackground) {
+      fdf += `${indent}BackdropBackground "${this.escapeString(frame.backdropBackground)}"\n`;
+    }
     
     return fdf;
   }
