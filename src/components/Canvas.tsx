@@ -154,6 +154,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       if (frame.wc3Texture && typeof frame.wc3Texture === 'string') {
         paths.push(frame.wc3Texture);
       }
+      // 添加 Backdrop 背景纹理路径
+      if (frame.backdropBackground && typeof frame.backdropBackground === 'string') {
+        paths.push(frame.backdropBackground);
+      }
       // 添加边框纹理路径
       if (frame.backdropEdgeFile && typeof frame.backdropEdgeFile === 'string') {
         paths.push(frame.backdropEdgeFile);
