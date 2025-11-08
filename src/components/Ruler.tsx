@@ -72,10 +72,14 @@ export const Ruler: React.FC<RulerProps> = ({
     
     // 根据缩放级别决定刻度间隔
     let interval = 0.05; // WC3单位
+    let majorInterval = 0.1; // 主刻度间隔
+    
     if (scale < 0.5) {
       interval = 0.1;
+      majorInterval = 0.2;
     } else if (scale > 2) {
       interval = 0.025;
+      majorInterval = 0.05;
     }
 
     // 计算起始和结束的WC3坐标
@@ -94,7 +98,7 @@ export const Ruler: React.FC<RulerProps> = ({
       const pixelPos = wc3Coord * pixelsPerUnit * scale + offset;
       
       if (pixelPos >= 0 && pixelPos <= length) {
-        const isMajor = Math.abs(wc3Coord % 0.1) < 0.001; // 每0.1显示数字
+        const isMajor = Math.abs(wc3Coord % majorInterval) < 0.001; // 主刻度显示数字
         ticks.push({
           position: pixelPos,
           label: isMajor ? wc3Coord.toFixed(2) : undefined,
@@ -137,7 +141,7 @@ export const Ruler: React.FC<RulerProps> = ({
 
         {/* 刻度线和标签 */}
         {ticks.map((tick, index) => {
-          const tickLength = tick.major ? 12 : 6;
+          const tickLength = tick.major ? 14 : 8;
           
           if (isHorizontal) {
             return (
@@ -148,17 +152,18 @@ export const Ruler: React.FC<RulerProps> = ({
                   y1={RULER_SIZE - tickLength}
                   x2={tick.position}
                   y2={RULER_SIZE}
-                  stroke="#888"
-                  strokeWidth={tick.major ? 1.5 : 0.5}
+                  stroke={tick.major ? "#aaa" : "#777"}
+                  strokeWidth={tick.major ? 2 : 1}
                 />
                 {/* 标签 */}
                 {tick.label && (
                   <text
                     x={tick.position}
-                    y={12}
-                    fontSize="9"
-                    fill="#ccc"
+                    y={10}
+                    fontSize="10"
+                    fill="#ddd"
                     textAnchor="middle"
+                    fontWeight="500"
                   >
                     {tick.label}
                   </text>
@@ -174,17 +179,18 @@ export const Ruler: React.FC<RulerProps> = ({
                   y1={tick.position}
                   x2={RULER_SIZE}
                   y2={tick.position}
-                  stroke="#888"
-                  strokeWidth={tick.major ? 1.5 : 0.5}
+                  stroke={tick.major ? "#aaa" : "#777"}
+                  strokeWidth={tick.major ? 2 : 1}
                 />
                 {/* 标签 */}
                 {tick.label && (
                   <text
                     x={15}
                     y={tick.position + 3}
-                    fontSize="9"
-                    fill="#ccc"
+                    fontSize="10"
+                    fill="#ddd"
                     textAnchor="middle"
+                    fontWeight="500"
                     transform={`rotate(-90 15 ${tick.position})`}
                   >
                     {tick.label}

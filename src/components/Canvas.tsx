@@ -1241,8 +1241,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                     y1={0}
                     x2={x}
                     y2={CANVAS_HEIGHT}
-                    stroke="rgba(100, 100, 100, 0.3)"
-                    strokeWidth={i % 2 === 0 ? 1 : 0.5}
+                    stroke="rgba(150, 150, 150, 0.5)"
+                    strokeWidth={i % 2 === 0 ? 1.5 : 0.8}
                   />
                 );
               })}
@@ -1256,8 +1256,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                     y1={y}
                     x2={CANVAS_WIDTH - 2 * MARGIN}
                     y2={y}
-                    stroke="rgba(100, 100, 100, 0.3)"
-                    strokeWidth={i % 2 === 0 ? 1 : 0.5}
+                    stroke="rgba(150, 150, 150, 0.5)"
+                    strokeWidth={i % 2 === 0 ? 1.5 : 0.8}
                   />
                 );
               })}
