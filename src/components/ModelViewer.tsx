@@ -160,18 +160,44 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
           throw new Error('未设置 War3 路径，无法从 MPQ 加载模型');
         }
 
-        // 使用第一个可用的 MPQ 档案
-        const loadedArchive = status.archives.find(a => a.loaded);
-        if (!loadedArchive) {
+        // 尝试所有已加载的 MPQ 档案
+        const loadedArchives = status.archives.filter(a => a.loaded);
+        if (loadedArchives.length === 0) {
           throw new Error('没有可用的 MPQ 档案');
         }
 
-        const mpqArchivePath = await join(status.war3Path, loadedArchive.name);
+        let lastError: Error | null = null;
         
-        modelJson = await invoke<string>('parse_mdx_from_mpq', {
-          archivePath: mpqArchivePath,
-          fileName: modelPath,
-        });
+        for (const archive of loadedArchives) {
+          try {
+            const mpqArchivePath = await join(status.war3Path, archive.name);
+            console.log(`尝试从 ${archive.name} 加载: ${modelPath}`);
+            
+            modelJson = await invoke<string>('parse_mdx_from_mpq', {
+              archivePath: mpqArchivePath,
+              fileName: modelPath,
+            });
+            
+            if (modelJson) {
+              console.log('从 MPQ 档案加载成功:', archive.name);
+              break;
+            }
+          } catch (error) {
+            console.log(`从 ${archive.name} 加载失败:`, error);
+            lastError = error as Error;
+            // 继续尝试下一个档案
+          }
+        }
+        
+        // 如果所有档案都失败，抛出最后的错误
+        if (!modelJson && lastError) {
+          throw lastError;
+        }
+      }
+
+      // 如果仍然没有加载成功，抛出错误
+      if (!modelJson) {
+        throw new Error('无法从本地或 MPQ 加载模型: ' + modelPath);
       }
 
       const model: MdxModel = JSON.parse(modelJson);
