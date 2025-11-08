@@ -28,4 +28,5 @@ wow-mpq = "0.3.2"
 blp = "0.1"
 image = "0.25"
 base64 = "0.22"
+byteorder = "1.5"
 

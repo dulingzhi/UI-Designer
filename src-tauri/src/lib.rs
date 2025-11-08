@@ -1,6 +1,9 @@
 use std::sync::Mutex;
 use std::collections::HashMap;
 
+mod mdx_parser;
+use mdx_parser::MdxParser;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -139,13 +142,42 @@ fn decode_blp_to_png(blp_data: Vec<u8>) -> Result<String, String> {
     Ok(format!("data:image/png;base64,{}", base64_str))
 }
 
+/// 解析 MDX/MDL 模型文件，返回几何数据的 JSON
+#[tauri::command]
+fn parse_mdx_file(mdx_data: Vec<u8>) -> Result<String, String> {
+    let mut parser = MdxParser::new(mdx_data)?;
+    let model = parser.parse()?;
+    
+    // 转换为 JSON
+    serde_json::to_string(&model)
+        .map_err(|e| format!("JSON 序列化失败: {}", e))
+}
+
+/// 从 MPQ 中读取并解析 MDX 文件
+#[tauri::command]
+fn parse_mdx_from_mpq(archive_path: String, file_name: String) -> Result<String, String> {
+    // 从 MPQ 读取文件
+    let mdx_data = read_mpq_file(archive_path, file_name)?;
+    
+    // 解析 MDX
+    parse_mdx_file(mdx_data)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![greet, load_mpq_archive, read_mpq_file, clear_mpq_cache, decode_blp_to_png])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            load_mpq_archive,
+            read_mpq_file,
+            clear_mpq_cache,
+            decode_blp_to_png,
+            parse_mdx_file,
+            parse_mdx_from_mpq
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
