@@ -1032,6 +1032,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                   projectDir={projectDir || undefined}
                   width={width}
                   height={height}
+                  cameraYaw={frame.cameraYaw}
+                  cameraPitch={frame.cameraPitch}
+                  cameraDistance={frame.cameraDistance}
                 />
               )}
               

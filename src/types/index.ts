@@ -211,6 +211,9 @@ export interface FrameData {
   // ========== SPRITE / MODEL 属性 ==========
   backgroundArt?: string;              // 模型文件路径 (.mdx/.mdl)
   layerStyle?: string;                 // 图层样式 "NOSHADING|IGNORETRACKEVENTS"
+  cameraYaw?: number;                  // MODEL: 相机水平旋转角度（弧度）
+  cameraPitch?: number;                // MODEL: 相机俯仰角度（弧度）
+  cameraDistance?: number;             // MODEL: 相机距离
   
   // ========== BACKDROP 背景属性 ==========
   backdropBackground?: string;         // 背景纹理

@@ -1438,12 +1438,50 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             allowClear
           />
 
+          {/* MODEL 相机设置 */}
+          {selectedFrame.type === FrameType.MODEL && (
+            <>
+              <Slider
+                label="水平旋转 (Yaw)"
+                value={selectedFrame.cameraYaw !== undefined ? selectedFrame.cameraYaw * 180 / Math.PI : 0}
+                onChange={(value) => handleChange('cameraYaw', value * Math.PI / 180)}
+                min={-180}
+                max={180}
+                step={5}
+                unit="°"
+                tooltip="相机水平旋转角度: 0° = 正前方, 90° = 右侧, 180° = 背后, -90° = 左侧"
+              />
+
+              <Slider
+                label="俯仰角 (Pitch)"
+                value={selectedFrame.cameraPitch !== undefined ? selectedFrame.cameraPitch * 180 / Math.PI : 17}
+                onChange={(value) => handleChange('cameraPitch', value * Math.PI / 180)}
+                min={-30}
+                max={89}
+                step={5}
+                unit="°"
+                tooltip="相机俯仰角度: 0° = 平视, 正值 = 俯视, 负值 = 仰视"
+              />
+
+              <Slider
+                label="相机距离"
+                value={selectedFrame.cameraDistance || 300}
+                onChange={(value) => handleChange('cameraDistance', value)}
+                min={50}
+                max={1000}
+                step={10}
+                tooltip="相机与模型的距离"
+              />
+            </>
+          )}
+
           <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
             💡 提示：<br/>
             • Sprite 用于 2D 动画模型<br/>
             • Model 用于 3D 模型显示<br/>
             • 支持 .mdx 和 .mdl 格式<br/>
-            • 常见路径：UI/Glues/ScoreScreen/...
+            • 常见路径：UI/Glues/ScoreScreen/...<br/>
+            {selectedFrame.type === FrameType.MODEL && '• 相机角度可调整模型朝向'}
           </p>
         </section>
       )}

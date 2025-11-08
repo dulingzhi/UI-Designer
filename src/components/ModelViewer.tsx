@@ -12,6 +12,9 @@ interface ModelViewerProps {
   width: number;
   height: number;
   className?: string;
+  cameraYaw?: number; // 相机水平旋转角度（弧度），默认 0
+  cameraPitch?: number; // 相机俯仰角度（弧度），默认 0.3
+  cameraDistance?: number; // 相机距离，默认 300
 }
 
 function calcCameraQuat(position: vec3, target: vec3): quat {
@@ -47,6 +50,9 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
   width,
   height,
   className,
+  cameraYaw = 0,
+  cameraPitch = 0.3,
+  cameraDistance = 300,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const modelRendererRef = useRef<ModelRenderer | null>(null);
@@ -54,6 +60,14 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const [error, setError] = useState<string | null>(null);
+  
+  // 存储相机参数的ref,用于渲染时更新
+  const cameraParamsRef = useRef({ yaw: cameraYaw, pitch: cameraPitch, distance: cameraDistance });
+  
+  // 更新相机参数ref
+  useEffect(() => {
+    cameraParamsRef.current = { yaw: cameraYaw, pitch: cameraPitch, distance: cameraDistance };
+  }, [cameraYaw, cameraPitch, cameraDistance]);
 
   // 分离的 useEffect: 处理模型加载
   useEffect(() => {
@@ -203,7 +217,14 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         const pMatrix = mat4.create();
         const mvMatrix = mat4.create();
         
-        const cameraPos = vec3.fromValues(0, -300, 100);
+        // 使用球面坐标计算相机位置
+        // yaw: 水平旋转 (0 = 正前方, π/2 = 右侧, π = 背后, -π/2 = 左侧)
+        // pitch: 俯仰角 (0 = 平视, π/2 = 俯视)
+        const x = cameraDistance * Math.cos(cameraPitch) * Math.sin(cameraYaw);
+        const y = -cameraDistance * Math.cos(cameraPitch) * Math.cos(cameraYaw);
+        const z = cameraDistance * Math.sin(cameraPitch) + 50; // 50 是目标高度偏移
+        
+        const cameraPos = vec3.fromValues(x, y, z);
         const cameraTarget = vec3.fromValues(0, 0, 50);
         const cameraUp = vec3.fromValues(0, 0, 1);
         const cameraQuat = calcCameraQuat(cameraPos, cameraTarget);
@@ -212,6 +233,13 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         mat4.lookAt(mvMatrix, cameraPos, cameraTarget, cameraUp);
 
         modelRenderer.setCamera(cameraPos, cameraQuat);
+
+        console.log('📷 相机设置:', {
+          yaw: (cameraYaw * 180 / Math.PI).toFixed(1) + '°',
+          pitch: (cameraPitch * 180 / Math.PI).toFixed(1) + '°',
+          distance: cameraDistance,
+          position: { x: x.toFixed(1), y: y.toFixed(1), z: z.toFixed(1) }
+        });
 
         // 设置默认团队颜色
         modelRenderer.setTeamColor([1.0, 0.0, 0.0]);
@@ -225,6 +253,11 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
 
         // 渲染循环
         startTimeRef.current = performance.now();
+        
+        // 存储矩阵引用
+        const pMatrixRef = pMatrix;
+        const mvMatrixRef = mvMatrix;
+        
         const animate = (timestamp: number) => {
           if (cancelled) return;
 
@@ -234,11 +267,25 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
           // 更新模型动画
           modelRenderer.update(delta);
 
+          // 使用最新的相机参数重新计算相机位置和矩阵
+          const params = cameraParamsRef.current;
+          const x = params.distance * Math.cos(params.pitch) * Math.sin(params.yaw);
+          const y = -params.distance * Math.cos(params.pitch) * Math.cos(params.yaw);
+          const z = params.distance * Math.sin(params.pitch) + 50;
+          
+          const newCameraPos = vec3.fromValues(x, y, z);
+          const cameraTarget = vec3.fromValues(0, 0, 50);
+          const cameraUp = vec3.fromValues(0, 0, 1);
+          const newCameraQuat = calcCameraQuat(newCameraPos, cameraTarget);
+          
+          mat4.lookAt(mvMatrixRef, newCameraPos, cameraTarget, cameraUp);
+          modelRenderer.setCamera(newCameraPos, newCameraQuat);
+
           // 清除画布
           gl!.clear(gl!.COLOR_BUFFER_BIT | gl!.DEPTH_BUFFER_BIT);
 
           // 渲染模型
-          modelRenderer.render(mvMatrix, pMatrix, {
+          modelRenderer.render(mvMatrixRef, pMatrixRef, {
             wireframe: false
           });
 
