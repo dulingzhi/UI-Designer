@@ -452,7 +452,7 @@ export const templates: FrameTemplate[] = [
     name: 'Sprite',
     icon: '🎨',
     category: 'basic',
-    description: '精灵图形',
+    description: '精灵图形 (2D动画模型)',
     createFrame: () => ({
       name: 'Sprite',
       type: FrameType.SPRITE,
@@ -463,6 +463,8 @@ export const templates: FrameTemplate[] = [
       anchors: createDefaultAnchors(0.1, 0.1, 0.08, 0.08),
       diskTexture: '',
       wc3Texture: '',
+      backgroundArt: '', // MDX/MDL 模型文件
+      layerStyle: '',
       children: [],
     }),
   },
@@ -482,6 +484,8 @@ export const templates: FrameTemplate[] = [
       anchors: createDefaultAnchors(0.1, 0.1, 0.1, 0.1),
       diskTexture: '',
       wc3Texture: '',
+      backgroundArt: '', // MDX/MDL 模型文件
+      layerStyle: 'NOSHADING',
       children: [],
     }),
   },

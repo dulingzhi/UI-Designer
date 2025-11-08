@@ -1031,6 +1031,51 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             }} />
           )}
           
+          {/* SPRITE / MODEL 占位符显示 */}
+          {(frame.type === FrameType.SPRITE || frame.type === FrameType.MODEL) && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: frame.type === FrameType.MODEL 
+                ? 'rgba(200, 100, 255, 0.15)' 
+                : 'rgba(255, 100, 200, 0.15)',
+              border: `1px dashed ${frame.type === FrameType.MODEL ? 'rgba(200, 100, 255, 0.5)' : 'rgba(255, 100, 200, 0.5)'}`,
+              pointerEvents: 'none',
+              fontSize: '11px',
+              color: '#aaa',
+              textAlign: 'center',
+              padding: '4px',
+              overflow: 'hidden',
+            }}>
+              <div style={{ fontSize: '20px', marginBottom: '4px' }}>
+                {frame.type === FrameType.MODEL ? '🎭' : '🎨'}
+              </div>
+              <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+                {frame.type === FrameType.MODEL ? '3D Model' : 'Sprite'}
+              </div>
+              {frame.backgroundArt && (
+                <div style={{ 
+                  fontSize: '9px', 
+                  wordBreak: 'break-all',
+                  maxHeight: '40px',
+                  overflow: 'hidden',
+                  lineHeight: '1.2',
+                }}>
+                  {frame.backgroundArt.split('/').pop()?.split('\\').pop() || frame.backgroundArt}
+                </div>
+              )}
+              {!frame.backgroundArt && (
+                <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#666' }}>
+                  未设置模型文件
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* 锁定图标 */}
           {isLockedOrParentLocked && (
             <div style={{
