@@ -1,5 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy } from 'react';
 import './PropertyEditors.css';
+
+// 动态导入 WC3TextureBrowser（避免循环依赖和减小初始包体积）
+const WC3TextureBrowser = lazy(() => 
+  import('./WC3TextureBrowser').then(module => ({ 
+    default: module.WC3TextureBrowser 
+  }))
+);
 
 // ==================== 接口定义 ====================
 
@@ -379,19 +386,14 @@ export const FilePath: React.FC<FilePathProps> = ({
       
       {showBrowser && (
         <React.Suspense fallback={<div>加载中...</div>}>
-          {(() => {
-            const WC3TextureBrowser = require('./WC3TextureBrowser').WC3TextureBrowser;
-            return (
-              <WC3TextureBrowser
-                onSelect={(path: string) => {
-                  onChange(path);
-                  setShowBrowser(false);
-                }}
-                onClose={() => setShowBrowser(false)}
-                currentPath={value}
-              />
-            );
-          })()}
+          <WC3TextureBrowser
+            onSelect={(path: string) => {
+              onChange(path);
+              setShowBrowser(false);
+            }}
+            onClose={() => setShowBrowser(false)}
+            currentPath={value}
+          />
         </React.Suspense>
       )}
     </div>
