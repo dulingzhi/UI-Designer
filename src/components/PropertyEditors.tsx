@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, lazy } from 'react';
+import React, { useState, useRef, useEffect, useMemo, lazy } from 'react';
 import './PropertyEditors.css';
 
 // 动态导入 WC3TextureBrowser（避免循环依赖和减小初始包体积）
@@ -327,20 +327,18 @@ export const FilePath: React.FC<FilePathProps> = ({
   tooltip,
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showBrowser, setShowBrowser] = useState(false);
 
-  useEffect(() => {
+  // 使用 useMemo 缓存过滤结果，避免无限循环
+  const filteredSuggestions = useMemo(() => {
     if (value && suggestions.length > 0) {
       const valueStr = String(value).toLowerCase();
-      const filtered = suggestions.filter((s) => {
+      return suggestions.filter((s) => {
         const sStr = String(s).toLowerCase();
         return sStr.includes(valueStr);
       });
-      setFilteredSuggestions(filtered);
-    } else {
-      setFilteredSuggestions(suggestions);
     }
+    return suggestions;
   }, [value, suggestions]);
 
   return (

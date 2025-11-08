@@ -292,9 +292,17 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
       
       const scale = 200 / maxDim; // 缩放到合适大小
       mesh.scale.setScalar(scale);
-      mesh.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
       
-      console.log('缩放后位置:', mesh.position, '缩放:', scale);
+      // 将模型中心移到原点
+      mesh.position.set(0, 0, 0);
+      mesh.geometry.translate(-center.x, -center.y, -center.z);
+      
+      console.log('缩放后:', {
+        scale: scale,
+        center: center,
+        size: size,
+        meshPosition: mesh.position
+      });
 
       // 移除旧模型，添加新模型
       if (meshRef.current) {
@@ -356,6 +364,8 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         left: 0,
         overflow: 'hidden',
         pointerEvents: 'none',
+        border: '2px solid red', // 调试用：显示容器边界
+        backgroundColor: 'rgba(255, 0, 0, 0.1)', // 调试用：半透明红色背景
       }}
     />
   );

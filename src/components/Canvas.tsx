@@ -30,14 +30,7 @@ const BackdropBackground: React.FC<{
   canvasHeight: number;
   margin: number;
 }> = ({ frame, textureMap, isSelected, canvasWidth, canvasHeight, margin }) => {
-  // 无条件调试日志 - 确认组件被渲染
-  console.log('[BackdropBackground] 组件渲染', {
-    frameName: frame.name,
-    isSelected,
-    backdropBackground: frame.backdropBackground,
-    backdropBackgroundInsets: frame.backdropBackgroundInsets,
-  });
-  
+
   const leftInset = frame.backdropBackgroundInsets 
     ? (frame.backdropBackgroundInsets[0] / 0.8) * (canvasWidth - 2 * margin)
     : 0;
@@ -53,11 +46,6 @@ const BackdropBackground: React.FC<{
   
   const textureState = frame.backdropBackground ? textureMap.get(frame.backdropBackground) : undefined;
   const bgImage = textureState?.url ? `url(${textureState.url})` : undefined;
-  
-  console.log('[BackdropBackground] 计算结果', {
-    insets像素: { leftInset, topInset, rightInset, bottomInset },
-    backgroundImage: bgImage ? '已加载' : '未加载',
-  });
   
   return (
     <div
