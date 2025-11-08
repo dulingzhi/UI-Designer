@@ -3,10 +3,9 @@ import './Ruler.css';
 
 interface RulerProps {
   orientation: 'horizontal' | 'vertical';
-  length: number; // 标尺长度（像素）
+  length: number; // 标尺长度（像素），水平为 1440px (对应 0.8 WC3)，垂直为 1080px (对应 0.6 WC3)
   scale: number; // 缩放比例
-  offset: number; // 偏移量（像素）
-  wc3UnitSize: number; // WC3单位对应的像素数（例如：0.8宽度对应的像素）
+  offset: number; // 偏移量（像素，未缩放）
   onCreateGuide?: (orientation: 'horizontal' | 'vertical', clientX: number, clientY: number) => void; // 创建参考线回调
 }
 
@@ -15,7 +14,6 @@ export const Ruler: React.FC<RulerProps> = ({
   length, 
   scale, 
   offset,
-  wc3UnitSize,
   onCreateGuide,
 }) => {
   const RULER_SIZE = 30; // 标尺宽度/高度
@@ -82,20 +80,24 @@ export const Ruler: React.FC<RulerProps> = ({
       majorInterval = 0.05;
     }
 
-    // 计算起始和结束的WC3坐标
-    const pixelsPerUnit = isHorizontal 
-      ? wc3UnitSize / 0.8  // 水平方向：0.8单位对应整个宽度
-      : wc3UnitSize / 0.6; // 垂直方向：0.6单位对应整个高度
+    // 标尺的长度对应的 WC3 单位范围（固定的）
+    const maxWc3 = isHorizontal ? 0.8 : 0.6;
+    
+    // 每个 WC3 单位对应的像素数
+    const pixelsPerUnit = length / maxWc3;
 
-    const startWc3 = -offset / (pixelsPerUnit * scale);
-    const endWc3 = (length - offset) / (pixelsPerUnit * scale);
+    // 计算当前视图范围对应的 WC3 坐标
+    // offset 是画布的平移偏移（像素），正值表示向右/下平移
+    const startWc3 = -offset * scale / pixelsPerUnit;
+    const endWc3 = ((length - offset * scale) / pixelsPerUnit);
 
-    // 生成刻度
-    const startTick = Math.floor(startWc3 / interval) * interval;
-    const endTick = Math.ceil(endWc3 / interval) * interval;
+    // 生成刻度（限制在 0 到 maxWc3 范围内）
+    const startTick = Math.max(0, Math.floor(startWc3 / interval) * interval);
+    const endTick = Math.min(maxWc3, Math.ceil(endWc3 / interval) * interval);
 
     for (let wc3Coord = startTick; wc3Coord <= endTick; wc3Coord += interval) {
-      const pixelPos = wc3Coord * pixelsPerUnit * scale + offset;
+      // 计算刻度在标尺上的像素位置
+      const pixelPos = wc3Coord * pixelsPerUnit + offset * scale;
       
       if (pixelPos >= 0 && pixelPos <= length) {
         // 修复浮点数精度问题：将坐标四舍五入到合理精度后再判断

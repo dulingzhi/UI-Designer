@@ -1160,7 +1160,6 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           length={CANVAS_WIDTH - 2 * MARGIN}
           scale={scale}
           offset={offset.x}
-          wc3UnitSize={CANVAS_WIDTH - 2 * MARGIN}
           onCreateGuide={handleCreateGuide}
         />
       )}
@@ -1172,7 +1171,6 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           length={CANVAS_HEIGHT}
           scale={scale}
           offset={offset.y}
-          wc3UnitSize={CANVAS_HEIGHT}
           onCreateGuide={handleCreateGuide}
         />
       )}
