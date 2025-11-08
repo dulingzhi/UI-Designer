@@ -837,23 +837,15 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
         <section>
           <h4>纹理</h4>
           <FilePath
-            label="应用内纹理路径"
-            value={selectedFrame.diskTexture || ''}
-            onChange={(value) => handleChange('diskTexture', value)}
+            label="纹理路径"
+            value={selectedFrame.texture || ''}
+            onChange={(value) => handleChange('texture', value)}
             suggestions={[
               'UI/Widgets/Console/Human/',
               'UI/Widgets/Glues/Human/',
               'UI/Widgets/BattleNet/',
               'UI/Widgets/ToolTips/',
-            ]}
-          />
-          <FilePath
-            label="游戏内纹理路径"
-            value={selectedFrame.wc3Texture || ''}
-            onChange={(value) => handleChange('wc3Texture', value)}
-            suggestions={[
               'ReplaceableTextures/CommandButtons/',
-              'UI/Widgets/Console/Human/',
               'war3mapImported/',
             ]}
           />

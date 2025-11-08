@@ -148,11 +148,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const texturePaths = useMemo(() => {
     const paths: string[] = [];
     Object.values(project.frames).forEach(frame => {
-      if (frame.diskTexture && typeof frame.diskTexture === 'string') {
-        paths.push(frame.diskTexture);
-      }
-      if (frame.wc3Texture && typeof frame.wc3Texture === 'string') {
-        paths.push(frame.wc3Texture);
+      if (frame.texture && typeof frame.texture === 'string') {
+        paths.push(frame.texture);
       }
       // 添加 Backdrop 背景纹理路径
       if (frame.backdropBackground && typeof frame.backdropBackground === 'string') {
@@ -871,8 +868,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       opacity: (isLockedOrParentLocked ? 0.7 : 1) * (frame.alpha ?? 1),
     };
 
-    // 优先使用diskTexture,如果没有则使用wc3Texture
-    const texturePath = frame.diskTexture || frame.wc3Texture;
+    // 使用 texture 字段
+    const texturePath = frame.texture;
     let backgroundImage: string | undefined = undefined;
     
     if (texturePath && typeof texturePath === 'string') {

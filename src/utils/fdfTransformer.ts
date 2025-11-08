@@ -312,8 +312,7 @@ export class FDFTransformer {
       tooltip: false,
       isRelative: false,
       anchors: [],
-      diskTexture: '',
-      wc3Texture: '',
+      texture: '',
     };
     
     // 保存 FDF 元数据（如 inherits）
@@ -468,9 +467,11 @@ export class FDFTransformer {
         
       // Backdrop 相关
       case 'backdropbackground':
+        frame.backdropBackground = value as string;
+        break;
+        
       case 'file':
-        frame.diskTexture = value as string;
-        frame.wc3Texture = value as string;
+        frame.texture = value as string;
         break;
       
       case 'backdropedgefile':
@@ -546,8 +547,7 @@ export class FDFTransformer {
           const value = this.extractValue(prop.value);
           
           if (name.toLowerCase() === 'file') {
-            frame.diskTexture = value as string;
-            frame.wc3Texture = value as string;
+            frame.texture = value as string;
           }
         }
       }

@@ -428,8 +428,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       verAlign: frame.verAlign,
       
       // 纹理
-      wc3Texture: frame.wc3Texture,
-      diskTexture: frame.diskTexture,
+      texture: frame.texture,
       
       // 文本
       text: frame.text,
@@ -610,10 +609,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       createdAt: Date.now(),
       style: {
         type: frame.type,
-        diskTexture: frame.diskTexture,
-        wc3Texture: frame.wc3Texture,
-        backDiskTexture: frame.backDiskTexture,
-        backWc3Texture: frame.backWc3Texture,
+        texture: frame.texture,
+        backdropBackground: frame.backdropBackground,
         text: frame.text,
         textScale: frame.textScale,
         textColor: frame.textColor,
@@ -709,24 +706,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     Object.entries(state.project.frames).forEach(([id, frame]) => {
       const updates: Partial<FrameData> = {};
       
-      // 检查 diskTexture
-      if (frame.diskTexture) {
-        const key = findTextureKey(state.project.war3Skins!, frame.diskTexture);
+      // 检查 texture
+      if (frame.texture) {
+        const key = findTextureKey(state.project.war3Skins!, frame.texture);
         if (key) {
           const newPath = getTextureForRace(state.project.war3Skins!, race, key);
-          if (newPath && newPath !== frame.diskTexture) {
-            updates.diskTexture = newPath;
-          }
-        }
-      }
-      
-      // 检查 wc3Texture
-      if (frame.wc3Texture) {
-        const key = findTextureKey(state.project.war3Skins!, frame.wc3Texture);
-        if (key) {
-          const newPath = getTextureForRace(state.project.war3Skins!, race, key);
-          if (newPath && newPath !== frame.wc3Texture) {
-            updates.wc3Texture = newPath;
+          if (newPath && newPath !== frame.texture) {
+            updates.texture = newPath;
           }
         }
       }

@@ -139,21 +139,17 @@ export class FDFExporter {
     }
     
     // 纹理
-    if (frame.diskTexture || frame.wc3Texture) {
+    if (frame.texture) {
       fdf += this.getIndent() + 'Texture {\n';
       this.indentLevel++;
       
-      const texturePath = frame.diskTexture || frame.wc3Texture || '';
-      fdf += this.getIndent() + `File "${this.escapeString(texturePath)}"\n`;
+      fdf += this.getIndent() + `File "${this.escapeString(frame.texture)}"\n`;
       
       this.indentLevel--;
       fdf += this.getIndent() + '}\n';
     }
     
-    // 背景纹理
-    if (frame.backDiskTexture || frame.backWc3Texture) {
-      fdf += this.getIndent() + `BackdropBackground "${this.escapeString(frame.backDiskTexture || frame.backWc3Texture || '')}"\n`;
-    }
+    // 背景纹理（已在 backdropBackground 属性中处理，这里不需要重复导出）
     
     this.indentLevel--;
     fdf += this.getIndent() + '}\n';
@@ -555,14 +551,11 @@ export class FDFExporterEnhanced extends FDFExporter {
     }
     
     // 纹理
-    if (!exportedProps.has('texture') && (frame.diskTexture || frame.wc3Texture || frame.fdfTexture)) {
+    if (!exportedProps.has('texture') && (frame.texture || frame.fdfTexture)) {
       fdf += this.exportTexture(frame, indent);
     }
     
-    // 背景纹理
-    if (!exportedProps.has('backdropbackground') && (frame.backDiskTexture || frame.backWc3Texture)) {
-      fdf += `${indent}BackdropBackground "${this.escapeString(frame.backDiskTexture || frame.backWc3Texture || '')}"\n`;
-    }
+    // 背景纹理（已在 backdropBackground 属性中处理）
     
     return fdf;
   }
@@ -594,12 +587,11 @@ export class FDFExporterEnhanced extends FDFExporter {
       }
       
       fdf += `${indent}}\n`;
-    } else if (frame.diskTexture || frame.wc3Texture) {
+    } else if (frame.texture) {
       // 简化版纹理导出
       fdf += `${indent}Texture {\n`;
       const innerIndent = indent + this.enhancedOptions.indent;
-      const texturePath = frame.diskTexture || frame.wc3Texture || '';
-      fdf += `${innerIndent}File "${this.escapeString(texturePath)}"\n`;
+      fdf += `${innerIndent}File "${this.escapeString(frame.texture)}"\n`;
       fdf += `${indent}}\n`;
     }
     

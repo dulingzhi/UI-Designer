@@ -148,10 +148,7 @@ export interface FrameData {
   alpha?: number;                      // 透明度 0-255
   
   // ========== 基础纹理 ==========
-  diskTexture?: string;                // 主纹理文件路径
-  wc3Texture?: string;                 // WC3资源纹理名
-  backDiskTexture?: string;            // 背景纹理文件路径
-  backWc3Texture?: string;             // 背景WC3资源纹理名
+  texture?: string;                    // 主纹理路径（支持本地文件、MPQ资源、HTTP等）
   
   // ========== 文本属性 ==========
   text?: string;                       // 文本内容
@@ -278,10 +275,8 @@ export interface StylePreset {
   createdAt: number; // 创建时间戳
   style: {
     // 纹理
-    diskTexture?: string;
-    wc3Texture?: string;
-    backDiskTexture?: string;
-    backWc3Texture?: string;
+    texture?: string;
+    backdropBackground?: string;
     
     // 文本
     text?: string;
