@@ -208,6 +208,10 @@ export interface FrameData {
   highlightAlphaFile?: string;         // 高亮Alpha文件
   highlightAlphaMode?: string;         // 高亮混合模式
   
+  // ========== SPRITE / MODEL 属性 ==========
+  backgroundArt?: string;              // 模型文件路径 (.mdx/.mdl)
+  layerStyle?: string;                 // 图层样式 "NOSHADING|IGNORETRACKEVENTS"
+  
   // ========== BACKDROP 背景属性 ==========
   backdropBackground?: string;         // 背景纹理
   backdropTileBackground?: boolean;    // 平铺背景

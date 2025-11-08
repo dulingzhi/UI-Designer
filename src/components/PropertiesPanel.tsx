@@ -1404,6 +1404,49 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
           />
         </section>
       )}
+
+      {/* SPRITE / MODEL 特定属性 */}
+      {(selectedFrame.type === FrameType.SPRITE || selectedFrame.type === FrameType.MODEL) && (
+        <section>
+          <h4>{selectedFrame.type === FrameType.SPRITE ? 'Sprite' : 'Model'} 设置</h4>
+          
+          <FilePath
+            label="模型文件 (MDX/MDL)"
+            value={selectedFrame.backgroundArt || ''}
+            onChange={(value) => handleChange('backgroundArt', value || undefined)}
+            placeholder="模型文件路径 (如: UI/Glues/..."
+            suggestions={[
+              'UI/Glues/',
+              'UI/Glues/ScoreScreen/',
+              'UI/Glues/BattleNet/',
+              'Units/',
+              'Buildings/',
+              'Doodads/',
+            ]}
+          />
+
+          <Select
+            label="图层样式"
+            value={selectedFrame.layerStyle || ''}
+            onChange={(value) => handleChange('layerStyle', value || undefined)}
+            options={[
+              { value: '', label: '默认' },
+              { value: 'NOSHADING', label: 'NOSHADING (无阴影)' },
+              { value: 'IGNORETRACKEVENTS', label: 'IGNORETRACKEVENTS (忽略追踪)' },
+              { value: 'NOSHADING|IGNORETRACKEVENTS', label: '两者都启用' },
+            ]}
+            allowClear
+          />
+
+          <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
+            💡 提示：<br/>
+            • Sprite 用于 2D 动画模型<br/>
+            • Model 用于 3D 模型显示<br/>
+            • 支持 .mdx 和 .mdl 格式<br/>
+            • 常见路径：UI/Glues/ScoreScreen/...
+          </p>
+        </section>
+      )}
     </div>
   );
 };
