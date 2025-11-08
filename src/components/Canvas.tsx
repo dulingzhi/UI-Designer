@@ -1035,6 +1035,13 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                   cameraYaw={frame.cameraYaw}
                   cameraPitch={frame.cameraPitch}
                   cameraDistance={frame.cameraDistance}
+                  onCameraChange={(params) => {
+                    executeCommand(new UpdateFrameCommand(frameId, {
+                      cameraYaw: params.yaw,
+                      cameraPitch: params.pitch,
+                      cameraDistance: params.distance
+                    }));
+                  }}
                 />
               )}
               

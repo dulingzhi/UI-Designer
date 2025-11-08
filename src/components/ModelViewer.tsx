@@ -6,6 +6,31 @@ import { mpqManager } from '../utils/mpqManager';
 // @ts-ignore - war3-model 是 TypeScript 源码，没有类型定义
 import { parseMDX, ModelRenderer, decodeBLP, getBLPImageData } from 'war3-model';
 
+// 添加样式到 head
+if (typeof document !== 'undefined') {
+  const styleId = 'model-viewer-styles';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .model-control-btn {
+        transition: all 0.15s ease;
+      }
+      .model-control-btn:hover {
+        background-color: rgba(74, 158, 255, 0.5) !important;
+        border-color: rgba(74, 158, 255, 0.8) !important;
+        transform: scale(1.05);
+        box-shadow: 0 0 8px rgba(74, 158, 255, 0.4);
+      }
+      .model-control-btn:active {
+        transform: scale(0.95);
+        background-color: rgba(74, 158, 255, 0.7) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
 interface ModelViewerProps {
   modelPath: string; // MDX 文件路径（相对或绝对）
   projectDir?: string; // 项目目录（用于查找本地文件）
@@ -15,6 +40,7 @@ interface ModelViewerProps {
   cameraYaw?: number; // 相机水平旋转角度（弧度），默认 0
   cameraPitch?: number; // 相机俯仰角度（弧度），默认 0.3
   cameraDistance?: number; // 相机距离，默认 300
+  onCameraChange?: (params: { yaw: number; pitch: number; distance: number }) => void; // 相机参数变化回调
 }
 
 function calcCameraQuat(position: vec3, target: vec3): quat {
@@ -53,6 +79,7 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
   cameraYaw = 0,
   cameraPitch = 0.3,
   cameraDistance = 300,
+  onCameraChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const modelRendererRef = useRef<ModelRenderer | null>(null);
@@ -60,6 +87,7 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(false);
   
   // 存储相机参数的ref,用于渲染时更新
   const cameraParamsRef = useRef({ yaw: cameraYaw, pitch: cameraPitch, distance: cameraDistance });
@@ -68,6 +96,37 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
   useEffect(() => {
     cameraParamsRef.current = { yaw: cameraYaw, pitch: cameraPitch, distance: cameraDistance };
   }, [cameraYaw, cameraPitch, cameraDistance]);
+
+  // 相机控制函数
+  const adjustCamera = (type: 'yaw' | 'pitch' | 'distance', delta: number) => {
+    const current = cameraParamsRef.current;
+    let newParams = { ...current };
+
+    switch (type) {
+      case 'yaw':
+        newParams.yaw = current.yaw + delta;
+        // 限制在 -π 到 π
+        if (newParams.yaw > Math.PI) newParams.yaw -= 2 * Math.PI;
+        if (newParams.yaw < -Math.PI) newParams.yaw += 2 * Math.PI;
+        break;
+      case 'pitch':
+        newParams.pitch = Math.max(-Math.PI / 6, Math.min(Math.PI / 2 - 0.01, current.pitch + delta));
+        break;
+      case 'distance':
+        newParams.distance = Math.max(50, Math.min(1000, current.distance + delta));
+        break;
+    }
+
+    cameraParamsRef.current = newParams;
+    onCameraChange?.(newParams);
+  };
+
+  // 重置相机
+  const resetCamera = () => {
+    const defaultParams = { yaw: 0, pitch: 0.3, distance: 300 };
+    cameraParamsRef.current = defaultParams;
+    onCameraChange?.(defaultParams);
+  };
 
   // 分离的 useEffect: 处理模型加载
   useEffect(() => {
@@ -334,8 +393,10 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         top: 0,
         left: 0,
         overflow: 'hidden',
-        pointerEvents: 'none',
+        pointerEvents: 'auto',
       }}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
     >
       <canvas
         ref={canvasRef}
@@ -344,9 +405,122 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         style={{
           display: 'block',
           width: '100%',
-          height: '100%'
+          height: '100%',
+          pointerEvents: 'none'
         }}
       />
+      
+      {/* 相机控制按钮 */}
+      {showControls && !error && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '8px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            gap: '4px',
+            pointerEvents: 'auto',
+            zIndex: 10,
+            backgroundColor: 'rgba(20, 20, 25, 0.9)',
+            padding: '4px 8px',
+            borderRadius: '20px',
+            border: '1px solid rgba(74, 158, 255, 0.3)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          {/* 左转 */}
+          <button
+            className="model-control-btn"
+            onClick={() => adjustCamera('yaw', 0.2)}
+            title="左转"
+            style={smallButtonStyle}
+          >
+            ←
+          </button>
+
+          {/* 上 */}
+          <button
+            className="model-control-btn"
+            onClick={() => adjustCamera('pitch', -0.1)}
+            title="俯视"
+            style={smallButtonStyle}
+          >
+            ↑
+          </button>
+
+          {/* 下 */}
+          <button
+            className="model-control-btn"
+            onClick={() => adjustCamera('pitch', 0.1)}
+            title="仰视"
+            style={smallButtonStyle}
+          >
+            ↓
+          </button>
+
+          {/* 右转 */}
+          <button
+            className="model-control-btn"
+            onClick={() => adjustCamera('yaw', -0.2)}
+            title="右转"
+            style={smallButtonStyle}
+          >
+            →
+          </button>
+
+          {/* 分隔线 */}
+          <div style={{
+            width: '1px',
+            height: '20px',
+            backgroundColor: 'rgba(74, 158, 255, 0.3)',
+            margin: '0 2px',
+          }} />
+
+          {/* 拉近 */}
+          <button
+            className="model-control-btn"
+            onClick={() => adjustCamera('distance', -50)}
+            title="拉近"
+            style={smallButtonStyle}
+          >
+            ➕
+          </button>
+
+          {/* 拉远 */}
+          <button
+            className="model-control-btn"
+            onClick={() => adjustCamera('distance', 50)}
+            title="拉远"
+            style={smallButtonStyle}
+          >
+            ➖
+          </button>
+
+          {/* 分隔线 */}
+          <div style={{
+            width: '1px',
+            height: '20px',
+            backgroundColor: 'rgba(74, 158, 255, 0.3)',
+            margin: '0 2px',
+          }} />
+
+          {/* 重置 */}
+          <button
+            className="model-control-btn"
+            onClick={resetCamera}
+            title="重置视角"
+            style={{
+              ...smallButtonStyle,
+              backgroundColor: 'rgba(100, 100, 110, 0.4)',
+            }}
+          >
+            ⊙
+          </button>
+        </div>
+      )}
+
       {error && (
         <div
           style={{
@@ -370,6 +544,25 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
       )}
     </div>
   );
+};
+
+// 小按钮样式（底部工具栏）
+const smallButtonStyle: React.CSSProperties = {
+  width: '24px',
+  height: '24px',
+  padding: '0',
+  backgroundColor: 'rgba(74, 158, 255, 0.25)',
+  color: '#fff',
+  border: '1px solid rgba(74, 158, 255, 0.4)',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontSize: '12px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.15s ease',
+  fontWeight: 'bold',
+  userSelect: 'none',
 };
 
 export default ModelViewer;
