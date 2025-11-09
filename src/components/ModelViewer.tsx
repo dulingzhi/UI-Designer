@@ -93,6 +93,10 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
   // 存储相机参数的ref,用于渲染时更新
   const cameraParamsRef = useRef({ yaw: cameraYaw, pitch: cameraPitch, distance: cameraDistance });
   
+  // 存储投影矩阵的ref,用于尺寸变化时更新
+  const pMatrixRef = useRef<mat4>(mat4.create());
+  const mvMatrixRef = useRef<mat4>(mat4.create());
+  
   // 更新相机参数ref
   useEffect(() => {
     cameraParamsRef.current = { yaw: cameraYaw, pitch: cameraPitch, distance: cameraDistance };
@@ -268,8 +272,8 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         }
 
         // 设置相机和矩阵
-        const pMatrix = mat4.create();
-        const mvMatrix = mat4.create();
+        const pMatrix = pMatrixRef.current;
+        const mvMatrix = mvMatrixRef.current;
         
         // 使用球面坐标计算相机位置
         // yaw: 水平旋转 (0 = 正前方, π/2 = 右侧, π = 背后, -π/2 = 左侧)
@@ -308,10 +312,6 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
         // 渲染循环
         startTimeRef.current = performance.now();
         
-        // 存储矩阵引用
-        const pMatrixRef = pMatrix;
-        const mvMatrixRef = mvMatrix;
-        
         const animate = (timestamp: number) => {
           if (cancelled) return;
 
@@ -332,14 +332,14 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
           const cameraUp = vec3.fromValues(0, 0, 1);
           const newCameraQuat = calcCameraQuat(newCameraPos, cameraTarget);
           
-          mat4.lookAt(mvMatrixRef, newCameraPos, cameraTarget, cameraUp);
+          mat4.lookAt(mvMatrixRef.current, newCameraPos, cameraTarget, cameraUp);
           modelRenderer.setCamera(newCameraPos, newCameraQuat);
 
           // 清除画布
           gl!.clear(gl!.COLOR_BUFFER_BIT | gl!.DEPTH_BUFFER_BIT);
 
           // 渲染模型
-          modelRenderer.render(mvMatrixRef, pMatrixRef, {
+          modelRenderer.render(mvMatrixRef.current, pMatrixRef.current, {
             wireframe: false
           });
 
@@ -369,12 +369,41 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
     if (!canvasRef.current) return;
     
     const canvas = canvasRef.current;
-    canvas.width = width;
-    canvas.height = height;
+    
+    // 计算目标尺寸（避免拖动时的微小浮点数差异）
+    const currentWidth = Math.round(width);
+    const currentHeight = Math.round(height);
+    
+    // 检查是否需要更新（包括首次渲染）
+    if (canvas.width !== currentWidth || canvas.height !== currentHeight) {
+      console.log('📐 Canvas 尺寸更新:', {
+        旧尺寸: { width: canvas.width, height: canvas.height },
+        新尺寸: { width: currentWidth, height: currentHeight }
+      });
+      
+      // 更新 canvas 的实际分辨率
+      canvas.width = currentWidth;
+      canvas.height = currentHeight;
 
-    // 如果已经有 GL 上下文，更新视口
-    if (glRef.current) {
-      glRef.current.viewport(0, 0, width, height);
+      // 如果已经有 GL 上下文，更新视口和投影矩阵
+      if (glRef.current) {
+        glRef.current.viewport(0, 0, currentWidth, currentHeight);
+        
+        // 重新计算投影矩阵（更新宽高比）
+        mat4.perspective(
+          pMatrixRef.current,
+          Math.PI / 4,
+          currentWidth / currentHeight,
+          0.1,
+          3000.0
+        );
+        
+        console.log('📐 WebGL 已更新:', {
+          viewport: `${currentWidth}x${currentHeight}`,
+          aspectRatio: (currentWidth / currentHeight).toFixed(2),
+          投影矩阵: '已更新'
+        });
+      }
     }
   }, [width, height]);
 
@@ -382,11 +411,9 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
     <div 
       className={className}
       style={{
-        width: `${width}px`,
-        height: `${height}px`,
-        position: 'absolute',
-        top: 0,
-        left: 0,
+        width: '100%',
+        height: '100%',
+        position: 'relative',
         overflow: 'hidden',
         pointerEvents: 'auto',
       }}
@@ -395,8 +422,6 @@ export const ModelViewer: React.FC<ModelViewerProps> = ({
     >
       <canvas
         ref={canvasRef}
-        width={width}
-        height={height}
         style={{
           display: 'block',
           width: '100%',

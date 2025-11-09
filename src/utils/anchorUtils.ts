@@ -19,9 +19,47 @@ export function clearPositionCache(): void {
 
 /**
  * 生成frame的版本哈希（用于判断frame是否变化）
+ * 包含自身属性和依赖的相对锚点目标的位置
  */
-function getFrameVersion(frame: FrameData): string {
-  return `${globalCacheVersion}-${frame.id}-${frame.x}-${frame.y}-${frame.width}-${frame.height}-${JSON.stringify(frame.anchors)}`;
+function getFrameVersion(frame: FrameData, allFrames?: Record<string, FrameData>): string {
+  // 基础版本：使用更少的精度来减少版本变化频率
+  const parts = [
+    globalCacheVersion,
+    frame.id,
+    frame.x.toFixed(3),
+    frame.y.toFixed(3),
+    frame.width.toFixed(3),
+    frame.height.toFixed(3)
+  ];
+  
+  // 只在有相对锚点时才包含锚点信息
+  if (frame.anchors && frame.anchors.length > 0) {
+    // 使用更简洁的锚点表示
+    const anchorKey = frame.anchors.map(a => 
+      `${a.point}:${a.relativeTo || ''}:${a.x.toFixed(3)}:${a.y.toFixed(3)}`
+    ).join('|');
+    parts.push(anchorKey);
+    
+    // 如果有相对锚点，包含目标控件的位置信息
+    if (allFrames) {
+      for (const anchor of frame.anchors) {
+        if (anchor.relativeTo) {
+          const targetFrame = allFrames[anchor.relativeTo];
+          if (targetFrame) {
+            // 只包含关键信息，使用更少的精度
+            parts.push(
+              anchor.relativeTo,
+              targetFrame.x.toFixed(3),
+              targetFrame.y.toFixed(3)
+            );
+          }
+        }
+      }
+    }
+  }
+  
+  // 直接返回拼接结果，不使用哈希（字符串比较比哈希计算更快）
+  return parts.join('-');
 }
 
 /**
@@ -390,7 +428,7 @@ export function calculatePositionFromAnchors(
   allFrames: Record<string, FrameData>
 ): { x: number; y: number; width: number; height: number } | null {
   // 检查缓存
-  const frameVersion = getFrameVersion(frame);
+  const frameVersion = getFrameVersion(frame, allFrames);
   const cached = getCachedPosition(frame.id, frameVersion);
   if (cached !== null) {
     return cached;

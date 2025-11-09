@@ -111,7 +111,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   
   // 使用 ref 存储临时拖拽位置，避免频繁状态更新
   const dragTempPositionRef = React.useRef<{ frameId: string; x: number; y: number; width: number; height: number; anchors: any } | null>(null);
-  const rafIdRef = React.useRef<number | null>(null);
+  const lastUpdateTimeRef = React.useRef<number>(0); // 上次更新时间
+  const UPDATE_THROTTLE_MS = 16; // 每16ms最多更新一次（约60fps）
   
   // Frame 调整大小状态
   const [isResizing, setIsResizing] = React.useState(false);
@@ -357,203 +358,98 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       const relativeY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
       setBoxSelectEnd({ x: relativeX, y: relativeY });
     } else if (isDraggingFrame && draggedFrameId) {
-      // 取消之前的 requestAnimationFrame
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
+      // 时间节流检查 - 在计算之前就检查
+      const now = Date.now();
+      if (now - lastUpdateTimeRef.current < UPDATE_THROTTLE_MS) {
+        return; // 跳过本次更新
       }
+      lastUpdateTimeRef.current = now;
 
-      // 使用 requestAnimationFrame 限流
-      rafIdRef.current = requestAnimationFrame(() => {
-        const frame = project.frames[draggedFrameId];
-        if (!frame) return;
+      const frame = project.frames[draggedFrameId];
+      if (!frame) return;
 
-        const canvasBounds = canvasRef.current?.getBoundingClientRect();
-        if (!canvasBounds) return;
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (!canvasBounds) return;
 
-        // 计算鼠标在画布上的相对位置
-        const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-        const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
+      // 计算鼠标在画布上的相对位置
+      const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
+      const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
 
-        // 转换为魔兽坐标 (0-0.8, 0-0.6)
-        const mouseWc3X = ((mouseX - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
-        const mouseWc3Y = (mouseY / CANVAS_HEIGHT) * 0.6;
+      // 转换为魔兽坐标 (0-0.8, 0-0.6)
+      const mouseWc3X = ((mouseX - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
+      const mouseWc3Y = (mouseY / CANVAS_HEIGHT) * 0.6;
 
-        // 检查是否有相对锚点
-        const hasRelativeAnchors = frame.anchors?.some(a => a.relativeTo);
+      // 检查是否有相对锚点
+      const hasRelativeAnchors = frame.anchors?.some(a => a.relativeTo);
 
-        if (hasRelativeAnchors && frame.anchors) {
-          // 有相对锚点：只更新锚点偏移量，保持相对定位
-          let newX = mouseWc3X - dragOffset.x;
-          let newY = mouseWc3Y - dragOffset.y;
-
-          // 网格吸附
-          if (snapToGrid) {
-            newX = snapValue(newX, gridSize);
-            newY = snapValue(newY, gridSize);
-          }
-
-          // 更新每个相对锚点的偏移量
-          const updatedAnchors = frame.anchors.map(anchor => {
-            if (anchor.relativeTo) {
-              const relativeFrame = project.frames[anchor.relativeTo];
-              if (relativeFrame) {
-                const relativePoint = anchor.relativePoint !== undefined ? anchor.relativePoint : FramePoint.TOPLEFT;
-                const relativePos = getAnchorPosition(relativeFrame, relativePoint);
-                
-                // 计算当前锚点在控件上的位置（相对于控件左下角的偏移，WC3坐标系）
-                const anchorOffsetInFrame = getAnchorOffsetWc3(anchor.point, frame.width, frame.height);
-                
-                // 计算锚点的目标绝对位置 = 控件新的左下角位置 + 锚点在控件内的偏移
-                const targetAnchorX = newX + anchorOffsetInFrame.x;
-                const targetAnchorY = newY + anchorOffsetInFrame.y;
-                
-                // 计算新的偏移量 = 目标锚点位置 - 相对锚点位置
-                const newOffsetX = targetAnchorX - relativePos.x;
-                const newOffsetY = targetAnchorY - relativePos.y;
-
-                return { ...anchor, x: newOffsetX, y: newOffsetY };
-              }
-            }
-            return anchor;
-          });
-
-          // 存储到 ref，只更新一次状态
-          dragTempPositionRef.current = {
-            frameId: draggedFrameId,
-            x: frame.x,
-            y: frame.y,
-            width: frame.width,
-            height: frame.height,
-            anchors: updatedAnchors
-          };
-
-          // 直接更新状态
-          setProject({
-            ...project,
-            frames: {
-              ...project.frames,
-              [draggedFrameId]: {
-                ...frame,
-                anchors: updatedAnchors
-              }
-            }
-          });
-        } else {
-          // 没有相对锚点：更新绝对位置
-          let newX = Math.max(0, Math.min(0.8 - frame.width, mouseWc3X - dragOffset.x));
-          let newY = Math.max(0, Math.min(0.6 - frame.height, mouseWc3Y - dragOffset.y));
-          
-          // 网格吸附
-          if (snapToGrid) {
-            newX = snapValue(newX, gridSize);
-            newY = snapValue(newY, gridSize);
-          }
-
-          // 更新锚点
-          const updatedAnchors = updateAnchorsFromBounds(
-            frame.anchors,
-            newX,
-            newY,
-            frame.width,
-            frame.height
-          );
-
-          // 存储到 ref
-          dragTempPositionRef.current = {
-            frameId: draggedFrameId,
-            x: newX,
-            y: newY,
-            width: frame.width,
-            height: frame.height,
-            anchors: updatedAnchors
-          };
-
-          // 直接更新状态
-          setProject({
-            ...project,
-            frames: {
-              ...project.frames,
-              [draggedFrameId]: {
-                ...frame,
-                x: newX,
-                y: newY,
-                anchors: updatedAnchors
-              }
-            }
-          });
-        }
-
-        rafIdRef.current = null;
-      });
-    } else if (isResizing && resizeFrameId && resizeDirection) {
-      // 取消之前的 requestAnimationFrame
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-
-      // 使用 requestAnimationFrame 限流
-      rafIdRef.current = requestAnimationFrame(() => {
-        const frame = project.frames[resizeFrameId];
-        if (!frame) return;
-
-        const canvasBounds = canvasRef.current?.getBoundingClientRect();
-        if (!canvasBounds) return;
-
-        // 计算鼠标移动距离（Canvas 像素）
-        const deltaX = (e.clientX - resizeStartPos.x) / scale;
-        const deltaY = (e.clientY - resizeStartPos.y) / scale;
-
-        // 转换为魔兽坐标增量
-        const deltaWc3X = (deltaX / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
-        const deltaWc3Y = -(deltaY / CANVAS_HEIGHT) * 0.6;
-
-        let newX = resizeStartSize.x;
-        let newY = resizeStartSize.y;
-        let newWidth = resizeStartSize.width;
-        let newHeight = resizeStartSize.height;
-
-        // 根据拖拽方向计算新的位置和大小
-        const isShiftPressed = e.shiftKey;
-
-        if (resizeDirection.includes('e')) {
-          newWidth = Math.max(0.01, resizeStartSize.width + deltaWc3X);
-        }
-        if (resizeDirection.includes('w')) {
-          const oldRight = resizeStartSize.x + resizeStartSize.width;
-          newX = Math.max(0, resizeStartSize.x + deltaWc3X);
-          newWidth = oldRight - newX;
-        }
-        if (resizeDirection.includes('n')) {
-          newHeight = Math.max(0.01, resizeStartSize.height + deltaWc3Y);
-        }
-        if (resizeDirection.includes('s')) {
-          const oldTop = resizeStartSize.y + resizeStartSize.height;
-          newY = Math.max(0, resizeStartSize.y + deltaWc3Y);
-          newHeight = Math.max(0.01, oldTop - newY);
-        }
-
-        // Shift 键保持纵横比
-        if (isShiftPressed && (resizeDirection === 'ne' || resizeDirection === 'nw' || resizeDirection === 'se' || resizeDirection === 'sw')) {
-          const aspectRatio = resizeStartSize.width / resizeStartSize.height;
-          if (Math.abs(newWidth - resizeStartSize.width) > Math.abs(newHeight - resizeStartSize.height)) {
-            newHeight = newWidth / aspectRatio;
-          } else {
-            newWidth = newHeight * aspectRatio;
-          }
-        }
-
-        // 边界限制
-        newX = Math.max(0, Math.min(0.8 - newWidth, newX));
-        newY = Math.max(0, Math.min(0.6 - newHeight, newY));
-        newWidth = Math.max(0.01, Math.min(0.8 - newX, newWidth));
-        newHeight = Math.max(0.01, Math.min(0.6 - newY, newHeight));
+      if (hasRelativeAnchors && frame.anchors) {
+        // 有相对锚点：只更新锚点偏移量，保持相对定位
+        let newX = mouseWc3X - dragOffset.x;
+        let newY = mouseWc3Y - dragOffset.y;
 
         // 网格吸附
         if (snapToGrid) {
           newX = snapValue(newX, gridSize);
           newY = snapValue(newY, gridSize);
-          newWidth = snapValue(newWidth, gridSize);
-          newHeight = snapValue(newHeight, gridSize);
+        }
+
+        // 更新每个相对锚点的偏移量
+        const updatedAnchors = frame.anchors.map(anchor => {
+          if (anchor.relativeTo) {
+            const relativeFrame = project.frames[anchor.relativeTo];
+            if (relativeFrame) {
+              const relativePoint = anchor.relativePoint !== undefined ? anchor.relativePoint : FramePoint.TOPLEFT;
+              const relativePos = getAnchorPosition(relativeFrame, relativePoint);
+              
+              // 计算当前锚点在控件上的位置（相对于控件左下角的偏移，WC3坐标系）
+              const anchorOffsetInFrame = getAnchorOffsetWc3(anchor.point, frame.width, frame.height);
+              
+              // 计算锚点的目标绝对位置 = 控件新的左下角位置 + 锚点在控件内的偏移
+              const targetAnchorX = newX + anchorOffsetInFrame.x;
+              const targetAnchorY = newY + anchorOffsetInFrame.y;
+              
+              // 计算新的偏移量 = 目标锚点位置 - 相对锚点位置
+              const newOffsetX = targetAnchorX - relativePos.x;
+              const newOffsetY = targetAnchorY - relativePos.y;
+
+              return { ...anchor, x: newOffsetX, y: newOffsetY };
+            }
+          }
+          return anchor;
+        });
+
+        // 存储到 ref（用于 mouseup 时的最终位置）
+        dragTempPositionRef.current = {
+          frameId: draggedFrameId,
+          x: newX,
+          y: newY,
+          width: frame.width,
+          height: frame.height,
+          anchors: updatedAnchors
+        };
+
+        // 立即更新 project
+        setProject({
+          ...project,
+          frames: {
+            ...project.frames,
+            [draggedFrameId]: {
+              ...frame,
+              x: newX,
+              y: newY,
+              anchors: updatedAnchors
+            }
+          }
+        });
+      } else {
+        // 没有相对锚点：更新绝对位置
+        let newX = Math.max(0, Math.min(0.8 - frame.width, mouseWc3X - dragOffset.x));
+        let newY = Math.max(0, Math.min(0.6 - frame.height, mouseWc3Y - dragOffset.y));
+        
+        // 网格吸附
+        if (snapToGrid) {
+          newX = snapValue(newX, gridSize);
+          newY = snapValue(newY, gridSize);
         }
 
         // 更新锚点
@@ -561,50 +457,192 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           frame.anchors,
           newX,
           newY,
-          newWidth,
-          newHeight
+          frame.width,
+          frame.height
         );
 
-        // 存储到 ref
-        resizeTempPositionRef.current = {
-          frameId: resizeFrameId,
+        // 存储到 ref（用于 mouseup 时的最终位置）
+        dragTempPositionRef.current = {
+          frameId: draggedFrameId,
           x: newX,
           y: newY,
-          width: newWidth,
-          height: newHeight,
+          width: frame.width,
+          height: frame.height,
           anchors: updatedAnchors
         };
 
-        // 直接更新状态
+        // 立即更新 project
         setProject({
           ...project,
           frames: {
             ...project.frames,
-            [resizeFrameId]: {
+            [draggedFrameId]: {
               ...frame,
               x: newX,
               y: newY,
-              width: newWidth,
-              height: newHeight,
               anchors: updatedAnchors
             }
           }
         });
+      }
+    } else if (isResizing && resizeFrameId && resizeDirection) {
+      // 时间节流检查 - 在计算之前就检查
+      const now = Date.now();
+      if (now - lastUpdateTimeRef.current < UPDATE_THROTTLE_MS) {
+        return; // 跳过本次更新
+      }
+      lastUpdateTimeRef.current = now;
 
-        rafIdRef.current = null;
+      const frame = project.frames[resizeFrameId];
+      if (!frame) return;
+
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (!canvasBounds) return;
+
+      // 计算鼠标移动距离（Canvas 像素）
+      const deltaX = (e.clientX - resizeStartPos.x) / scale;
+      const deltaY = (e.clientY - resizeStartPos.y) / scale;
+
+      // 转换为魔兽坐标增量
+      const deltaWc3X = (deltaX / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
+      const deltaWc3Y = -(deltaY / CANVAS_HEIGHT) * 0.6;
+
+      let newX = resizeStartSize.x;
+      let newY = resizeStartSize.y;
+      let newWidth = resizeStartSize.width;
+      let newHeight = resizeStartSize.height;
+
+      // 根据拖拽方向计算新的位置和大小
+      const isShiftPressed = e.shiftKey;
+
+      if (resizeDirection.includes('e')) {
+        newWidth = Math.max(0.01, resizeStartSize.width + deltaWc3X);
+      }
+      if (resizeDirection.includes('w')) {
+        const oldRight = resizeStartSize.x + resizeStartSize.width;
+        newX = Math.max(0, resizeStartSize.x + deltaWc3X);
+        newWidth = oldRight - newX;
+      }
+      if (resizeDirection.includes('n')) {
+        newHeight = Math.max(0.01, resizeStartSize.height + deltaWc3Y);
+      }
+      if (resizeDirection.includes('s')) {
+        const oldTop = resizeStartSize.y + resizeStartSize.height;
+        newY = Math.max(0, resizeStartSize.y + deltaWc3Y);
+        newHeight = Math.max(0.01, oldTop - newY);
+      }
+
+      // Shift 键保持纵横比
+      if (isShiftPressed && (resizeDirection === 'ne' || resizeDirection === 'nw' || resizeDirection === 'se' || resizeDirection === 'sw')) {
+        const aspectRatio = resizeStartSize.width / resizeStartSize.height;
+        if (Math.abs(newWidth - resizeStartSize.width) > Math.abs(newHeight - resizeStartSize.height)) {
+          newHeight = newWidth / aspectRatio;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+      }
+
+      // 边界限制
+      newX = Math.max(0, Math.min(0.8 - newWidth, newX));
+      newY = Math.max(0, Math.min(0.6 - newHeight, newY));
+      newWidth = Math.max(0.01, Math.min(0.8 - newX, newWidth));
+      newHeight = Math.max(0.01, Math.min(0.6 - newY, newHeight));
+
+      // 网格吸附
+      if (snapToGrid) {
+        newX = snapValue(newX, gridSize);
+        newY = snapValue(newY, gridSize);
+        newWidth = snapValue(newWidth, gridSize);
+        newHeight = snapValue(newHeight, gridSize);
+      }
+
+      // 更新锚点
+      const updatedAnchors = updateAnchorsFromBounds(
+        frame.anchors,
+        newX,
+        newY,
+        newWidth,
+        newHeight
+      );
+
+      // 存储到 ref（用于 mouseup 时的最终位置）
+      resizeTempPositionRef.current = {
+        frameId: resizeFrameId,
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight,
+        anchors: updatedAnchors
+      };
+
+      // 立即更新状态
+      setProject({
+        ...project,
+        frames: {
+          ...project.frames,
+          [resizeFrameId]: {
+            ...frame,
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight,
+            anchors: updatedAnchors
+          }
+        }
       });
     }
   };
 
   const handleMouseUp = () => {
-    // 清理 requestAnimationFrame
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-
-    // 拖拽结束时，创建命令记录到历史（不执行，因为状态已经在 mouseMove 中更新了）
-    if (isDraggingFrame && draggedFrameId && dragStartState) {
+    // 拖拽结束时，使用 ref 中的最终位置更新（确保位置准确）
+    if (isDraggingFrame && draggedFrameId && dragTempPositionRef.current && dragStartState) {
+      const finalPos = dragTempPositionRef.current;
+      const currentFrame = project.frames[draggedFrameId];
+      
+      if (currentFrame) {
+        // 先确保最终位置已更新到 project
+        if (currentFrame.x !== finalPos.x || currentFrame.y !== finalPos.y) {
+          setProject({
+            ...project,
+            frames: {
+              ...project.frames,
+              [draggedFrameId]: {
+                ...currentFrame,
+                x: finalPos.x,
+                y: finalPos.y,
+                anchors: finalPos.anchors
+              }
+            }
+          });
+        }
+        
+        // 只有当位置真的改变了才创建命令
+        if (finalPos.x !== dragStartState.x || finalPos.y !== dragStartState.y) {
+          // 创建命令并手动设置 previousState
+          const command = new UpdateFrameCommand(
+            draggedFrameId,
+            {
+              x: finalPos.x,
+              y: finalPos.y,
+              anchors: finalPos.anchors
+            }
+          );
+          // 手动设置之前的状态（因为 execute 已经在 mouseMove 中完成了）
+          (command as any).previousState = {
+            x: dragStartState.x,
+            y: dragStartState.y,
+            anchors: dragStartState.anchors
+          };
+          // 直接添加到历史栈，不执行 execute
+          const { undoStack } = useCommandStore.getState();
+          useCommandStore.setState({
+            undoStack: [...undoStack, command],
+            redoStack: [], // 清空重做栈
+          });
+        }
+      }
+    } else if (isDraggingFrame && draggedFrameId && dragStartState) {
+      // 没有 dragTempPositionRef 的情况（兼容旧逻辑）
       const currentFrame = project.frames[draggedFrameId];
       if (currentFrame) {
         // 只有当位置真的改变了才创建命令
@@ -1143,8 +1181,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                 <ModelViewer
                   modelPath={frame.backgroundArt}
                   projectDir={projectDir || undefined}
-                  width={width}
-                  height={height}
+                  width={Math.round(width)}
+                  height={Math.round(height)}
                   cameraYaw={frame.cameraYaw}
                   cameraPitch={frame.cameraPitch}
                   cameraDistance={frame.cameraDistance}
