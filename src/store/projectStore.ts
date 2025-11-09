@@ -708,12 +708,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       
       // 检查 texture
       if (frame.texture) {
-        const key = findTextureKey(state.project.war3Skins!, frame.texture);
-        if (key) {
-          const newPath = getTextureForRace(state.project.war3Skins!, race, key);
-          if (newPath && newPath !== frame.texture) {
-            updates.texture = newPath;
+        // 先尝试将 texture 作为键名直接获取
+        let newPath = getTextureForRace(state.project.war3Skins!, race, frame.texture);
+        
+        // 如果不存在，尝试通过路径反向查找键名
+        if (!newPath) {
+          const key = findTextureKey(state.project.war3Skins!, frame.texture);
+          if (key) {
+            newPath = getTextureForRace(state.project.war3Skins!, race, key);
           }
+        }
+        
+        if (newPath && newPath !== frame.texture) {
+          updates.texture = newPath;
         }
       }
       

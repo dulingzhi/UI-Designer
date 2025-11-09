@@ -29,7 +29,8 @@ const BackdropBackground: React.FC<{
   canvasWidth: number;
   canvasHeight: number;
   margin: number;
-}> = ({ frame, textureMap, isSelected, canvasWidth, canvasHeight, margin }) => {
+  resolveTexturePath: (path: string | undefined) => string | undefined;
+}> = ({ frame, textureMap, isSelected, canvasWidth, canvasHeight, margin, resolveTexturePath }) => {
 
   const leftInset = frame.backdropBackgroundInsets 
     ? (frame.backdropBackgroundInsets[0] / 0.8) * (canvasWidth - 2 * margin)
@@ -44,7 +45,8 @@ const BackdropBackground: React.FC<{
     ? (frame.backdropBackgroundInsets[3] / 0.6) * canvasHeight
     : 0;
   
-  const textureState = frame.backdropBackground ? textureMap.get(frame.backdropBackground) : undefined;
+  const resolvedBackdropPath = resolveTexturePath(frame.backdropBackground);
+  const textureState = resolvedBackdropPath ? textureMap.get(resolvedBackdropPath) : undefined;
   const bgImage = textureState?.url ? `url(${textureState.url})` : undefined;
   
   return (
@@ -146,24 +148,54 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const [snapToGrid, setSnapToGrid] = React.useState(true);
   const [gridSize, setGridSize] = React.useState(0.01); // WC3单位，默认0.01
   
+  // 辅助函数：将纹理键名解析为实际路径
+  const resolveTexturePath = React.useCallback((textureValue: string | undefined): string | undefined => {
+    if (!textureValue) return undefined;
+    
+    // 如果已经是路径（包含反斜杠或斜杠），直接使用
+    if (textureValue.includes('\\') || textureValue.includes('/')) {
+      return textureValue;
+    }
+    
+    // 如果是键名且有 war3Skins 配置，尝试解析
+    if (project.war3Skins && project.currentRace) {
+      const raceConfig = project.war3Skins[project.currentRace];
+      if (raceConfig && raceConfig[textureValue]) {
+        return raceConfig[textureValue];
+      }
+      // 回退到默认配置
+      const defaultConfig = project.war3Skins.Default;
+      if (defaultConfig && defaultConfig[textureValue]) {
+        return defaultConfig[textureValue];
+      }
+    }
+    
+    // 如果无法解析，返回原值
+    return textureValue;
+  }, [project.war3Skins, project.currentRace]);
+  
   // 收集所有需要加载的纹理路径
   const texturePaths = useMemo(() => {
     const paths: string[] = [];
+    
     Object.values(project.frames).forEach(frame => {
-      if (frame.texture && typeof frame.texture === 'string') {
-        paths.push(frame.texture);
+      const resolvedTexture = resolveTexturePath(frame.texture);
+      if (resolvedTexture) {
+        paths.push(resolvedTexture);
       }
       // 添加 Backdrop 背景纹理路径
-      if (frame.backdropBackground && typeof frame.backdropBackground === 'string') {
-        paths.push(frame.backdropBackground);
+      const resolvedBackdrop = resolveTexturePath(frame.backdropBackground);
+      if (resolvedBackdrop) {
+        paths.push(resolvedBackdrop);
       }
       // 添加边框纹理路径
-      if (frame.backdropEdgeFile && typeof frame.backdropEdgeFile === 'string') {
-        paths.push(frame.backdropEdgeFile);
+      const resolvedEdge = resolveTexturePath(frame.backdropEdgeFile);
+      if (resolvedEdge) {
+        paths.push(resolvedEdge);
       }
     });
     return paths;
-  }, [project.frames]);
+  }, [project.frames, resolveTexturePath, project.currentRace]);
   
   // 批量加载纹理
   const textureMap = useTextureLoaderBatch(texturePaths);
@@ -938,8 +970,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       opacity: (isLockedOrParentLocked ? 0.7 : 1) * (frame.alpha ?? 1),
     };
 
-    // 使用 texture 字段
-    const texturePath = frame.texture;
+    // 使用 texture 字段，解析纹理键名为实际路径
+    const texturePath = resolveTexturePath(frame.texture);
     let backgroundImage: string | undefined = undefined;
     
     if (texturePath && typeof texturePath === 'string') {
@@ -1037,6 +1069,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                 canvasWidth={CANVAS_WIDTH}
                 canvasHeight={CANVAS_HEIGHT}
                 margin={MARGIN}
+                resolveTexturePath={resolveTexturePath}
               />
             ) : isSelected && frame.backdropBackgroundInsets && (
               // 警告：设置了 insets 但没有背景纹理
@@ -1056,7 +1089,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                 cornerSize={frame.backdropCornerSize}
                 backgroundInsets={frame.backdropBackgroundInsets}
                 textureDataURL={(() => {
-                  const textureState = textureMap.get(frame.backdropEdgeFile);
+                  const resolvedEdgePath = resolveTexturePath(frame.backdropEdgeFile);
+                  const textureState = resolvedEdgePath ? textureMap.get(resolvedEdgePath) : undefined;
                   return textureState?.url || undefined;
                 })()}
                 canvasWidth={CANVAS_WIDTH - 2 * MARGIN}
