@@ -20,7 +20,20 @@ export function UpdateChecker({ onUpdateAvailable, checkOnMount = false }: Updat
   const [showRelaunchDialog, setShowRelaunchDialog] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<any>(null);
 
+  // 检测是否为开发环境
+  const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+
   const checkForUpdates = async (showNoUpdateMessage = false) => {
+    // 开发环境下跳过更新检查
+    if (isDevelopment) {
+      console.log('[UpdateChecker] 开发环境，跳过更新检查');
+      if (showNoUpdateMessage) {
+        setErrorMessage('开发环境不支持自动更新');
+        setShowErrorDialog(true);
+      }
+      return;
+    }
+
     if (checking || downloading) return;
     
     setChecking(true);
