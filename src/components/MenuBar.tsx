@@ -74,6 +74,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const [deleteTargets, setDeleteTargets] = useState<string[]>([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showNewProjectConfirm, setShowNewProjectConfirm] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const menuBarRef = useRef<HTMLDivElement>(null);
   
@@ -246,28 +247,31 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   // 文件操作
   const handleNewProject = () => {
-    if (confirm('创建新项目将清除当前项目，是否继续？')) {
-      setProject({
-        version: 2,
-        libraryName: 'UILib',
-        originMode: 'gameui',
-        hideGameUI: false,
-        hideHeroBar: false,
-        hideMiniMap: false,
-        hideResources: false,
-        hideButtonBar: false,
-        hidePortrait: false,
-        hideChat: false,
-        appInterface: '',
-        frames: {},
-        rootFrameIds: [],
-        fdfTemplates: {},
-        tableArrays: [],
-        circleArrays: [],
-        exportVersion: 'reforged',
-      });
-      setCurrentFilePath(null);
-    }
+    setShowNewProjectConfirm(true);
+  };
+
+  const confirmNewProject = () => {
+    setShowNewProjectConfirm(false);
+    setProject({
+      version: 2,
+      libraryName: 'UILib',
+      originMode: 'gameui',
+      hideGameUI: false,
+      hideHeroBar: false,
+      hideMiniMap: false,
+      hideResources: false,
+      hideButtonBar: false,
+      hidePortrait: false,
+      hideChat: false,
+      appInterface: '',
+      frames: {},
+      rootFrameIds: [],
+      fdfTemplates: {},
+      tableArrays: [],
+      circleArrays: [],
+      exportVersion: 'reforged',
+    });
+    setCurrentFilePath(null);
   };
 
   const handleOpen = async () => {
@@ -828,6 +832,18 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
       {showPreferences && <PreferencesDialog onClose={() => setShowPreferences(false)} />}
       
+      {showNewProjectConfirm && (
+        <ConfirmDialog
+          title="新建项目"
+          message="创建新项目将清除当前项目，是否继续？"
+          confirmText="继续"
+          cancelText="取消"
+          type="warning"
+          onConfirm={confirmNewProject}
+          onCancel={() => setShowNewProjectConfirm(false)}
+        />
+      )}
+
       {showDeleteConfirm && (
         <ConfirmDialog
           title="删除确认"
@@ -847,7 +863,6 @@ export const MenuBar: React.FC<MenuBarProps> = ({
           confirmText="确定"
           type="info"
           onConfirm={() => setShowSuccessDialog(false)}
-          onCancel={() => setShowSuccessDialog(false)}
         />
       )}
     </>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { ConfirmDialog } from './ConfirmDialog';
 import { join } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
 import './PreferencesDialog.css';
@@ -31,6 +32,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
   const [activeTab, setActiveTab] = useState<'general' | 'editor' | 'advanced'>('general');
   const [pathError, setPathError] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // 加载保存的首选项
   useEffect(() => {
@@ -113,9 +115,12 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
 
   // 重置为默认值
   const handleReset = () => {
-    if (confirm('确定要重置所有设置为默认值吗？')) {
-      setPreferences(DEFAULT_PREFERENCES);
-    }
+    setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+    setShowResetConfirm(false);
+    setPreferences(DEFAULT_PREFERENCES);
   };
 
   return (
@@ -311,6 +316,18 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
           </div>
         </div>
       </div>
+
+      {showResetConfirm && (
+        <ConfirmDialog
+          title="重置设置"
+          message="确定要重置所有设置为默认值吗？"
+          confirmText="重置"
+          cancelText="取消"
+          type="warning"
+          onConfirm={confirmReset}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
     </div>
   );
 };

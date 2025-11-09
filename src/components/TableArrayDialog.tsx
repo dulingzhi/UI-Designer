@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './TableArrayDialog.css';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface TableArrayDialogProps {
   frameId: string;
@@ -22,22 +23,33 @@ export const TableArrayDialog: React.FC<TableArrayDialogProps> = ({
   const [cols, setCols] = useState(3);
   const [xGap, setXGap] = useState(0.01);
   const [yGap, setYGap] = useState(0.01);
+  const [showCountWarning, setShowCountWarning] = useState(false);
+  const [showCountAlert, setShowCountAlert] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<any>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (rows < 1 || cols < 1) {
-      alert('行数和列数必须大于 0');
+      setShowCountAlert(true);
       return;
     }
     
     if (rows * cols > 100) {
-      if (!confirm(`将创建 ${rows * cols} 个控件，是否继续？`)) {
-        return;
-      }
+      setPendingSubmit({ rows, cols, xGap, yGap });
+      setShowCountWarning(true);
+      return;
     }
 
     onSubmit({ rows, cols, xGap, yGap });
+  };
+
+  const confirmSubmit = () => {
+    setShowCountWarning(false);
+    if (pendingSubmit) {
+      onSubmit(pendingSubmit);
+      setPendingSubmit(null);
+    }
   };
 
   return (
@@ -120,6 +132,31 @@ export const TableArrayDialog: React.FC<TableArrayDialogProps> = ({
           </form>
         </div>
       </div>
+
+      {showCountAlert && (
+        <ConfirmDialog
+          title="输入错误"
+          message="行数和列数必须大于 0"
+          confirmText="确定"
+          type="warning"
+          onConfirm={() => setShowCountAlert(false)}
+        />
+      )}
+
+      {showCountWarning && (
+        <ConfirmDialog
+          title="确认创建"
+          message={`将创建 ${rows * cols} 个控件，是否继续？`}
+          confirmText="继续"
+          cancelText="取消"
+          type="warning"
+          onConfirm={confirmSubmit}
+          onCancel={() => {
+            setShowCountWarning(false);
+            setPendingSubmit(null);
+          }}
+        />
+      )}
     </div>
   );
 };

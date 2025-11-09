@@ -26,6 +26,7 @@ function AppContent() {
   const [showFrameGroupPanel, setShowFrameGroupPanel] = React.useState(false);
   const [showDebugPanel, setShowDebugPanel] = React.useState(true); // 状态栏默认显示
   const [deleteConfirm, setDeleteConfirm] = React.useState<{ targets: string[] } | null>(null);
+  const [showNewProjectConfirm, setShowNewProjectConfirm] = React.useState(false);
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
   const [canvasScale, setCanvasScale] = React.useState(1);
   const executeCommand = useCommandStore(state => state.executeCommand);
@@ -67,6 +68,19 @@ function AppContent() {
       setDeleteConfirm({ targets });
     }
   }, []);
+
+  // 全局新建项目请求处理函数
+  const handleNewProjectRequest = React.useCallback(() => {
+    setShowNewProjectConfirm(true);
+  }, []);
+
+  // 确认新建项目
+  const confirmNewProject = React.useCallback(() => {
+    setShowNewProjectConfirm(false);
+    useProjectStore.getState().resetProject();
+    setCurrentFilePath(null);
+    console.log('✅ 新项目已创建');
+  }, [setCurrentFilePath]);
 
   // 确认删除
   const confirmDelete = React.useCallback(() => {
@@ -134,7 +148,8 @@ function AppContent() {
     setCurrentFilePath,
     (scale) => canvasRef.current?.setScale(typeof scale === 'function' ? scale(1) : scale),
     () => canvasRef.current?.centerCanvas(),
-    handleDeleteRequest // 传递删除请求处理函数
+    handleDeleteRequest, // 传递删除请求处理函数
+    handleNewProjectRequest // 传递新建项目请求处理函数
   );
 
   return (
@@ -178,6 +193,18 @@ function AppContent() {
           type="danger"
           onConfirm={confirmDelete}
           onCancel={cancelDelete}
+        />
+      )}
+
+      {showNewProjectConfirm && (
+        <ConfirmDialog
+          title="新建项目"
+          message="创建新项目将丢失未保存的更改。是否继续？"
+          confirmText="继续"
+          cancelText="取消"
+          type="warning"
+          onConfirm={confirmNewProject}
+          onCancel={() => setShowNewProjectConfirm(false)}
         />
       )}
 

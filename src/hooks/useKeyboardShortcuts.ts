@@ -11,7 +11,8 @@ export const useKeyboardShortcuts = (
   setCurrentFilePath: (path: string | null) => void,
   setScale?: (scale: number | ((prev: number) => number)) => void,
   centerCanvas?: () => void,
-  onDeleteRequest?: (targets: string[]) => void
+  onDeleteRequest?: (targets: string[]) => void,
+  onNewProjectRequest?: () => void
 ) => {
   const { selectedFrameId, project, clearGuides } = useProjectStore();
   const { undo, redo, canUndo, canRedo, executeCommand } = useCommandStore();
@@ -286,11 +287,15 @@ export const useKeyboardShortcuts = (
     };
 
     const handleNew = () => {
-      if (confirm('创建新项目将丢失未保存的更改。是否继续？')) {
-        // 重置为初始项目状态
-        useProjectStore.getState().resetProject();
-        setCurrentFilePath(null);
-        console.log('✅ 新项目已创建');
+      if (onNewProjectRequest) {
+        onNewProjectRequest();
+      } else {
+        // 降级处理：使用原生 confirm
+        if (confirm('创建新项目将丢失未保存的更改。是否继续？')) {
+          useProjectStore.getState().resetProject();
+          setCurrentFilePath(null);
+          console.log('✅ 新项目已创建');
+        }
       }
     };
 

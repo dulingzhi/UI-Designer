@@ -7,7 +7,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void; // 可选，不传则只显示确认按钮
   type?: 'info' | 'warning' | 'danger';
 }
 
@@ -46,12 +46,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </div>
         
         <div className="confirm-dialog-footer">
-          <button 
-            className="confirm-dialog-button confirm-dialog-button-cancel"
-            onClick={onCancel}
-          >
-            {cancelText}
-          </button>
+          {onCancel && (
+            <button 
+              className="confirm-dialog-button confirm-dialog-button-cancel"
+              onClick={onCancel}
+            >
+              {cancelText}
+            </button>
+          )}
           <button 
             className={`confirm-dialog-button confirm-dialog-button-confirm confirm-dialog-button-${type}`}
             onClick={onConfirm}

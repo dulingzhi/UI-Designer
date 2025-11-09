@@ -9,6 +9,7 @@ import { ExportLanguage } from '../types';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
 import { ShortcutHelp } from './ShortcutHelp';
+import { ConfirmDialog } from './ConfirmDialog';
 import { WC3TextureBrowser } from './WC3TextureBrowser';
 import { RaceSwitcher } from './RaceSwitcher';
 import {
@@ -33,6 +34,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
   const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
   const [showTextureBrowser, setShowTextureBrowser] = React.useState(false);
+  const [showNewProjectConfirm, setShowNewProjectConfirm] = React.useState(false);
 
   // 监听 F1 快捷键事件
   React.useEffect(() => {
@@ -49,27 +51,30 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   };
 
   const handleNewProject = () => {
-    if (confirm('创建新项目将清除当前项目，是否继续？')) {
-      setProject({
-        version: 2,
-        libraryName: 'UILib',
-        originMode: 'gameui',
-        hideGameUI: false,
-        hideHeroBar: false,
-        hideMiniMap: false,
-        hideResources: false,
-        hideButtonBar: false,
-        hidePortrait: false,
-        hideChat: false,
-        appInterface: '',
-        frames: {},
-        rootFrameIds: [],
-        tableArrays: [],
-        circleArrays: [],
-        exportVersion: 'reforged', // 添加默认导出版本
-      });
-      setCurrentFilePath(null);
-    }
+    setShowNewProjectConfirm(true);
+  };
+
+  const confirmNewProject = () => {
+    setShowNewProjectConfirm(false);
+    setProject({
+      version: 2,
+      libraryName: 'UILib',
+      originMode: 'gameui',
+      hideGameUI: false,
+      hideHeroBar: false,
+      hideMiniMap: false,
+      hideResources: false,
+      hideButtonBar: false,
+      hidePortrait: false,
+      hideChat: false,
+      appInterface: '',
+      frames: {},
+      rootFrameIds: [],
+      tableArrays: [],
+      circleArrays: [],
+      exportVersion: 'reforged', // 添加默认导出版本
+    });
+    setCurrentFilePath(null);
   };
 
   const handleSave = async () => {
@@ -454,6 +459,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
             });
           }}
           onClose={() => setShowTextureBrowser(false)}
+        />
+      )}
+
+      {showNewProjectConfirm && (
+        <ConfirmDialog
+          title="新建项目"
+          message="创建新项目将清除当前项目，是否继续？"
+          confirmText="继续"
+          cancelText="取消"
+          type="warning"
+          onConfirm={confirmNewProject}
+          onCancel={() => setShowNewProjectConfirm(false)}
         />
       )}
     </div>

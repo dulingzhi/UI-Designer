@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './TableArrayDialog.css'; // 复用相同的样式
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface CircleArrayDialogProps {
   frameName: string;
@@ -23,19 +24,22 @@ export const CircleArrayDialog: React.FC<CircleArrayDialogProps> = ({
   const [radius, setRadius] = useState(0.1);
   const [count, setCount] = useState(8);
   const [initialAngle, setInitialAngle] = useState(0); // 度数
+  const [showCountWarning, setShowCountWarning] = useState(false);
+  const [showCountAlert, setShowCountAlert] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<any>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (count < 2) {
-      alert('数量必须大于等于 2');
+      setShowCountAlert(true);
       return;
     }
     
     if (count > 50) {
-      if (!confirm(`将创建 ${count} 个控件，是否继续？`)) {
-        return;
-      }
+      setPendingSubmit({ centerX, centerY, radius, count, initialAngle: (initialAngle * Math.PI) / 180 });
+      setShowCountWarning(true);
+      return;
     }
 
     // 将角度转换为弧度
@@ -48,6 +52,14 @@ export const CircleArrayDialog: React.FC<CircleArrayDialogProps> = ({
       count, 
       initialAngle: angleInRadians 
     });
+  };
+
+  const confirmSubmit = () => {
+    setShowCountWarning(false);
+    if (pendingSubmit) {
+      onSubmit(pendingSubmit);
+      setPendingSubmit(null);
+    }
   };
 
   return (
@@ -146,6 +158,31 @@ export const CircleArrayDialog: React.FC<CircleArrayDialogProps> = ({
           </form>
         </div>
       </div>
+
+      {showCountAlert && (
+        <ConfirmDialog
+          title="输入错误"
+          message="数量必须大于等于 2"
+          confirmText="确定"
+          type="warning"
+          onConfirm={() => setShowCountAlert(false)}
+        />
+      )}
+
+      {showCountWarning && (
+        <ConfirmDialog
+          title="确认创建"
+          message={`将创建 ${count} 个控件，是否继续？`}
+          confirmText="继续"
+          cancelText="取消"
+          type="warning"
+          onConfirm={confirmSubmit}
+          onCancel={() => {
+            setShowCountWarning(false);
+            setPendingSubmit(null);
+          }}
+        />
+      )}
     </div>
   );
 };
