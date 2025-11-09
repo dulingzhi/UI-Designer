@@ -11,6 +11,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { DebugPanel } from './components/DebugPanel';
 import { UpdateChecker } from './components/UpdateChecker';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useAlert } from './hooks/useAlert';
 import { useCommandStore } from './store/commandStore';
 import { useProjectStore } from './store/projectStore';
 import { RemoveFrameCommand, BatchRemoveFrameCommand } from './commands/FrameCommands';
@@ -29,6 +30,7 @@ function AppContent() {
   const [showNewProjectConfirm, setShowNewProjectConfirm] = React.useState(false);
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
   const [canvasScale, setCanvasScale] = React.useState(1);
+  const { showAlert, AlertComponent } = useAlert();
   const executeCommand = useCommandStore(state => state.executeCommand);
   const { project, selectedFrameId } = useProjectStore();
   
@@ -149,7 +151,8 @@ function AppContent() {
     (scale) => canvasRef.current?.setScale(typeof scale === 'function' ? scale(1) : scale),
     () => canvasRef.current?.centerCanvas(),
     handleDeleteRequest, // 传递删除请求处理函数
-    handleNewProjectRequest // 传递新建项目请求处理函数
+    handleNewProjectRequest, // 传递新建项目请求处理函数
+    showAlert // 传递 alert 显示函数
   );
 
   return (
@@ -228,6 +231,9 @@ function AppContent() {
 
       {/* 更新检查器 */}
       <UpdateChecker checkOnMount={true} />
+
+      {/* Alert 组件 */}
+      {AlertComponent}
     </div>
   );
 }

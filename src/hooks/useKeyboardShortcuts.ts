@@ -12,7 +12,8 @@ export const useKeyboardShortcuts = (
   setScale?: (scale: number | ((prev: number) => number)) => void,
   centerCanvas?: () => void,
   onDeleteRequest?: (targets: string[]) => void,
-  onNewProjectRequest?: () => void
+  onNewProjectRequest?: () => void,
+  onShowAlert?: (options: { title: string; message: string; type: 'info' | 'warning' | 'danger' }) => void
 ) => {
   const { selectedFrameId, project, clearGuides } = useProjectStore();
   const { undo, redo, canUndo, canRedo, executeCommand } = useCommandStore();
@@ -254,7 +255,7 @@ export const useKeyboardShortcuts = (
         }
       } catch (error) {
         console.error('❌ 保存失败:', error);
-        alert('保存失败: ' + error);
+        onShowAlert?.({ title: '错误', message: '保存失败: ' + error, type: 'danger' });
       }
     };
 
@@ -267,7 +268,7 @@ export const useKeyboardShortcuts = (
         }
       } catch (error) {
         console.error('❌ 另存为失败:', error);
-        alert('另存为失败: ' + error);
+        onShowAlert?.({ title: '错误', message: '另存为失败: ' + error, type: 'danger' });
       }
     };
 
@@ -282,7 +283,7 @@ export const useKeyboardShortcuts = (
         }
       } catch (error) {
         console.error('❌ 打开失败:', error);
-        alert('打开失败: ' + error);
+        onShowAlert?.({ title: '错误', message: '打开失败: ' + error, type: 'danger' });
       }
     };
 
@@ -363,7 +364,7 @@ export const useKeyboardShortcuts = (
         // 可以添加Toast通知
       } catch (error) {
         console.error('❌ 复制到剪贴板失败:', error);
-        alert('复制失败: ' + error);
+        onShowAlert?.({ title: '错误', message: '复制失败: ' + error, type: 'danger' });
       }
     };
 
@@ -376,7 +377,7 @@ export const useKeyboardShortcuts = (
         }
       } catch (error) {
         console.error('❌ 导出失败:', error);
-        alert('导出失败: ' + error);
+        onShowAlert?.({ title: '错误', message: '导出失败: ' + error, type: 'danger' });
       }
     };
 

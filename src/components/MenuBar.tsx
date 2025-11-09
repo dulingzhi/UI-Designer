@@ -3,6 +3,7 @@ import './MenuBar.css';
 import { AboutDialog } from './AboutDialog';
 import { PreferencesDialog } from './PreferencesDialog';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useAlert } from '../hooks/useAlert';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { saveProject, loadProject, loadProjectFromPath, importFromFDF } from '../utils/fileOperations';
@@ -77,6 +78,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const [showNewProjectConfirm, setShowNewProjectConfirm] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const menuBarRef = useRef<HTMLDivElement>(null);
+  const { showAlert, AlertComponent } = useAlert();
   
   const { project, setProject, selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard, clearGuides, addFrames } = useProjectStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
@@ -92,7 +94,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       }
     } catch (error) {
       console.error('导入FDF失败:', error);
-      alert(`导入FDF失败: ${error}`);
+      showAlert({ title: '错误', message: `导入FDF失败: ${error}`, type: 'danger' });
     }
   };
 
@@ -107,7 +109,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       }
     } catch (error) {
       console.error('增强导入失败:', error);
-      alert(`增强导入失败: ${error}`);
+      showAlert({ title: '错误', message: `增强导入失败: ${error}`, type: 'danger' });
     }
   };
 
@@ -121,7 +123,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       }
     } catch (error) {
       console.error('导入模板库失败:', error);
-      alert(`导入模板库失败: ${error}`);
+      showAlert({ title: '错误', message: `导入模板库失败: ${error}`, type: 'danger' });
     }
   };
 
@@ -227,7 +229,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         addToRecentFiles(result.path);
       }
     } catch (error) {
-      alert(`加载文件失败: ${error}\n文件路径: ${filePath}`);
+      showAlert({ title: '错误', message: `加载文件失败: ${error}\n文件路径: ${filePath}`, type: 'danger' });
       // 从最近列表中移除失败的文件
       setRecentFiles((prev) => {
         const updated = prev.filter((f) => f !== filePath);
@@ -283,7 +285,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         addToRecentFiles(result.path);
       }
     } catch (error) {
-      alert('加载失败: ' + error);
+      showAlert({ title: '错误', message: '加载失败: ' + error, type: 'danger' });
     }
   };
 
@@ -295,7 +297,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         addToRecentFiles(path);
       }
     } catch (error) {
-      alert('保存失败: ' + error);
+      showAlert({ title: '错误', message: '保存失败: ' + error, type: 'danger' });
     }
   };
 
@@ -307,7 +309,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         addToRecentFiles(path);
       }
     } catch (error) {
-      alert('保存失败: ' + error);
+      showAlert({ title: '错误', message: '保存失败: ' + error, type: 'danger' });
     }
   };
 
@@ -865,6 +867,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
           onConfirm={() => setShowSuccessDialog(false)}
         />
       )}
+
+      {AlertComponent}
     </>
   );
 };

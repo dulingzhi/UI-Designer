@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { StylePreset } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useAlert } from '../hooks/useAlert';
 import './StylePresetPanel.css';
 
 interface StylePresetPanelProps {
@@ -24,6 +25,7 @@ export const StylePresetPanel: React.FC<StylePresetPanelProps> = ({ onClose }) =
   const [newPresetName, setNewPresetName] = useState('');
   const [newPresetCategory, setNewPresetCategory] = useState('默认');
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const { showAlert, AlertComponent } = useAlert();
 
   const presets = project.stylePresets || [];
   
@@ -50,7 +52,7 @@ export const StylePresetPanel: React.FC<StylePresetPanelProps> = ({ onClose }) =
                      selectedFrameId ? [selectedFrameId] : [];
     
     if (targetIds.length === 0) {
-      alert('请先选择要应用样式的控件');
+      showAlert({ title: '提示', message: '请先选择要应用样式的控件', type: 'warning' });
       return;
     }
 
@@ -171,6 +173,8 @@ export const StylePresetPanel: React.FC<StylePresetPanelProps> = ({ onClose }) =
           onCancel={cancelDelete}
         />
       )}
+
+      {AlertComponent}
     </div>
   );
 };

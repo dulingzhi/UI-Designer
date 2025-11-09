@@ -10,6 +10,7 @@ import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
 import { ShortcutHelp } from './ShortcutHelp';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useAlert } from '../hooks/useAlert';
 import { WC3TextureBrowser } from './WC3TextureBrowser';
 import { RaceSwitcher } from './RaceSwitcher';
 import {
@@ -35,6 +36,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
   const [showTextureBrowser, setShowTextureBrowser] = React.useState(false);
   const [showNewProjectConfirm, setShowNewProjectConfirm] = React.useState(false);
+  const { showAlert, AlertComponent } = useAlert();
 
   // 监听 F1 快捷键事件
   React.useEffect(() => {
@@ -82,10 +84,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       const path = await saveProject(project, currentFilePath || undefined);
       if (path) {
         setCurrentFilePath(path);
-        alert('项目保存成功！');
+        showAlert({ title: '成功', message: '项目保存成功！', type: 'info' });
       }
     } catch (error) {
-      alert('保存失败: ' + error);
+      showAlert({ title: '错误', message: '保存失败: ' + error, type: 'danger' });
     }
   };
 
@@ -94,10 +96,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       const path = await saveProject(project);
       if (path) {
         setCurrentFilePath(path);
-        alert('项目保存成功！');
+        showAlert({ title: '成功', message: '项目保存成功！', type: 'info' });
       }
     } catch (error) {
-      alert('保存失败: ' + error);
+      showAlert({ title: '错误', message: '保存失败: ' + error, type: 'danger' });
     }
   };
 
@@ -107,10 +109,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       if (result) {
         setProject(result.project);
         setCurrentFilePath(result.path);
-        alert('项目加载成功！');
+        showAlert({ title: '成功', message: '项目加载成功！', type: 'info' });
       }
     } catch (error) {
-      alert('加载失败: ' + error);
+      showAlert({ title: '错误', message: '加载失败: ' + error, type: 'danger' });
     }
   };
 
@@ -119,10 +121,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       const code = exportProject(project, language);
       const path = await exportCode(code, language);
       if (path) {
-        alert(`代码导出成功！\n路径: ${path}`);
+        showAlert({ title: '成功', message: `代码导出成功！\n路径: ${path}`, type: 'info' });
       }
     } catch (error) {
-      alert('导出失败: ' + error);
+      showAlert({ title: '错误', message: '导出失败: ' + error, type: 'danger' });
     }
   };
 
@@ -473,6 +475,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
           onCancel={() => setShowNewProjectConfirm(false)}
         />
       )}
+
+      {AlertComponent}
     </div>
   );
 };

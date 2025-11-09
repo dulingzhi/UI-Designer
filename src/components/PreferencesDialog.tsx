@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useAlert } from '../hooks/useAlert';
 import { join } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
 import './PreferencesDialog.css';
@@ -33,6 +34,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
   const [pathError, setPathError] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const { showAlert, AlertComponent } = useAlert();
 
   // 加载保存的首选项
   useEffect(() => {
@@ -274,7 +276,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
                   <button 
                     onClick={() => {
                       console.log('当前首选项:', preferences);
-                      alert('首选项已输出到控制台');
+                      showAlert({ title: '成功', message: '首选项已输出到控制台', type: 'info' });
                     }}
                     className="secondary-button"
                   >
@@ -286,7 +288,7 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
                   <button 
                     onClick={() => {
                       localStorage.clear();
-                      alert('所有本地数据已清除，请刷新页面');
+                      showAlert({ title: '成功', message: '所有本地数据已清除，请刷新页面', type: 'warning' });
                     }}
                     className="danger-button"
                   >
@@ -328,6 +330,8 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
           onCancel={() => setShowResetConfirm(false)}
         />
       )}
+
+      {AlertComponent}
     </div>
   );
 };
