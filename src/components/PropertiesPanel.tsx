@@ -145,8 +145,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
                 if (e.key === 'Enter') {
                   const value = e.currentTarget.value;
                   if (value) {
-                    handleBatchChange('diskTexture', value);
-                    handleBatchChange('wc3Texture', value);
+                    handleBatchChange('texture', value);
                     e.currentTarget.value = '';
                   }
                 }
