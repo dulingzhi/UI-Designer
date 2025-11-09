@@ -129,22 +129,22 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   // 导出处理函数
   const handleExportFDF = () => {
-    exportToFDF(project, false); // 标准模式
+    exportToFDF(project, false, showAlert); // 标准模式
   };
 
   const handleExportFDFEnhanced = () => {
-    exportToFDF(project, true); // 增强模式（无损、保留元数据）
+    exportToFDF(project, true, showAlert); // 增强模式（无损、保留元数据）
   };
 
   const handleExportJSON = () => {
-    exportToJSON(project);
+    exportToJSON(project, showAlert);
   };
 
   const handleExportPNG = () => {
     // 需要从 Canvas 组件获取 canvas 元素
     // 暂时使用简化方案
     const canvas = document.querySelector('canvas');
-    exportToPNG(canvas);
+    exportToPNG(canvas, showAlert);
   };
 
   // 加载最近打开的文件

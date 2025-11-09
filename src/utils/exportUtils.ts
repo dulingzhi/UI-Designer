@@ -7,8 +7,13 @@ import { FDFExporterEnhanced } from './fdfExporter';
  * 导出项目为 FDF 格式（魔兽3 UI 文件格式）
  * @param project 项目数据
  * @param enhanced 是否使用增强导出（无损、保留元数据）
+ * @param onShowAlert 可选的 alert 回调函数
  */
-export async function exportToFDF(project: ProjectData, enhanced: boolean = false): Promise<void> {
+export async function exportToFDF(
+  project: ProjectData, 
+  enhanced: boolean = false,
+  onShowAlert?: (options: { title: string; message: string; type: 'info' | 'warning' | 'danger' }) => void
+): Promise<void> {
   try {
     // 打开保存对话框
     const path = await save({
@@ -29,17 +34,29 @@ export async function exportToFDF(project: ProjectData, enhanced: boolean = fals
     // 写入文件
     await writeTextFile(path, fdfContent);
 
-    alert(`导出 FDF 成功！${enhanced ? '（增强模式）' : ''}`);
+    if (onShowAlert) {
+      onShowAlert({ title: '成功', message: `导出 FDF 成功！${enhanced ? '（增强模式）' : ''}`, type: 'info' });
+    } else {
+      alert(`导出 FDF 成功！${enhanced ? '（增强模式）' : ''}`);
+    }
   } catch (error) {
     console.error('导出 FDF 失败:', error);
-    alert(`导出失败: ${error}`);
+    if (onShowAlert) {
+      onShowAlert({ title: '错误', message: `导出失败: ${error}`, type: 'danger' });
+    } else {
+      alert(`导出失败: ${error}`);
+    }
   }
 }
 
 /**
  * 导出项目为 JSON 格式
+ * @param onShowAlert 可选的 alert 回调函数
  */
-export async function exportToJSON(project: ProjectData): Promise<void> {
+export async function exportToJSON(
+  project: ProjectData,
+  onShowAlert?: (options: { title: string; message: string; type: 'info' | 'warning' | 'danger' }) => void
+): Promise<void> {
   try {
     const path = await save({
       filters: [{
@@ -54,10 +71,18 @@ export async function exportToJSON(project: ProjectData): Promise<void> {
     const jsonContent = JSON.stringify(project, null, 2);
     await writeTextFile(path, jsonContent);
 
-    alert('导出 JSON 成功！');
+    if (onShowAlert) {
+      onShowAlert({ title: '成功', message: '导出 JSON 成功！', type: 'info' });
+    } else {
+      alert('导出 JSON 成功！');
+    }
   } catch (error) {
     console.error('导出 JSON 失败:', error);
-    alert(`导出失败: ${error}`);
+    if (onShowAlert) {
+      onShowAlert({ title: '错误', message: `导出失败: ${error}`, type: 'danger' });
+    } else {
+      alert(`导出失败: ${error}`);
+    }
   }
 }
 
@@ -282,10 +307,18 @@ function getFrameTypeName(type: FrameType): string {
 
 /**
  * 导出为 PNG 预览图
+ * @param onShowAlert 可选的 alert 回调函数
  */
-export async function exportToPNG(canvasElement: HTMLCanvasElement | null): Promise<void> {
+export async function exportToPNG(
+  canvasElement: HTMLCanvasElement | null,
+  onShowAlert?: (options: { title: string; message: string; type: 'info' | 'warning' | 'danger' }) => void
+): Promise<void> {
   if (!canvasElement) {
-    alert('无法获取画布元素');
+    if (onShowAlert) {
+      onShowAlert({ title: '错误', message: '无法获取画布元素', type: 'danger' });
+    } else {
+      alert('无法获取画布元素');
+    }
     return;
   }
 
@@ -303,7 +336,11 @@ export async function exportToPNG(canvasElement: HTMLCanvasElement | null): Prom
     // 将 canvas 转换为 blob
     canvasElement.toBlob(async (blob) => {
       if (!blob) {
-        alert('生成图片失败');
+        if (onShowAlert) {
+          onShowAlert({ title: '错误', message: '生成图片失败', type: 'danger' });
+        } else {
+          alert('生成图片失败');
+        }
         return;
       }
 
@@ -316,14 +353,26 @@ export async function exportToPNG(canvasElement: HTMLCanvasElement | null): Prom
         const { writeFile } = await import('@tauri-apps/plugin-fs');
         await writeFile(path, uint8Array);
 
-        alert('导出 PNG 成功！');
+        if (onShowAlert) {
+          onShowAlert({ title: '成功', message: '导出 PNG 成功！', type: 'info' });
+        } else {
+          alert('导出 PNG 成功！');
+        }
       } catch (error) {
         console.error('写入文件失败:', error);
-        alert(`导出失败: ${error}`);
+        if (onShowAlert) {
+          onShowAlert({ title: '错误', message: `导出失败: ${error}`, type: 'danger' });
+        } else {
+          alert(`导出失败: ${error}`);
+        }
       }
     }, 'image/png');
   } catch (error) {
     console.error('导出 PNG 失败:', error);
-    alert(`导出失败: ${error}`);
+    if (onShowAlert) {
+      onShowAlert({ title: '错误', message: `导出失败: ${error}`, type: 'danger' });
+    } else {
+      alert(`导出失败: ${error}`);
+    }
   }
 }
