@@ -795,7 +795,8 @@ function getAnchorPointName(point: FramePoint): string {
 /**
  * 根据锚点类型计算到左下角的偏移量
  * @deprecated 不再使用,保留以备将来参考
- */
+ 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOffsetFromAnchorPoint(
   point: FramePoint,
   width: number,
@@ -824,4 +825,5 @@ function getOffsetFromAnchorPoint(
       return { x: 0, y: 0 };
   }
 }
+*/
 

@@ -1,7 +1,7 @@
 import { ProjectData, FrameData, FrameType } from '../types';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { FDFExporter, FDFExporterEnhanced } from './fdfExporter';
+import { FDFExporterEnhanced } from './fdfExporter';
 
 /**
  * 导出项目为 FDF 格式（魔兽3 UI 文件格式）
@@ -165,9 +165,8 @@ function generateFrameFDF(
   // 根据类型添加特定属性
   switch (frame.type) {
     case FrameType.BACKDROP:
-      if (frame.wc3Texture || frame.diskTexture) {
-        const texture = frame.wc3Texture || frame.diskTexture;
-        lines.push(`${indentStr}    BackdropBackground "${texture}",`);
+      if (frame.texture) {
+        lines.push(`${indentStr}    BackdropBackground "${frame.texture}",`);
         lines.push(`${indentStr}    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",`);
       }
       break;

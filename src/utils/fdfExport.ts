@@ -111,8 +111,8 @@ function exportFrame(
   }
   
   // 纹理和Backdrop属性
-  if (frame.diskTexture) {
-    lines.push(`${ind}${indent}BackdropBackground "${frame.diskTexture}",`);
+  if (frame.texture) {
+    lines.push(`${ind}${indent}BackdropBackground "${frame.texture}",`);
   }
   
   // Backdrop边框和装饰属性

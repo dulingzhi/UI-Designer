@@ -7,13 +7,13 @@ const API_PREFIX = {
   '1.27': 'Dz',
 } as const;
 
-// 获取 API 函数名
+// 获取 API 函数�?
 function getAPIFunction(version: ExportVersion, funcName: string): string {
   const prefix = API_PREFIX[version];
   return `${prefix}${funcName}`;
 }
 
-// 将 FramePoint 枚举转换为 WC3 常量名称
+// �?FramePoint 枚举转换�?WC3 常量名称
 function framePointToString(point: FramePoint): string {
   const pointNames = [
     'FRAMEPOINT_TOPLEFT',
@@ -237,7 +237,7 @@ export function generateJASSCode(project: ProjectData): string {
   const version = project.exportVersion || 'reforged';
   let code = JASS_TEMPLATES.header(project.libraryName);
   
-  // 声明所有 Frame 变量
+  // 声明所�?Frame 变量
   Object.values(project.frames).forEach(frame => {
     const isArray = frame.name.includes('[');
     if (!isArray || frame.name.includes('[00]')) {
@@ -248,7 +248,7 @@ export function generateJASSCode(project: ProjectData): string {
   
   code += JASS_TEMPLATES.endGlobals;
   
-  // 创建所有 Frame
+  // 创建所�?Frame
   Object.values(project.frames).forEach(frame => {
     code += generateFrameJASS(frame, project, version);
   });
@@ -282,7 +282,7 @@ export function generateLUACode(project: ProjectData): string {
   
   code += '\nfunction CreateFrames()\n';
   
-  // 创建所有 Frame
+  // 创建所�?Frame
   Object.values(project.frames).forEach(frame => {
     code += generateFrameLUA(frame, project, version);
   });
@@ -301,7 +301,7 @@ export function generateLUACode(project: ProjectData): string {
   return code;
 }
 
-// 生成单个 Frame 的 JASS 代码
+// 生成单个 Frame �?JASS 代码
 function generateFrameJASS(frame: FrameData, project: ProjectData, version: ExportVersion): string {
   const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
   
@@ -326,7 +326,7 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
       code += `    set ${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
       code += generateAnchorsJASS(frame.name, anchors, version);
       code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetTexture}(${frame.name}, "${frame.wc3Texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
+      code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
       break;
     
     case FrameType.BUTTON:
@@ -377,7 +377,7 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
   return code;
 }
 
-// 生成单个 Frame 的 LUA 代码
+// 生成单个 Frame �?LUA 代码
 function generateFrameLUA(frame: FrameData, project: ProjectData, version: ExportVersion): string {
   const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
   
@@ -402,7 +402,7 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
       code += `    ${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
       code += generateAnchorsLUA(frame.name, anchors, version);
       code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetTexture}(${frame.name}, "${frame.wc3Texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
+      code += `    ${frameSetTexture}(${frame.name}, "${frame.texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
       break;
     
     case FrameType.BUTTON:
@@ -467,7 +467,7 @@ export function generateTypeScriptCode(project: ProjectData): string {
 export class ${project.libraryName} {
 `;
   
-  // 声明所有 Frame 变量
+  // 声明所�?Frame 变量
   Object.values(project.frames).forEach(frame => {
     const isArray = frame.name.includes('[');
     if (!isArray || frame.name.includes('[00]')) {
@@ -484,7 +484,7 @@ export class ${project.libraryName} {
   
   code += `  private createFrames(): void {\n`;
   
-  // 创建所有 Frame
+  // 创建所�?Frame
   Object.values(project.frames).forEach(frame => {
     code += generateFrameTypeScript(frame, project, version);
   });
@@ -497,7 +497,7 @@ export class ${project.libraryName} {
   return code;
 }
 
-// 生成单个 Frame 的 TypeScript 代码
+// 生成单个 Frame �?TypeScript 代码
 function generateFrameTypeScript(frame: FrameData, project: ProjectData, version: ExportVersion): string {
   const getOriginFrame = getAPIFunction(version, 'GetOriginFrame');
   const parent = frame.parentId ? `this.${project.frames[frame.parentId].name}` : `${getOriginFrame}(ORIGIN_FRAME_GAME_UI, 0)`;
@@ -522,8 +522,8 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       code += `    this.${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0);\n`;
       code += generateAnchorsTypeScript(frame.name, anchors, version);
       code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      if (frame.wc3Texture) {
-        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.wc3Texture}", 0, true);\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
       }
       break;
     
@@ -566,7 +566,7 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
   return code;
 }
 
-// 主导出函数
+// 主导出函�?
 export function exportProject(project: ProjectData, language: ExportLanguage): string {
   switch (language) {
     case 'jass':

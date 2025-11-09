@@ -354,8 +354,7 @@ export class PasteStyleCommand implements Command {
           textScale: frame.textScale,
           horAlign: frame.horAlign,
           verAlign: frame.verAlign,
-          wc3Texture: frame.wc3Texture,
-          diskTexture: frame.diskTexture,
+          texture: frame.texture,
           text: frame.text,
         });
       }

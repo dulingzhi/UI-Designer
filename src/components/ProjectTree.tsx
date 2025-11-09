@@ -95,8 +95,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
 
       if (matches && advancedFilters.texture) {
         const textureLower = advancedFilters.texture.toLowerCase();
-        if ((!frame.diskTexture || !frame.diskTexture.toLowerCase().includes(textureLower)) &&
-            (!frame.wc3Texture || !frame.wc3Texture.toLowerCase().includes(textureLower))) {
+        if (!frame.texture || !frame.texture.toLowerCase().includes(textureLower)) {
           matches = false;
         }
       }

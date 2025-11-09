@@ -79,8 +79,8 @@ export function testFDFParser() {
       if (frame.text) {
         console.log(`    文本: ${frame.text}`);
       }
-      if (frame.diskTexture) {
-        console.log(`    纹理: ${frame.diskTexture}`);
+      if (frame.texture) {
+        console.log(`    纹理: ${frame.texture}`);
       }
     });
     console.log('');
