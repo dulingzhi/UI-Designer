@@ -29,7 +29,7 @@
     "react-dom": "^19.1.0",
     "react-window": "^2.2.3",
     "three": "^0.181.0",
-    "war3-model": "file:target/war3-model",
+    "war3-model": "^4.0.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
