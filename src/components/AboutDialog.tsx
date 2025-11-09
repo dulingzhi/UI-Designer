@@ -1,12 +1,13 @@
 import React from 'react';
 import './AboutDialog.css';
+import packageJson from '../../package.json';
 
 interface AboutDialogProps {
   onClose: () => void;
 }
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
-  const version = '1.0.0';
+  const version = packageJson.version;
   const buildDate = new Date().toLocaleDateString('zh-CN');
 
   return (

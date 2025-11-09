@@ -75,4 +75,5 @@ jobs:
             **完整文档**: https://github.com/dulingzhi/UI-Designer
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true
           args: --verbose
