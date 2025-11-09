@@ -2,7 +2,10 @@ use std::sync::Mutex;
 use std::collections::HashMap;
 
 mod mdx_parser;
+mod blp_handler;
+
 use mdx_parser::MdxParser;
+use blp_handler::{decode_blp, decode_blp_to_png_base64, decode_blp_mipmap, get_blp_info, BlpImageData};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -113,33 +116,25 @@ fn clear_mpq_cache() -> Result<(), String> {
 /// 解码 BLP 图像为 PNG base64
 #[tauri::command]
 fn decode_blp_to_png(blp_data: Vec<u8>) -> Result<String, String> {
-    use image::ImageFormat;
-    use std::io::Cursor;
-    use blp::core::image::ImageBlp;
-    
-    // 解析 BLP 结构
-    let mut blp = ImageBlp::from_buf(&blp_data)
-        .map_err(|e| format!("BLP 解析失败: {:?}", e))?;
-    
-    // 解码第一层 mipmap（最高分辨率）
-    blp.decode(&blp_data, &[true])
-        .map_err(|e| format!("BLP 解码失败: {:?}", e))?;
-    
-    // 获取 RGBA 图像
-    let img = blp.mipmaps[0].image
-        .take()
-        .ok_or_else(|| "没有可用的图像数据".to_string())?;
-    
-    // 转换为 PNG
-    let mut png_buffer = Vec::new();
-    let mut cursor = Cursor::new(&mut png_buffer);
-    
-    img.write_to(&mut cursor, ImageFormat::Png)
-        .map_err(|e| format!("PNG 编码失败: {}", e))?;
-    
-    // 编码为 base64
-    let base64_str = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_buffer);
-    Ok(format!("data:image/png;base64,{}", base64_str))
+    blp_handler::decode_blp_to_png_base64(&blp_data)
+}
+
+/// 解码 BLP 图像为 RGBA 数据（用于前端）
+#[tauri::command]
+fn decode_blp_to_rgba(blp_data: Vec<u8>) -> Result<blp_handler::BlpImageData, String> {
+    blp_handler::decode_blp(&blp_data)
+}
+
+/// 获取 BLP 文件信息
+#[tauri::command]
+fn get_blp_file_info(blp_data: Vec<u8>) -> Result<blp_handler::BlpInfo, String> {
+    blp_handler::get_blp_info(&blp_data)
+}
+
+/// 解码 BLP 指定 mipmap 层级
+#[tauri::command]
+fn decode_blp_mipmap_level(blp_data: Vec<u8>, level: usize) -> Result<blp_handler::BlpImageData, String> {
+    blp_handler::decode_blp_mipmap(&blp_data, level)
 }
 
 /// 解析 MDX/MDL 模型文件，返回几何数据的 JSON
@@ -189,6 +184,9 @@ pub fn run() {
             read_mpq_file,
             clear_mpq_cache,
             decode_blp_to_png,
+            decode_blp_to_rgba,
+            get_blp_file_info,
+            decode_blp_mipmap_level,
             parse_mdx_file,
             parse_mdx_from_mpq,
             parse_mdx_from_file

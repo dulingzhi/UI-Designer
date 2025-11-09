@@ -30,4 +30,5 @@ blp = "0.1"
 image = "0.25"
 base64 = "0.22"
 byteorder = "1.5"
+nom = "7.1"
 
