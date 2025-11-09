@@ -1,14 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './AboutDialog.css';
 import packageJson from '../../package.json';
+import { getVersion } from '@tauri-apps/api/app';
 
 interface AboutDialogProps {
   onClose: () => void;
 }
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({ onClose }) => {
-  const version = packageJson.version;
+  const [version, setVersion] = useState(packageJson.version);
   const buildDate = new Date().toLocaleDateString('zh-CN');
+
+  useEffect(() => {
+    // 在生产环境中从 Tauri 获取实际版本号
+    getVersion().then(setVersion).catch(() => {
+      // 如果获取失败（开发环境），使用 package.json 的版本
+      console.log('Using package.json version');
+    });
+  }, []);
 
   return (
     <div className="about-dialog-overlay" onClick={onClose}>

@@ -45,6 +45,24 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Update version from tag
+        run: |
+          # 从 git tag 提取版本号 (去掉 v 前缀)
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          
+          # 更新 package.json
+          cat package.json | jq --arg version "$VERSION" '.version = $version' > package.json.tmp
+          mv package.json.tmp package.json
+          
+          # 更新 tauri.conf.json
+          cat src-tauri/tauri.conf.json | jq --arg version "$VERSION" '.version = $version' > src-tauri/tauri.conf.json.tmp
+          mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+          
+          # 更新 Cargo.toml
+          sed -i "s/^version = .*/version = \"$VERSION\"/" src-tauri/Cargo.toml
+        shell: bash
+
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
         env:
