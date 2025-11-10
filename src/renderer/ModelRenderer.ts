@@ -330,6 +330,12 @@ export class ModelRenderer {
     const program = this.shaderProgram;
     if (!program) return;
 
+    // 设置 WebGL 状态
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
+
     // 使用着色器程序
     gl.useProgram(program.program);
 
@@ -377,9 +383,21 @@ export class ModelRenderer {
     gl.uniform1i(program.uniformLocations.sampler, 0);
 
     // 设置可替换纹理类型
-    const textureObj = this.model.Textures[layer.TextureID];
-    const replaceableType = textureObj?.ReplaceableId || 0;
+    const textureObj = layer.TextureID >= 0 && layer.TextureID < this.model.Textures.length 
+      ? this.model.Textures[layer.TextureID] 
+      : null;
+    const replaceableType = textureObj?.ReplaceableId ?? 0;
     gl.uniform1i(program.uniformLocations.replaceableType, replaceableType);
+
+    // 调试输出
+    if (index === 0) {
+      console.log('Geoset 0:', {
+        textureID: layer.TextureID,
+        replaceableType,
+        texturePath: textureObj?.Image,
+        filterMode: layer.FilterMode
+      });
+    }
 
     // Alpha 测试阈值
     const alphaTest = (layer.FilterMode ?? 1) === 0 ? 0.75 : 0.0;
