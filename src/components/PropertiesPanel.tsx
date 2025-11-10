@@ -1138,7 +1138,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             value={selectedFrame.backdropBackgroundSize ?? 0.032}
             onChange={(value) => handleChange('backdropBackgroundSize', value)}
             min={0}
-            max={0.1}
+            max={0.5}
             step={0.001}
             showInput={true}
           />
@@ -1151,8 +1151,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             labels={['左', '上', '右', '下']}
             step={0.001}
             min={0}
-            max={0.1}
-            tooltip="背景纹理的内边距，范围 0.000 ~ 0.100（WC3 坐标单位）"
+            max={0.5}
+            tooltip="背景纹理的内边距，范围 0.000 ~ 0.500（WC3 坐标单位）"
           />
 
           <FilePath
@@ -1170,28 +1170,26 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
             value={selectedFrame.backdropCornerSize ?? 0.008}
             onChange={(value) => handleChange('backdropCornerSize', value)}
             min={0}
-            max={0.05}
+            max={0.2}
             step={0.001}
             showInput={true}
           />
 
-          <Select
+          <MultiSelect
             label="边角标志"
-            value={selectedFrame.backdropCornerFlags || ''}
-            onChange={(value) => handleChange('backdropCornerFlags', value || undefined)}
+            value={selectedFrame.backdropCornerFlags?.split('|').filter(Boolean) || []}
+            onChange={(values) => handleChange('backdropCornerFlags', values?.join('|') || undefined)}
             options={[
-              { value: '', label: '默认' },
-              { value: 'UL', label: 'UL (左上)' },
-              { value: 'UR', label: 'UR (右上)' },
-              { value: 'BL', label: 'BL (左下)' },
-              { value: 'BR', label: 'BR (右下)' },
-              { value: 'UL|UR', label: 'UL|UR (上)' },
-              { value: 'BL|BR', label: 'BL|BR (下)' },
-              { value: 'UL|BL', label: 'UL|BL (左)' },
-              { value: 'UR|BR', label: 'UR|BR (右)' },
-              { value: 'UL|UR|BL|BR', label: 'UL|UR|BL|BR (全部)' },
+              { value: 'UL', label: 'UL (左上角)' },
+              { value: 'UR', label: 'UR (右上角)' },
+              { value: 'BL', label: 'BL (左下角)' },
+              { value: 'BR', label: 'BR (右下角)' },
+              { value: 'T', label: 'T (上边)' },
+              { value: 'B', label: 'B (下边)' },
+              { value: 'L', label: 'L (左边)' },
+              { value: 'R', label: 'R (右边)' },
             ]}
-            allowClear
+            placeholder="选择边角和边框"
           />
 
           <Switch
