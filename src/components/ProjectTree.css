@@ -58,15 +58,22 @@
   border-bottom: 1px solid #2d2d30;
 }
 
+/* 搜索输入框和高级搜索按钮同一行 */
+.search-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
 .tree-search-input {
-  width: 100%;
+  flex: 1;
   padding: 6px 10px;
   background: #3c3c3c;
   border: 1px solid #555;
   border-radius: 4px;
   color: #cccccc;
   font-size: 12px;
-  margin-bottom: 6px;
 }
 
 .tree-search-input:focus {
@@ -114,7 +121,7 @@
 .advanced-search-btn {
   font-size: 12px;
   font-weight: 600;
-  margin-bottom: 6px;
+  flex-shrink: 0;
 }
 
 /* 高级搜索面板 */

@@ -599,22 +599,24 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
       
       {/* 搜索和筛选 */}
       <div className="tree-search-filters">
-        <input 
-          type="text" 
-          className="tree-search-input"
-          placeholder="搜索控件..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        
-        {/* 高级搜索切换按钮 */}
-        <button 
-          className={`tree-filter-btn advanced-search-btn ${showAdvancedSearch ? 'active' : ''}`}
-          onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-          title="高级搜索"
-        >
-          🔍+
-        </button>
+        <div className="search-input-row">
+          <input 
+            type="text" 
+            className="tree-search-input"
+            placeholder="搜索控件..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          
+          {/* 高级搜索切换按钮 */}
+          <button 
+            className={`tree-filter-btn advanced-search-btn ${showAdvancedSearch ? 'active' : ''}`}
+            onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+            title="高级搜索"
+          >
+            🔍+
+          </button>
+        </div>
 
         {/* 高级搜索面板 */}
         {showAdvancedSearch && (
