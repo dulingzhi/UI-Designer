@@ -151,6 +151,11 @@ if japi_loaded and japi and japi.DzCreateFrame then
         return japi.DzCreateFrameByTagName(frameType, name, parent or API.GetGameUI(), template or "", id or 0)
     end
     
+    -- Model Frame 特殊创建
+    API.CreateModelFrame = function(parent)
+        return japi.DzFrameAddModel(parent or API.GetGameUI())
+    end
+    
     API.GetGameUI = function()
         return japi.DzGetGameUI()
     end
@@ -326,6 +331,12 @@ elseif BlzCreateFrame then
     
     API.CreateFrameByType = function(frameType, name, parent, template, id)
         return BlzCreateFrameByType(frameType, name, parent or API.GetGameUI(), template or "", id or 0)
+    end
+    
+    -- Model Frame 特殊创建 (Reforged可能不支持)
+    API.CreateModelFrame = function(parent)
+        print("|cffffcc00[UI Designer]|r CreateModelFrame 在 Reforged 中可能需要使用其他方式")
+        return BlzCreateFrameByType("MODEL", "ModelFrame", parent or API.GetGameUI(), "", 0)
     end
     
     API.GetGameUI = function()
@@ -581,9 +592,14 @@ _G.UI_Designer_ParseColor = ParseColor`;
       ? `GetFrame("${this.escapeLuaString(this.project.frames[frame.parentId].name)}")`
       : 'gameUI';
     
-    // 创建 Frame
+    // 创建 Frame - MODEL类型需要特殊处理
     const frameTypeName = this.getFrameTypeName(frame.type);
-    lines.push(`${indent}    local frame = API.CreateFrameByType("${frameTypeName}", "${frameName}", ${parentRef}, "", 0)`);
+    if (frame.type === 22) { // 22 = MODEL
+      lines.push(`${indent}    -- MODEL 需要使用特殊API创建`);
+      lines.push(`${indent}    local frame = API.CreateModelFrame(${parentRef})`);
+    } else {
+      lines.push(`${indent}    local frame = API.CreateFrameByType("${frameTypeName}", "${frameName}", ${parentRef}, "", 0)`);
+    }
     lines.push(`${indent}    RegisterFrame(frame, "${frameName}", "${frameTypeName}")`);
     lines.push(`${indent}    frameCount = frameCount + 1`);
     lines.push('');
