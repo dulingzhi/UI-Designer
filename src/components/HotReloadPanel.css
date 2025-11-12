@@ -267,6 +267,27 @@
   color: #d4d4d4;
 }
 
+/* 手动导出按钮 */
+.btn-manual-export {
+  padding: 8px 16px;
+  background: #0e639c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.btn-manual-export:hover {
+  background: #1177bb;
+}
+
+.btn-manual-export:active {
+  background: #0d5a8a;
+}
+
 /* 分隔线 */
 hr {
   border: none;

@@ -17,6 +17,7 @@
     "fs:allow-read-text-file",
     "fs:allow-read-file",
     "fs:allow-exists",
+    "fs:allow-mkdir",
     {
       "identifier": "fs:scope",
       "allow": [
@@ -80,6 +81,16 @@
     },
     {
       "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$HOME/**" },
+        { "path": "**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
       "allow": [
         { "path": "$DESKTOP/**" },
         { "path": "$DOCUMENT/**" },

@@ -46,10 +46,13 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
     if (savedConfig) {
       try {
         const parsed = JSON.parse(savedConfig);
-        setConfig(parsed);
-        getHotReloadExporter(parsed);
+        // 合并默认配置，确保所有字段都存在（兼容旧版本配置）
+        const mergedConfig = { ...DEFAULT_HOT_RELOAD_CONFIG, ...parsed };
+        setConfig(mergedConfig);
+        getHotReloadExporter(mergedConfig);
       } catch (e) {
         console.error('加载热重载配置失败:', e);
+        setConfig(DEFAULT_HOT_RELOAD_CONFIG);
       }
     } else {
       // 使用默认配置（已经根据War3路径动态生成）
@@ -145,11 +148,18 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
     // 如果是首次启用热重载，立即导出一次
     if (updates.enabled === true && !config.enabled) {
       console.log('[热重载] 首次启用，立即导出...');
+      showMessage('info', '正在生成 Lua 文件...');
       setTimeout(() => {
-        getHotReloadExporter(newConfig).export(project).catch(err => {
-          console.error('[热重载] 首次导出失败:', err);
-          showMessage('error', `导出失败: ${err}`);
-        });
+        getHotReloadExporter(newConfig).export(project)
+          .then(() => {
+            showMessage('success', '✅ Lua 文件生成成功！');
+            console.log('[热重载] 文件路径:', newConfig.outputPath);
+            console.log('[热重载] 加载器路径:', newConfig.loaderPath);
+          })
+          .catch(err => {
+            console.error('[热重载] 首次导出失败:', err);
+            showMessage('error', `导出失败: ${err}`);
+          });
       }, 100);
     }
   };
@@ -167,25 +177,21 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
     }
 
     try {
-      // 检查地图是否存在
-      const fs = await import('@tauri-apps/plugin-fs');
-      const mapExists = await fs.exists(config.testMapPath);
+      // 启动前先导出 Lua 文件（强制导出，不受"启用热重载"控制）
+      showMessage('info', '正在导出 Lua 文件...');
+      await getHotReloadExporter(config).export(project, true);
+      console.log('[热重载] 启动前导出完成');
       
-      // 如果地图不存在，先初始化
-      if (!mapExists) {
-        showMessage('info', '正在初始化模板地图...');
-        const targetPath = await invoke<string>('extract_template_map', {
-          war3Path: kkweInfo.war3Path,
-          mapName: 'test.1.27.w3x'
-        });
-        
-        // 更新测试地图路径
-        updateConfig({ testMapPath: targetPath });
-        showMessage('success', '模板地图初始化成功！');
-        
-        // 等待一下让用户看到消息
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      // 每次启动都重新释放模板地图，确保使用最新版本
+      showMessage('info', '正在更新模板地图...');
+      const targetPath = await invoke<string>('extract_template_map', {
+        war3Path: kkweInfo.war3Path,
+        mapName: 'test.1.27.w3x'
+      });
+      
+      // 更新测试地图路径
+      updateConfig({ testMapPath: targetPath });
+      console.log('[热重载] 模板地图已更新:', targetPath);
       
       // 启动游戏
       showMessage('info', '正在启动 War3...');
@@ -293,9 +299,9 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
         </label>
       </div>
       
-      {/* 防抖延迟 */}
-      <div className="config-section">
-        <label>
+      {/* 防抖延迟 + 手动导出按钮 */}
+      <div className="config-section" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
           <strong>防抖延迟 (ms):</strong>
           <input
             type="number"
@@ -304,8 +310,28 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
             min="0"
             max="5000"
             step="100"
+            style={{ width: '100px' }}
           />
         </label>
+        
+        {/* 手动导出按钮 */}
+        <button
+          className="btn-manual-export"
+          onClick={(e) => {
+            e.stopPropagation();
+            showMessage('info', '正在导出...');
+            getHotReloadExporter(config).export(project, true)
+              .then(() => {
+                showMessage('success', '✅ 导出成功！');
+              })
+              .catch(err => {
+                console.error('[热重载] 手动导出失败:', err);
+                showMessage('error', `导出失败: ${err}`);
+              });
+          }}
+        >
+          📝 手动导出
+        </button>
       </div>
       
       <hr />

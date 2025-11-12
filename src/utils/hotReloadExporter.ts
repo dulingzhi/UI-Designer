@@ -72,10 +72,13 @@ export class HotReloadExporter {
   
   /**
    * 导出项目为 Lua 文件 (包含加载器和UI内容)
+   * @param project 项目数据
+   * @param force 强制导出，忽略 enabled 配置（用于手动导出和启动游戏）
    */
-  async export(project: ProjectData): Promise<void> {
-    if (!this.config.enabled) {
-      console.log('[热重载] 已禁用，跳过导出');
+  async export(project: ProjectData, force: boolean = false): Promise<void> {
+    // 只有自动导出时才检查 enabled 配置
+    if (!force && !this.config.enabled) {
+      console.log('[热重载] 自动导出已禁用，跳过导出');
       return;
     }
     
@@ -87,24 +90,57 @@ export class HotReloadExporter {
     try {
       this.isExporting = true;
       
+      console.log(`[热重载] 开始导出 (${force ? '手动/启动' : '自动'})...`);
+      
+      // 确保目录存在
+      const outputDir = this.config.outputPath.substring(0, this.config.outputPath.lastIndexOf('\\'));
+      console.log(`[热重载] 确保目录存在: ${outputDir}`);
+      
+      try {
+        await mkdir(outputDir, { recursive: true });
+        console.log('[热重载] ✅ 目录已创建或已存在');
+      } catch (error) {
+        console.error('[热重载] 创建目录失败:', error);
+        throw new Error(`创建目录失败: ${error}`);
+      }
+      
       // 生成 UI 内容 Lua 代码
       console.log('[热重载] 开始生成 UI 内容...');
       const uiCode = exportProjectToLua(project);
       
       // 写入 UI 内容文件
       console.log(`[热重载] 写入 UI 内容: ${this.config.outputPath}`);
-      await writeTextFile(this.config.outputPath, uiCode);
-      console.log(`[热重载] ✅ UI 内容导出成功`);
+      try {
+        await writeTextFile(this.config.outputPath, uiCode);
+        console.log(`[热重载] ✅ UI 内容导出成功`);
+      } catch (error) {
+        console.error('[热重载] 写入 UI 内容失败:', error);
+        throw new Error(`写入 UI 内容失败: ${error}`);
+      }
       
       // 生成加载器脚本 (仅在加载器不存在时生成)
-      const fs = await import('@tauri-apps/plugin-fs');
-      const loaderExists = await fs.exists(this.config.loaderPath);
+      console.log('[热重载] 检查加载器是否存在:', this.config.loaderPath);
+      
+      let loaderExists = false;
+      try {
+        loaderExists = await exists(this.config.loaderPath);
+        console.log('[热重载] 加载器存在性检查结果:', loaderExists);
+      } catch (error) {
+        console.error('[热重载] 检查加载器存在性失败:', error);
+        console.log('[热重载] 跳过检查，直接生成加载器');
+        loaderExists = false;
+      }
       
       if (!loaderExists) {
         console.log('[热重载] 首次运行，生成加载器脚本...');
         const loaderCode = generateLoaderScript(project);
-        await writeTextFile(this.config.loaderPath, loaderCode);
-        console.log(`[热重载] ✅ 加载器脚本已生成: ${this.config.loaderPath}`);
+        try {
+          await writeTextFile(this.config.loaderPath, loaderCode);
+          console.log(`[热重载] ✅ 加载器脚本已生成: ${this.config.loaderPath}`);
+        } catch (error) {
+          console.error('[热重载] 写入加载器失败:', error);
+          throw new Error(`写入加载器失败: ${error}`);
+        }
       }
       
       console.log('[热重载] ✅ 导出完成');
