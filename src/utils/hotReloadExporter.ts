@@ -1,13 +1,14 @@
 // 热重载导出器 - 导出 Lua 文件并管理热重载流程
 
-import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { exportProjectToLua } from './luaGenerator';
+import { writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { exportProjectToLua, generateLoaderScript } from './luaGenerator';
 import { detectKKWE, launchMapWithKKWE } from './kkweDetector';
 import type { ProjectData } from '../types';
 
 export interface HotReloadConfig {
   enabled: boolean;
-  outputPath: string;        // 生成的 Lua 文件路径
+  outputPath: string;        // 生成的 UI 内容 Lua 文件路径
+  loaderPath: string;        // 加载器 Lua 文件路径
   testMapPath: string;       // 测试地图路径
   autoLaunch: boolean;       // 导出后自动启动游戏
   debounceMs: number;        // 防抖延迟
@@ -22,6 +23,7 @@ function getDefaultHotReloadConfig(): HotReloadConfig {
   const war3Path = localStorage.getItem('war3_install_path');
   
   let outputPath: string;
+  let loaderPath: string;
   let testMapPath: string;
   
   if (war3Path) {
@@ -29,18 +31,21 @@ function getDefaultHotReloadConfig(): HotReloadConfig {
     // 规范化路径，确保使用反斜杠
     const normalizedPath = war3Path.replace(/\//g, '\\').replace(/\\+$/, '');
     outputPath = `${normalizedPath}\\UI-Designer\\ui_generated.lua`;
+    loaderPath = `${normalizedPath}\\UI-Designer\\ui_loader.lua`;
     testMapPath = `${normalizedPath}\\Maps\\Test\\test.w3x`;
   } else {
     // War3 Reforged 路径 (默认文档目录)
     // 尝试从环境变量获取用户名，否则使用默认值
     const username = localStorage.getItem('system_username') || '81468';
     outputPath = `C:\\Users\\${username}\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua`;
+    loaderPath = `C:\\Users\\${username}\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_loader.lua`;
     testMapPath = `C:\\Users\\${username}\\Documents\\Warcraft III\\Maps\\Test\\test.w3x`;
   }
   
   return {
     enabled: false,
     outputPath,
+    loaderPath,
     testMapPath,
     autoLaunch: false,
     debounceMs: 500
@@ -66,7 +71,7 @@ export class HotReloadExporter {
   }
   
   /**
-   * 导出项目为 Lua 文件
+   * 导出项目为 Lua 文件 (包含加载器和UI内容)
    */
   async export(project: ProjectData): Promise<void> {
     if (!this.config.enabled) {
@@ -82,14 +87,27 @@ export class HotReloadExporter {
     try {
       this.isExporting = true;
       
-      // 生成 Lua 代码
-      console.log('[热重载] 开始生成 Lua 代码...');
-      const luaCode = exportProjectToLua(project);
+      // 生成 UI 内容 Lua 代码
+      console.log('[热重载] 开始生成 UI 内容...');
+      const uiCode = exportProjectToLua(project);
       
-      // 写入文件
-      console.log(`[热重载] 写入文件: ${this.config.outputPath}`);
-      await writeTextFile(this.config.outputPath, luaCode);
-      console.log(`[热重载] ✅ 导出成功: ${this.config.outputPath}`);
+      // 写入 UI 内容文件
+      console.log(`[热重载] 写入 UI 内容: ${this.config.outputPath}`);
+      await writeTextFile(this.config.outputPath, uiCode);
+      console.log(`[热重载] ✅ UI 内容导出成功`);
+      
+      // 生成加载器脚本 (仅在加载器不存在时生成)
+      const fs = await import('@tauri-apps/plugin-fs');
+      const loaderExists = await fs.exists(this.config.loaderPath);
+      
+      if (!loaderExists) {
+        console.log('[热重载] 首次运行，生成加载器脚本...');
+        const loaderCode = generateLoaderScript(project);
+        await writeTextFile(this.config.loaderPath, loaderCode);
+        console.log(`[热重载] ✅ 加载器脚本已生成: ${this.config.loaderPath}`);
+      }
+      
+      console.log('[热重载] ✅ 导出完成');
       
       // 自动启动游戏 (War3 1.27)
       if (this.config.autoLaunch) {

@@ -13,13 +13,29 @@ export class LuaUIGenerator {
   }
   
   /**
-   * 生成完整的 Lua 代码
+   * 生成完整的 Lua 代码 (仅 UI 内容)
    */
   generate(): string {
     const lines: string[] = [];
     
     // 文件头
     lines.push(this.generateHeader());
+    lines.push('');
+    
+    // Frame 创建函数
+    lines.push(this.generateCreateFramesFunction());
+    
+    return lines.join('\n');
+  }
+  
+  /**
+   * 生成加载器脚本 (固定内容，只需生成一次)
+   */
+  generateLoader(): string {
+    const lines: string[] = [];
+    
+    // 文件头
+    lines.push(this.generateLoaderHeader());
     lines.push('');
     
     // API 兼容层
@@ -40,10 +56,6 @@ export class LuaUIGenerator {
     lines.push(this.generateHelperFunctions());
     lines.push('');
     
-    // Frame 创建函数
-    lines.push(this.generateCreateFramesFunction());
-    lines.push('');
-    
     // 清理函数
     lines.push(this.generateCleanupFunction());
     lines.push('');
@@ -59,7 +71,7 @@ export class LuaUIGenerator {
   }
   
   /**
-   * 生成文件头
+   * 生成文件头 (UI内容)
    */
   private generateHeader(): string {
     const frameCount = Object.keys(this.project.frames).length;
@@ -73,13 +85,30 @@ export class LuaUIGenerator {
     });
     
     return `--===========================================================================
--- UI Designer - 自动生成的 Lua 代码
+-- UI Designer - UI内容脚本 (自动生成)
 -- 生成时间: ${date}
 -- 项目名称: ${this.project.libraryName || 'Untitled'}
 -- Origin模式: ${this.project.originMode || 'gameui'}
 -- 控件数量: ${frameCount} 个
 --===========================================================================
 -- ⚠️ 警告: 此文件由 UI Designer 自动生成，请勿手动修改！
+-- 此文件由 ui_loader.lua 加载，不要直接运行
+--===========================================================================`;
+  }
+  
+  /**
+   * 生成加载器文件头
+   */
+  private generateLoaderHeader(): string {
+    return `--===========================================================================
+-- UI Designer - 加载器脚本 (固定内容)
+-- 此文件负责：
+--   1. API兼容层初始化
+--   2. 注册 -reload / -rl 命令
+--   3. 清理和重载UI
+--   4. 加载 ui_generated.lua 中的UI内容
+--===========================================================================
+-- ⚠️ 注意: 此文件只需初始化一次，不要重复加载
 --===========================================================================`;
   }
   
@@ -259,6 +288,9 @@ local ANCHOR_MAP = {
 -- 辅助函数
 --===========================================================================
 
+-- Frame 计数器
+local UI_FrameCounter = 0
+
 -- 注册 Frame
 local function RegisterFrame(frame, name, frameType)
     UI_FrameCounter = UI_FrameCounter + 1
@@ -307,7 +339,15 @@ local function ParseColor(colorStr)
     end
     
     return nil
-end`;
+end
+
+-- 导出全局变量供 ui_generated.lua 使用
+_G.UI_Designer_API = API
+_G.UI_Designer_Frames = UI_Frames
+_G.UI_Designer_GetFrame = GetFrame
+_G.UI_Designer_RegisterFrame = RegisterFrame
+_G.UI_Designer_GetAnchor = GetAnchor
+_G.UI_Designer_ParseColor = ParseColor`;
   }
   
   /**
@@ -319,22 +359,36 @@ end`;
     lines.push('--===========================================================================');
     lines.push('-- 创建所有 Frame');
     lines.push('--===========================================================================');
-    lines.push('local function CreateAllFrames()');
-    lines.push('    local gameUI = API.GetGameUI()');
-    lines.push('');
     
     // 按根节点创建
     const rootFrames = this.project.rootFrameIds
       .map(id => this.project.frames[id])
       .filter(f => f);
     
+    if (rootFrames.length === 0) {
+      lines.push('-- 没有Frame需要创建');
+      lines.push('print("|cffffcc00[UI Designer]|r 警告: 项目中没有Frame")');
+      return lines.join('\n');
+    }
+    
+    lines.push('-- 获取全局变量 (由 ui_loader.lua 提供)');
+    lines.push('local API = _G.UI_Designer_API');
+    lines.push('local UI_Frames = _G.UI_Designer_Frames');
+    lines.push('local GetFrame = _G.UI_Designer_GetFrame');
+    lines.push('local RegisterFrame = _G.UI_Designer_RegisterFrame');
+    lines.push('local GetAnchor = _G.UI_Designer_GetAnchor');
+    lines.push('local ParseColor = _G.UI_Designer_ParseColor');
+    lines.push('');
+    lines.push('local gameUI = API.GetGameUI()');
+    lines.push('local frameCount = 0');
+    lines.push('');
+    
     for (const frame of rootFrames) {
-      lines.push(...this.generateFrameCode(frame, 1));
+      lines.push(...this.generateFrameCode(frame, 0));
     }
     
     lines.push('');
-    lines.push('    print(string.format("|cff00ff00[UI Designer]|r 创建完成: %d 个Frame", UI_FrameCounter))');
-    lines.push('end');
+    lines.push('print(string.format("|cff00ff00[UI Designer]|r 创建完成: %d 个Frame", frameCount))');
     
     return lines.join('\n');
   }
@@ -359,6 +413,7 @@ end`;
     const frameTypeName = this.getFrameTypeName(frame.type);
     lines.push(`${indent}    local frame = API.CreateFrameByType("${frameTypeName}", "${frameName}", ${parentRef}, "", 0)`);
     lines.push(`${indent}    RegisterFrame(frame, "${frameName}", "${frameTypeName}")`);
+    lines.push(`${indent}    frameCount = frameCount + 1`);
     lines.push('');
     
     // 设置位置和大小
@@ -481,7 +536,9 @@ local function CleanupAllFrames()
     for i = #UI_Frames, 1, -1 do
         local frameData = UI_Frames[i]
         if frameData and frameData.handle then
-            API.DestroyFrame(frameData.handle)
+            pcall(function()
+                API.DestroyFrame(frameData.handle)
+            end)
         end
         UI_Frames[i] = nil
     end
@@ -493,9 +550,8 @@ local function CleanupAllFrames()
         end
     end
     
-    UI_FrameCounter = 0
     collectgarbage()
-    print("|cff00ff00[UI Designer]|r 已清理所有 Frame")
+    print("|cff888888[UI Designer]|r 已清理所有 Frame")
 end`;
   }
   
@@ -503,6 +559,8 @@ end`;
    * 生成重载函数
    */
   private generateReloadFunction(): string {
+    const uiGeneratedPath = 'UI-Designer\\\\ui_generated.lua';
+    
     return `--===========================================================================
 -- 重载 UI
 --===========================================================================
@@ -512,11 +570,18 @@ local function ReloadUI()
     -- 清理旧 UI
     CleanupAllFrames()
     
-    -- 重新创建
-    CreateAllFrames()
+    -- 重新加载 UI 内容脚本
+    local success, err = pcall(function()
+        dofile("${uiGeneratedPath}")
+    end)
     
-    local elapsed = (os.clock() - startTime) * 1000
-    print(string.format("|cff00ff00[UI Designer]|r UI已重载 (%.1fms, %d个Frame)", elapsed, UI_FrameCounter))
+    if success then
+        local elapsed = (os.clock() - startTime) * 1000
+        print(string.format("|cff00ff00[UI Designer]|r UI已重载 (%.1fms)", elapsed))
+    else
+        print("|cffff0000[UI Designer]|r UI重载失败:")
+        print("|cffff0000" .. tostring(err) .. "|r")
+    end
 end`;
   }
   
@@ -524,24 +589,35 @@ end`;
    * 生成初始化函数
    */
   private generateInitFunction(): string {
+    const uiGeneratedPath = 'UI-Designer\\\\ui_generated.lua';
+    
     return `--===========================================================================
--- 初始化 (由外部调用)
+-- 初始化 (由地图触发器调用)
 --===========================================================================
 function InitUIDesigner()
+    print("|cff00ffff" .. string.rep("=", 60) .. "|r")
+    print("|cffffcc00           UI Designer - 动态UI系统 v1.0              |r")
+    print("|cff00ffff" .. string.rep("=", 60) .. "|r")
+    
     -- 注册重载命令
     local t = CreateTrigger()
     TriggerRegisterPlayerChatEvent(t, Player(0), "-reload", true)
     TriggerRegisterPlayerChatEvent(t, Player(0), "-rl", true)
     TriggerAddAction(t, ReloadUI)
+    print("|cff00ff00[UI Designer]|r 命令: -reload 或 -rl  刷新UI")
     
-    -- 首次创建
-    CreateAllFrames()
+    -- 首次加载 UI
+    local success, err = pcall(function()
+        dofile("${uiGeneratedPath}")
+    end)
     
-    -- 显示欢迎信息
-    print("|cff00ffff" .. string.rep("=", 60) .. "|r")
-    print("|cffffcc00           UI Designer - 动态UI系统 v1.0              |r")
-    print("|cff00ff00  命令: -reload 或 -rl  刷新UI                       |r")
-    print("|cffaaaaaa  项目: ${this.project.libraryName || 'Untitled'}                                     |r")
+    if success then
+        print("|cff00ff00[UI Designer]|r UI加载成功")
+    else
+        print("|cffff0000[UI Designer]|r UI加载失败:")
+        print("|cffff0000" .. tostring(err) .. "|r")
+    end
+    
     print("|cff00ffff" .. string.rep("=", 60) .. "|r")
 end
 
@@ -568,9 +644,17 @@ return {
 }
 
 /**
- * 导出函数
+ * 导出函数 - 生成 UI 内容脚本
  */
 export function exportProjectToLua(project: ProjectData): string {
   const generator = new LuaUIGenerator(project);
   return generator.generate();
+}
+
+/**
+ * 生成加载器脚本 (固定内容)
+ */
+export function generateLoaderScript(project: ProjectData): string {
+  const generator = new LuaUIGenerator(project);
+  return generator.generateLoader();
 }
