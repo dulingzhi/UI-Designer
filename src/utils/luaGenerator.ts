@@ -123,10 +123,21 @@ local API = {}
 
 -- 尝试加载 DzAPI (War3 1.27 - 需要 require)
 local japi_loaded, japi = pcall(require, 'jass.japi')
+local common_loaded, common = pcall(require, 'jass.common')
 
 if japi_loaded and japi and japi.DzCreateFrame then
     -- War3 1.27 + DzAPI (通过 require 加载)
     print("|cff00ff00[UI Designer]|r 检测到 DzAPI (War3 1.27 + KKWE)")
+    
+    -- 导入 JASS Common 函数
+    if common_loaded and common then
+        CreateTrigger = common.CreateTrigger
+        TriggerRegisterPlayerChatEvent = common.TriggerRegisterPlayerChatEvent
+        TriggerAddAction = common.TriggerAddAction
+        Player = common.Player
+    else
+        print("|cffffcc00[UI Designer]|r 警告: 无法加载 jass.common")
+    end
     
     API.CreateFrame = function(frameType, name, parent, template, id)
         return japi.DzCreateFrame(frameType, parent or API.GetGameUI(), id or 0)
@@ -572,7 +583,7 @@ local function ReloadUI()
     
     -- 重新加载 UI 内容脚本
     local success, err = pcall(function()
-        dofile("${uiGeneratedPath}")
+        require("${uiGeneratedPath}")
     end)
     
     if success then
@@ -588,46 +599,39 @@ end`;
   /**
    * 生成初始化函数
    */
+  /**
+   * 生成初始化函数
+   */
   private generateInitFunction(): string {
-    const uiGeneratedPath = 'UI-Designer\\\\ui_generated.lua';
+    const uiGeneratedPath = 'UI-Designer\\\\ui_generated';
     
     return `--===========================================================================
--- 初始化 (由地图触发器调用)
+-- 初始化
 --===========================================================================
-function InitUIDesigner()
-    print("|cff00ffff" .. string.rep("=", 60) .. "|r")
-    print("|cffffcc00           UI Designer - 动态UI系统 v1.0              |r")
-    print("|cff00ffff" .. string.rep("=", 60) .. "|r")
-    
-    -- 注册重载命令
-    local t = CreateTrigger()
-    TriggerRegisterPlayerChatEvent(t, Player(0), "-reload", true)
-    TriggerRegisterPlayerChatEvent(t, Player(0), "-rl", true)
-    TriggerAddAction(t, ReloadUI)
-    print("|cff00ff00[UI Designer]|r 命令: -reload 或 -rl  刷新UI")
-    
-    -- 首次加载 UI
-    local success, err = pcall(function()
-        dofile("${uiGeneratedPath}")
-    end)
-    
-    if success then
-        print("|cff00ff00[UI Designer]|r UI加载成功")
-    else
-        print("|cffff0000[UI Designer]|r UI加载失败:")
-        print("|cffff0000" .. tostring(err) .. "|r")
-    end
-    
-    print("|cff00ffff" .. string.rep("=", 60) .. "|r")
+print("|cff00ffff" .. string.rep("=", 60) .. "|r")
+print("|cffffcc00           UI Designer - 动态UI系统 v1.0              |r")
+print("|cff00ffff" .. string.rep("=", 60) .. "|r")
+
+-- 注册重载命令
+local t = CreateTrigger()
+TriggerRegisterPlayerChatEvent(t, Player(0), "-reload", true)
+TriggerRegisterPlayerChatEvent(t, Player(0), "-rl", true)
+TriggerAddAction(t, ReloadUI)
+print("|cff00ff00[UI Designer]|r 命令: -reload 或 -rl  刷新UI")
+
+-- 首次加载 UI
+local success, err = pcall(function()
+    require("${uiGeneratedPath}")
+end)
+
+if success then
+    print("|cff00ff00[UI Designer]|r UI加载成功")
+else
+    print("|cffff0000[UI Designer]|r UI加载失败:")
+    print("|cffff0000" .. tostring(err) .. "|r")
 end
 
--- 返回模块（可选）
-return {
-    Init = InitUIDesigner,
-    Reload = ReloadUI,
-    Cleanup = CleanupAllFrames,
-    GetFrame = GetFrame
-}`;
+print("|cff00ffff" .. string.rep("=", 60) .. "|r")`;
   }
   
   /**

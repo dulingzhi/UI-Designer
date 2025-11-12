@@ -1,6 +1,6 @@
 // 热重载导出器 - 导出 Lua 文件并管理热重载流程
 
-import { writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
 import { exportProjectToLua, generateLoaderScript } from './luaGenerator';
 import { detectKKWE, launchMapWithKKWE } from './kkweDetector';
 import type { ProjectData } from '../types';
@@ -118,29 +118,15 @@ export class HotReloadExporter {
         throw new Error(`写入 UI 内容失败: ${error}`);
       }
       
-      // 生成加载器脚本 (仅在加载器不存在时生成)
-      console.log('[热重载] 检查加载器是否存在:', this.config.loaderPath);
-      
-      let loaderExists = false;
+      // 生成加载器脚本 (每次都重新生成，确保使用最新版本)
+      console.log('[热重载] 生成加载器脚本...');
+      const loaderCode = generateLoaderScript(project);
       try {
-        loaderExists = await exists(this.config.loaderPath);
-        console.log('[热重载] 加载器存在性检查结果:', loaderExists);
+        await writeTextFile(this.config.loaderPath, loaderCode);
+        console.log(`[热重载] ✅ 加载器脚本已生成: ${this.config.loaderPath}`);
       } catch (error) {
-        console.error('[热重载] 检查加载器存在性失败:', error);
-        console.log('[热重载] 跳过检查，直接生成加载器');
-        loaderExists = false;
-      }
-      
-      if (!loaderExists) {
-        console.log('[热重载] 首次运行，生成加载器脚本...');
-        const loaderCode = generateLoaderScript(project);
-        try {
-          await writeTextFile(this.config.loaderPath, loaderCode);
-          console.log(`[热重载] ✅ 加载器脚本已生成: ${this.config.loaderPath}`);
-        } catch (error) {
-          console.error('[热重载] 写入加载器失败:', error);
-          throw new Error(`写入加载器失败: ${error}`);
-        }
+        console.error('[热重载] 写入加载器失败:', error);
+        throw new Error(`写入加载器失败: ${error}`);
       }
       
       console.log('[热重载] ✅ 导出完成');
