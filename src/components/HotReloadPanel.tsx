@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { detectKKWE, launchMapWithKKWE, type KKWEInfo } from '../utils/kkweDetector';
 import { getHotReloadExporter, DEFAULT_HOT_RELOAD_CONFIG, type HotReloadConfig } from '../utils/hotReloadExporter';
+import { useProjectStore } from '../store/projectStore';
 import './HotReloadPanel.css';
 
 interface HotReloadPanelProps {
@@ -15,6 +16,9 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
   const [config, setConfig] = useState<HotReloadConfig>(DEFAULT_HOT_RELOAD_CONFIG);
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
+  
+  // 获取当前项目
+  const { project } = useProjectStore();
   
   // 拖拽状态
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -137,6 +141,17 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
     
     // 保存到本地存储
     localStorage.setItem('hotReloadConfig', JSON.stringify(newConfig));
+    
+    // 如果是首次启用热重载，立即导出一次
+    if (updates.enabled === true && !config.enabled) {
+      console.log('[热重载] 首次启用，立即导出...');
+      setTimeout(() => {
+        getHotReloadExporter(newConfig).export(project).catch(err => {
+          console.error('[热重载] 首次导出失败:', err);
+          showMessage('error', `导出失败: ${err}`);
+        });
+      }, 100);
+    }
   };
   
   // 初始化并启动测试
