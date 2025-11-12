@@ -210,6 +210,59 @@ if japi_loaded and japi and japi.DzCreateFrame then
     API.GetColor = function(a, r, g, b)
         return japi.DzGetColor(a, r, g, b)
     end
+    
+    -- 额外的 Frame API
+    API.SetFont = function(frame, font, height, flags)
+        return japi.DzFrameSetFont(frame, font, height, flags or 0)
+    end
+    
+    API.SetTextAlignment = function(frame, align)
+        return japi.DzFrameSetTextAlignment(frame, align)
+    end
+    
+    API.SetAllPoints = function(frame, relativeFrame)
+        return japi.DzFrameSetAllPoints(frame, relativeFrame)
+    end
+    
+    API.ClearAllPoints = function(frame)
+        return japi.DzFrameClearAllPoints(frame)
+    end
+    
+    API.SetEnable = function(frame, enable)
+        return japi.DzFrameSetEnable(frame, enable)
+    end
+    
+    API.GetEnable = function(frame)
+        return japi.DzFrameGetEnable(frame)
+    end
+    
+    API.SetTooltip = function(frame, tooltip)
+        return japi.DzFrameSetTooltip(frame, tooltip)
+    end
+    
+    API.SetTextSizeLimit = function(frame, size)
+        return japi.DzFrameSetTextSizeLimit(frame, size)
+    end
+    
+    API.GetText = function(frame)
+        return japi.DzFrameGetText(frame)
+    end
+    
+    API.SetFocus = function(frame, enable)
+        return japi.DzFrameSetFocus(frame, enable)
+    end
+    
+    API.GetHeight = function(frame)
+        return japi.DzFrameGetHeight(frame)
+    end
+    
+    API.GetWidth = function(frame)
+        return japi.DzFrameGetWidth(frame)
+    end
+    
+    API.SetPriority = function(frame, priority)
+        return japi.DzFrameSetPriority(frame, priority)
+    end
 
 elseif BlzCreateFrame then
     -- War3 Reforged (原生 API)
@@ -247,6 +300,21 @@ elseif BlzCreateFrame then
     API.GetColor = function(a, r, g, b)
         return (a << 24) | (r << 16) | (g << 8) | b
     end
+    
+    -- 额外的 Frame API
+    API.SetFont = BlzFrameSetFont
+    API.SetTextAlignment = BlzFrameSetTextAlignment
+    API.SetAllPoints = BlzFrameSetAllPoints
+    API.ClearAllPoints = BlzFrameClearAllPoints
+    API.SetEnable = BlzFrameSetEnable
+    API.GetEnable = BlzFrameGetEnable
+    API.SetTooltip = BlzFrameSetTooltip
+    API.SetTextSizeLimit = BlzFrameSetTextSizeLimit
+    API.GetText = BlzFrameGetText
+    API.SetFocus = BlzFrameSetFocus
+    API.GetHeight = BlzFrameGetHeight
+    API.GetWidth = BlzFrameGetWidth
+    API.SetPriority = BlzFrameSetLevel
     
 else
     -- 无 UI API 支持
