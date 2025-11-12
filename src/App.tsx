@@ -117,6 +117,37 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleDebugToggle);
   }, []);
 
+  // 视图面板快捷键 (Ctrl+3/4/5)
+  React.useEffect(() => {
+    const handleViewToggle = (e: KeyboardEvent) => {
+      // 忽略在输入框中的按键
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
+      }
+
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        switch (e.key) {
+          case '3':
+            e.preventDefault();
+            setShowStylePresetPanel(prev => !prev);
+            break;
+          case '4':
+            e.preventDefault();
+            setShowFrameGroupPanel(prev => !prev);
+            break;
+          case '5':
+            e.preventDefault();
+            setShowHotReloadPanel(prev => !prev);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleViewToggle);
+    return () => window.removeEventListener('keydown', handleViewToggle);
+  }, []);
+
   // 实时更新调试面板数据
   React.useEffect(() => {
     if (!showDebugPanel) return;
@@ -187,7 +218,7 @@ function AppContent() {
         {showPropertiesPanel && <PropertiesPanel onClose={() => setShowPropertiesPanel(false)} />}
         {showStylePresetPanel && <StylePresetPanel onClose={() => setShowStylePresetPanel(false)} />}
         {showFrameGroupPanel && <FrameGroupPanel onClose={() => setShowFrameGroupPanel(false)} />}
-        {showHotReloadPanel && <HotReloadPanel />}
+        {showHotReloadPanel && <HotReloadPanel onClose={() => setShowHotReloadPanel(false)} />}
         <SidePanel />
       </div>
 

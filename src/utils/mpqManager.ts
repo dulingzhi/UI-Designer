@@ -96,6 +96,13 @@ export class MPQManager {
   }
   
   /**
+   * 获取当前 War3 路径
+   */
+  getWar3Path(): string {
+    return this.war3Path;
+  }
+  
+  /**
    * 选择 Warcraft 3 安装目录
    */
   async selectWar3Directory(): Promise<string | null> {

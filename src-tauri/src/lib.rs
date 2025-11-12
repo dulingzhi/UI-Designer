@@ -192,6 +192,42 @@ fn launch_kkwe(launcher_path: String, map_path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 复制内置模板地图到War3目录
+#[tauri::command]
+fn extract_template_map(_app_handle: tauri::AppHandle, war3_path: String, map_name: String) -> Result<String, String> {
+    use std::fs;
+    use std::path::Path;
+    
+    // 检查是否是支持的模板地图
+    if map_name != "test.1.27.w3x" {
+        return Err(format!("不支持的模板地图: {}", map_name));
+    }
+    
+    // 嵌入的模板地图数据 (编译时包含)
+    const TEMPLATE_MAP_DATA: &[u8] = include_bytes!("../../public/maps/test.1.27.w3x");
+    
+    println!("[模板地图] 使用嵌入的地图数据，大小: {} 字节", TEMPLATE_MAP_DATA.len());
+    
+    // 目标路径: War3目录/Maps/Test/
+    let target_dir = Path::new(&war3_path).join("Maps").join("Test");
+    
+    // 创建目标目录
+    fs::create_dir_all(&target_dir)
+        .map_err(|e| format!("创建目标目录失败: {}", e))?;
+    
+    // 目标文件路径
+    let target_file = target_dir.join("test.w3x");
+    
+    // 写入文件
+    fs::write(&target_file, TEMPLATE_MAP_DATA)
+        .map_err(|e| format!("写入地图文件失败: {}", e))?;
+    
+    println!("[模板地图] 已释放到: {:?}", target_file);
+    
+    // 返回目标文件路径
+    Ok(target_file.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -212,7 +248,8 @@ pub fn run() {
             parse_mdx_from_mpq,
             parse_mdx_from_file,
             get_username,
-            launch_kkwe
+            launch_kkwe,
+            extract_template_map
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

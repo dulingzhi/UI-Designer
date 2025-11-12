@@ -2,6 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { exists } from '@tauri-apps/plugin-fs';
+import { mpqManager } from './mpqManager';
 
 export interface KKWEInfo {
   installed: boolean;
@@ -30,14 +31,14 @@ export async function detectKKWE(): Promise<KKWEInfo> {
       return { installed: false };
     }
     
-    // TODO: 尝试读取 KKWE 配置获取 War3 路径
-    // const configPath = `${kkweBasePath}\\plugin\\warcraft3\\config.ini`;
+    // 从 MPQManager 获取 War3 路径
+    const war3Path = mpqManager.getWar3Path();
     
     return {
       installed: true,
       kkwePath,
       launcherPath,
-      war3Path: undefined // 暂时未实现配置读取
+      war3Path: war3Path || undefined
     };
   } catch (error) {
     console.error('[KKWE] 检测失败:', error);
