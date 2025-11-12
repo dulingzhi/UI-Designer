@@ -305,7 +305,6 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
               // War3 1.27 版本
               <ul style={{ marginTop: '4px', marginLeft: '20px', fontSize: '0.9em' }}>
                 <li><strong>War3 1.27</strong>
-                  <br/>加载器: <code>{config.loaderPath}</code>
                   <br/>UI内容: <code>{config.outputPath}</code>
                   <br/>地图: <code>{config.testMapPath}</code>
                 </li>
@@ -314,7 +313,6 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
               // Reforged 版本
               <ul style={{ marginTop: '4px', marginLeft: '20px', fontSize: '0.9em' }}>
                 <li><strong>War3 Reforged</strong>
-                  <br/>加载器: <code>{config.loaderPath}</code>
                   <br/>UI内容: <code>{config.outputPath}</code>
                   <br/>地图: <code>{config.testMapPath}</code>
                 </li>
@@ -322,8 +320,7 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
             )}
           </li>
           <li>点击下方 "🚀 初始化并启动测试" 按钮，首次使用会自动释放内置模板地图</li>
-          <li>编辑器会自动生成加载器脚本 (<code>ui_loader.lua</code>) 和UI内容脚本 (<code>ui_generated.lua</code>)</li>
-          <li>地图触发器中执行: <code>dofile("UI-Designer\\ui_loader.lua")</code></li>
+          <li>启用热重载后，编辑器会自动导出 Lua 文件</li>
           <li>游戏内输入 <code>-reload</code> 或 <code>-rl</code> 刷新 UI</li>
         </ol>
       </div>
