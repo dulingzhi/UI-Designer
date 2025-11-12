@@ -189,3 +189,11 @@ export const TextureBrowserIcon: React.FC<IconProps> = ({ size = 16, color = 'cu
     <circle cx="10" cy="9.5" r="0.8" fill={color}/>
   </svg>
 );
+
+// 启动游戏图标 (Play/游戏手柄)
+export const LaunchGameIcon: React.FC<IconProps> = ({ size = 16, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+    <path d="M5 4L11 8L5 12V4Z" fill={color} stroke={color} strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="8" cy="8" r="6.5" stroke={color}/>
+  </svg>
+);

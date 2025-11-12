@@ -900,6 +900,7 @@ TriggerRegisterPlayerChatEvent(t, Player(0), "-reload", true)
 TriggerRegisterPlayerChatEvent(t, Player(0), "-rl", true)
 TriggerAddAction(t, ReloadUI)
 print("|cff00ff00[UI Designer]|r 命令: -reload 或 -rl  刷新UI")
+_G.UI_Designer_ReloadUI = ReloadUI
 
 -- 首次加载 UI
 local success, err = pcall(function()

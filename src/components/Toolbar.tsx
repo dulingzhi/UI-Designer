@@ -13,6 +13,8 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useAlert } from '../hooks/useAlert';
 import { WC3TextureBrowser } from './WC3TextureBrowser';
 import { RaceSwitcher } from './RaceSwitcher';
+import { detectKKWE, launchMapWithKKWE, type KKWEInfo } from '../utils/kkweDetector';
+import { HotReloadExporter } from '../utils/hotReloadExporter';
 import {
   NewFileIcon, OpenFileIcon, SaveIcon,
   UndoIcon, RedoIcon,
@@ -21,7 +23,7 @@ import {
   DistributeHIcon, DistributeVIcon,
   SameWidthIcon, SameHeightIcon, SameSizeIcon,
   BringToFrontIcon, BringForwardIcon, SendBackwardIcon, SendToBackIcon,
-  ExportIcon, HelpIcon, TextureBrowserIcon,
+  ExportIcon, HelpIcon, TextureBrowserIcon, LaunchGameIcon,
 } from './icons/ToolbarIcons';
 import './Toolbar.css';
 
@@ -36,6 +38,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
   const [showTextureBrowser, setShowTextureBrowser] = React.useState(false);
   const [showNewProjectConfirm, setShowNewProjectConfirm] = React.useState(false);
+  const [isLaunching, setIsLaunching] = React.useState(false);
   const { showAlert, AlertComponent } = useAlert();
 
   // 监听 F1 快捷键事件
@@ -125,6 +128,55 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       }
     } catch (error) {
       showAlert({ title: '错误', message: '导出失败: ' + error, type: 'danger' });
+    }
+  };
+
+  // 启动War3测试
+  const handleLaunchWar3 = async () => {
+    if (isLaunching) return;
+    
+    try {
+      setIsLaunching(true);
+      showAlert({ title: '提示', message: '正在检测 KKWE 环境...', type: 'info' });
+
+      // 检测 KKWE
+      const kkweInfo: KKWEInfo | null = await detectKKWE();
+      if (!kkweInfo) {
+        showAlert({ 
+          title: '错误', 
+          message: '未检测到 KKWE 环境！\n请确保已安装 KKWE 并正确配置 War3 路径。', 
+          type: 'danger' 
+        });
+        return;
+      }
+
+      // 获取热重载配置
+      const hotReloadConfigStr = localStorage.getItem('hotReloadConfig');
+      if (!hotReloadConfigStr) {
+        showAlert({ 
+          title: '错误', 
+          message: '未找到热重载配置！\n请先打开"热重载"面板进行配置。', 
+          type: 'danger' 
+        });
+        return;
+      }
+
+      const config = JSON.parse(hotReloadConfigStr);
+      
+      // 导出Lua文件
+      showAlert({ title: '提示', message: '正在导出 Lua 脚本...', type: 'info' });
+      const exporter = new HotReloadExporter(config);
+      await exporter.export(project, true);
+
+      // 启动War3
+      showAlert({ title: '提示', message: '正在启动 War3...', type: 'info' });
+      await launchMapWithKKWE(config.testMapPath, kkweInfo);
+      showAlert({ title: '成功', message: 'War3 启动成功！', type: 'info' });
+    } catch (error) {
+      console.error('启动War3失败:', error);
+      showAlert({ title: '错误', message: '启动失败: ' + error, type: 'danger' });
+    } finally {
+      setIsLaunching(false);
     }
   };
 
@@ -420,6 +472,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
         </button>
         <button className="toolbar-btn-text" onClick={() => handleExport('ts')} title="导出为 TypeScript">
           <ExportIcon /> TS
+        </button>
+      </div>
+
+      {/* 启动测试 */}
+      <div className="toolbar-group">
+        <button 
+          className="toolbar-btn-icon" 
+          onClick={handleLaunchWar3}
+          disabled={isLaunching}
+          title="启动 War3 测试 (自动导出Lua并启动)"
+          style={{ color: isLaunching ? '#888' : '#4CAF50' }}
+        >
+          <LaunchGameIcon size={18} />
         </button>
       </div>
 
