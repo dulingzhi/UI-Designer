@@ -1,6 +1,7 @@
 import React from 'react';
 import { FrameData, FrameAnchor, FramePoint } from '../types';
 import { calculatePositionFromAnchors } from '../utils/anchorUtils';
+import { WC3_MAX_X, WC3_MAX_Y } from '../constants';
 
 interface AnchorVisualizerProps {
   frames: Record<string, FrameData>;
@@ -13,8 +14,8 @@ interface AnchorVisualizerProps {
 // 将 WC3 坐标转换为画布像素坐标
 const wc3ToCanvas = (wc3X: number, wc3Y: number, canvasWidth: number, canvasHeight: number, margin: number) => {
   const effectiveWidth = canvasWidth - 2 * margin;
-  const x = margin + (wc3X / 0.8) * effectiveWidth;
-  const y = canvasHeight - (wc3Y / 0.6) * canvasHeight;
+  const x = margin + (wc3X / WC3_MAX_X) * effectiveWidth;
+  const y = canvasHeight - (wc3Y / WC3_MAX_Y) * canvasHeight;
   return { x, y };
 };
 
@@ -70,8 +71,8 @@ export const AnchorVisualizer: React.FC<AnchorVisualizerProps> = ({
     canvasHeight,
     margin
   );
-  const framePixelWidth = (actualWidth / 0.8) * (canvasWidth - 2 * margin);
-  const framePixelHeight = (actualHeight / 0.6) * canvasHeight;
+  const framePixelWidth = (actualWidth / WC3_MAX_X) * (canvasWidth - 2 * margin);
+  const framePixelHeight = (actualHeight / WC3_MAX_Y) * canvasHeight;
 
   return (
     <svg
@@ -153,8 +154,8 @@ export const AnchorVisualizer: React.FC<AnchorVisualizerProps> = ({
               canvasHeight,
               margin
             );
-            const targetPixelWidth = (targetActualWidth / 0.8) * (canvasWidth - 2 * margin);
-            const targetPixelHeight = (targetActualHeight / 0.6) * canvasHeight;
+            const targetPixelWidth = (targetActualWidth / WC3_MAX_X) * (canvasWidth - 2 * margin);
+            const targetPixelHeight = (targetActualHeight / WC3_MAX_Y) * canvasHeight;
 
             const targetAnchorOffset = getAnchorOffset(
               anchor.relativePoint,

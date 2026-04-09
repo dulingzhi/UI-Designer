@@ -15,11 +15,12 @@ import { BackdropEdge } from './BackdropEdge';
 import { useTextureLoaderBatch } from '../hooks/useTextureLoader';
 import { ModelViewer } from './ModelViewer';
 import { useProjectContext } from '../contexts/ProjectContext';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_MARGIN, WC3_MAX_X, WC3_MAX_Y } from '../constants';
+import { pixelToWc3X, pixelToWc3Y, pixelDeltaToWc3X, pixelDeltaToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
 import './Canvas.css';
 
-const CANVAS_WIDTH = 1920;
-const CANVAS_HEIGHT = 1080;
-const MARGIN = 240; // 4:3区域边距
+// 保留旧名兼容: MARGIN -> CANVAS_MARGIN
+const MARGIN = CANVAS_MARGIN;
 
 // BackdropBackground 内部组件 - 避免 IIFE 导致的渲染问题
 const BackdropBackground: React.FC<{
@@ -33,16 +34,16 @@ const BackdropBackground: React.FC<{
 }> = ({ frame, textureMap, isSelected, canvasWidth, canvasHeight, margin, resolveTexturePath }) => {
 
   const leftInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[0] / 0.8) * (canvasWidth - 2 * margin)
+    ? (frame.backdropBackgroundInsets[0] / WC3_MAX_X) * (canvasWidth - 2 * margin)
     : 0;
   const topInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[1] / 0.6) * canvasHeight
+    ? (frame.backdropBackgroundInsets[1] / WC3_MAX_Y) * canvasHeight
     : 0;
   const rightInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[2] / 0.8) * (canvasWidth - 2 * margin)
+    ? (frame.backdropBackgroundInsets[2] / WC3_MAX_X) * (canvasWidth - 2 * margin)
     : 0;
   const bottomInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[3] / 0.6) * canvasHeight
+    ? (frame.backdropBackgroundInsets[3] / WC3_MAX_Y) * canvasHeight
     : 0;
   
   const resolvedBackdropPath = resolveTexturePath(frame.backdropBackground);
@@ -60,7 +61,7 @@ const BackdropBackground: React.FC<{
         backgroundImage: bgImage,
         backgroundSize: frame.backdropTileBackground 
           ? (frame.backdropBackgroundSize 
-              ? `${(frame.backdropBackgroundSize / 0.8) * (canvasWidth - 2 * margin)}px` 
+              ? `${(frame.backdropBackgroundSize / WC3_MAX_X) * (canvasWidth - 2 * margin)}px` 
               : 'auto')
           : 'cover',
         backgroundRepeat: frame.backdropTileBackground ? 'repeat' : 'no-repeat',
@@ -329,8 +330,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     if (canvasBounds) {
       const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
       const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
-      const mouseWc3X = ((mouseX - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
-      const mouseWc3Y = (mouseY / CANVAS_HEIGHT) * 0.6;
+      const mouseWc3X = pixelToWc3X(mouseX);
+      const mouseWc3Y = pixelToWc3Y(mouseY);
       
       setMousePosition({
         x: e.clientX,
@@ -372,8 +373,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
 
       // 转换为魔兽坐标 (0-0.8, 0-0.6)
-      const mouseWc3X = ((mouseX - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
-      const mouseWc3Y = (mouseY / CANVAS_HEIGHT) * 0.6;
+      const mouseWc3X = pixelToWc3X(mouseX);
+      const mouseWc3Y = pixelToWc3Y(mouseY);
 
       // 检查是否有相对锚点
       const hasRelativeAnchors = frame.anchors?.some(a => a.relativeTo);
@@ -439,8 +440,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         });
       } else {
         // 没有相对锚点：更新绝对位置
-        let newX = Math.max(0, Math.min(0.8 - frame.width, mouseWc3X - dragOffset.x));
-        let newY = Math.max(0, Math.min(0.6 - frame.height, mouseWc3Y - dragOffset.y));
+        let newX = Math.max(0, Math.min(WC3_MAX_X - frame.width, mouseWc3X - dragOffset.x));
+        let newY = Math.max(0, Math.min(WC3_MAX_Y - frame.height, mouseWc3Y - dragOffset.y));
         
         // 网格吸附
         if (snapToGrid) {
@@ -500,8 +501,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       const deltaY = (e.clientY - resizeStartPos.y) / scale;
 
       // 转换为魔兽坐标增量
-      const deltaWc3X = (deltaX / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
-      const deltaWc3Y = -(deltaY / CANVAS_HEIGHT) * 0.6;
+      const deltaWc3X = pixelDeltaToWc3X(deltaX);
+      const deltaWc3Y = -pixelDeltaToWc3Y(deltaY);
 
       let newX = resizeStartSize.x;
       let newY = resizeStartSize.y;
@@ -539,10 +540,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       }
 
       // 边界限制
-      newX = Math.max(0, Math.min(0.8 - newWidth, newX));
-      newY = Math.max(0, Math.min(0.6 - newHeight, newY));
-      newWidth = Math.max(0.01, Math.min(0.8 - newX, newWidth));
-      newHeight = Math.max(0.01, Math.min(0.6 - newY, newHeight));
+      newX = Math.max(0, Math.min(WC3_MAX_X - newWidth, newX));
+      newY = Math.max(0, Math.min(WC3_MAX_Y - newHeight, newY));
+      newWidth = Math.max(0.01, Math.min(WC3_MAX_X - newX, newWidth));
+      newHeight = Math.max(0.01, Math.min(WC3_MAX_Y - newY, newHeight));
 
       // 网格吸附
       if (snapToGrid) {
@@ -726,10 +727,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
           const actualFrame = calculatedPos ? { ...frame, ...calculatedPos } : frame;
           
-          const frameLeft = (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN;
-          const frameBottom = (actualFrame.y / 0.6) * CANVAS_HEIGHT;
-          const frameWidth = (actualFrame.width / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
-          const frameHeight = (actualFrame.height / 0.6) * CANVAS_HEIGHT;
+          const frameLeft = wc3ToPixelX(actualFrame.x);
+          const frameBottom = wc3ToPixelYBottom(actualFrame.y);
+          const frameWidth = wc3ToPixelW(actualFrame.width);
+          const frameHeight = wc3ToPixelH(actualFrame.height);
           
           // 转换为从顶部计算的Y坐标（与框选坐标系一致）
           const frameTop = CANVAS_HEIGHT - (frameBottom + frameHeight);
@@ -883,8 +884,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       // 计算鼠标在画布上的位置（魔兽坐标）
       const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
       const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
-      const mouseWc3X = ((mouseX - MARGIN) / (CANVAS_WIDTH - 2 * MARGIN)) * 0.8;
-      const mouseWc3Y = (mouseY / CANVAS_HEIGHT) * 0.6;
+      const mouseWc3X = pixelToWc3X(mouseX);
+      const mouseWc3Y = pixelToWc3Y(mouseY);
 
       // 获取控件的实际位置（考虑相对锚点）
       const hasRelativeAnchors = frame.anchors?.some(a => a.relativeTo);
@@ -983,10 +984,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       : frame;
     
     // 计算实际位置（从底部左侧开始）
-    const left = (actualFrame.x / 0.8) * (CANVAS_WIDTH - 2 * MARGIN) + MARGIN;
-    const bottom = (actualFrame.y / 0.6) * CANVAS_HEIGHT;
-    const width = (actualFrame.width / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
-    const height = (actualFrame.height / 0.6) * CANVAS_HEIGHT;
+    const left = wc3ToPixelX(actualFrame.x);
+    const bottom = wc3ToPixelYBottom(actualFrame.y);
+    const width = wc3ToPixelW(actualFrame.width);
+    const height = wc3ToPixelH(actualFrame.height);
 
     // 检查控件或父控件是否锁定
     const isLockedOrParentLocked = isFrameOrParentLocked(frameId);
@@ -1440,7 +1441,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             >
               {/* 垂直网格线 - 每0.05单位（相当于画布宽度的6.25%） */}
               {Array.from({ length: 16 }, (_, i) => i + 1).map(i => {
-                const x = ((i * 0.05) / 0.8) * (CANVAS_WIDTH - 2 * MARGIN);
+                const x = ((i * 0.05) / WC3_MAX_X) * (CANVAS_WIDTH - 2 * MARGIN);
                 return (
                   <line
                     key={`v-${i}`}
@@ -1455,7 +1456,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               })}
               {/* 水平网格线 - 每0.05单位 */}
               {Array.from({ length: 12 }, (_, i) => i + 1).map(i => {
-                const y = CANVAS_HEIGHT - ((i * 0.05) / 0.6) * CANVAS_HEIGHT;
+                const y = CANVAS_HEIGHT - ((i * 0.05) / WC3_MAX_Y) * CANVAS_HEIGHT;
                 return (
                   <line
                     key={`h-${i}`}
@@ -1470,9 +1471,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               })}
               {/* 中心十字线 */}
               <line
-                x1={(0.4 / 0.8) * (CANVAS_WIDTH - 2 * MARGIN)}
+                x1={(0.4 / WC3_MAX_X) * (CANVAS_WIDTH - 2 * MARGIN)}
                 y1={0}
-                x2={(0.4 / 0.8) * (CANVAS_WIDTH - 2 * MARGIN)}
+                x2={(0.4 / WC3_MAX_X) * (CANVAS_WIDTH - 2 * MARGIN)}
                 y2={CANVAS_HEIGHT}
                 stroke="rgba(0, 255, 0, 0.4)"
                 strokeWidth={1}
@@ -1480,9 +1481,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               />
               <line
                 x1={0}
-                y1={CANVAS_HEIGHT - (0.3 / 0.6) * CANVAS_HEIGHT}
+                y1={CANVAS_HEIGHT - (0.3 / WC3_MAX_Y) * CANVAS_HEIGHT}
                 x2={CANVAS_WIDTH - 2 * MARGIN}
-                y2={CANVAS_HEIGHT - (0.3 / 0.6) * CANVAS_HEIGHT}
+                y2={CANVAS_HEIGHT - (0.3 / WC3_MAX_Y) * CANVAS_HEIGHT}
                 stroke="rgba(0, 255, 0, 0.4)"
                 strokeWidth={1}
                 strokeDasharray="5,5"

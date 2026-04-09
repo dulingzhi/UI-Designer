@@ -1,11 +1,12 @@
 import { Command } from '../store/commandStore';
 import { useProjectStore } from '../store/projectStore';
+import { WC3_MAX_X, WC3_MAX_Y } from '../constants';
 
 type AlignToCanvasType = 'left' | 'right' | 'top' | 'bottom' | 'centerH' | 'centerV';
 
 // 画布尺寸（4:3区域）
-const CANVAS_WIDTH = 0.8;
-const CANVAS_HEIGHT = 0.6;
+const CANVAS_WIDTH = WC3_MAX_X;
+const CANVAS_HEIGHT = WC3_MAX_Y;
 
 // 对齐到画布命令
 export class AlignToCanvasCommand implements Command {

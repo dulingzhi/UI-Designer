@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { TextureAtlasSplitter, parseCornerFlags, type EdgeFlag } from '../utils/textureAtlas';
+import { WC3_MAX_X } from '../constants';
 
 export interface BackdropEdgeProps {
   /** 边框纹理文件路径 */
@@ -38,7 +39,7 @@ export const BackdropEdge: React.FC<BackdropEdgeProps> = ({
 
   // 计算角尺寸（像素）
   const cornerSizePx = useMemo(() => {
-    return (cornerSize / 0.8) * canvasWidth;
+    return (cornerSize / WC3_MAX_X) * canvasWidth;
   }, [cornerSize, canvasWidth]);
 
   // 加载并分割纹理图集
