@@ -27,12 +27,12 @@
 
 ### P2 — 应该做
 
-- [ ] **拆分 PropertiesPanel**
+- [x] **拆分 PropertiesPanel** ✅ 2026-04-11
   - Why: 1532行, 20+属性类型堆在一个文件, 加新控件类型要在巨函数里加 case
-  - Scope: 按属性类型分组: TextProperties, BackdropProperties, LayoutProperties 等
+  - Scope: 提取 AnchorEditor, TextProperties, TextureProperties, TypeSpecificProperties, BatchEditPanel; PropertiesPanel 从 ~1623 行降至 ~498 行
   - Effort: M (CC: ~30min)
   - Depends on: Store 拆分完成
-  - Files: src/components/PropertiesPanel.tsx → src/components/properties/ 目录
+  - Files: src/components/PropertiesPanel.tsx → src/components/properties/{AnchorEditor,TextProperties,TextureProperties,TypeSpecificProperties,BatchEditPanel}.tsx
 
 - [x] **提取坐标常量和转换函数** ✅ 2026-04-10
   - Why: CANVAS_WIDTH/HEIGHT/MARGIN 在 Canvas.tsx 和 anchorUtils.ts 重复定义; 转换公式散布 10+ 处
