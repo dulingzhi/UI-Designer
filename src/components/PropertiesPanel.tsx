@@ -1,5 +1,6 @@
 import React from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { useCommandStore } from '../store/commandStore';
 import { UpdateFrameCommand } from '../commands/FrameCommands';
 import { FrameType, FramePoint, ProjectData, FrameAnchor } from '../types';
@@ -13,7 +14,8 @@ interface PropertiesPanelProps {
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => {
-  const { project, selectedFrameId, selectedFrameIds } = useProjectStore();
+  const { project } = useProjectStore();
+  const { selectedFrameId, selectedFrameIds } = useUIStore();
   const { executeCommand } = useCommandStore();
   const selectedFrame = selectedFrameId ? project.frames[selectedFrameId] : null;
   

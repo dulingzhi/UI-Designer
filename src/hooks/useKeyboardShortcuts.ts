@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { useCommandStore } from '../store/commandStore';
 import { RemoveFrameCommand, BatchRemoveFrameCommand, UpdateFrameCommand, CopyFrameCommand, PasteFrameCommand, CopyStyleCommand, PasteStyleCommand } from '../commands/FrameCommands';
 import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
@@ -15,7 +16,8 @@ export const useKeyboardShortcuts = (
   onNewProjectRequest?: () => void,
   onShowAlert?: (options: { title: string; message: string; type: 'info' | 'warning' | 'danger' }) => void
 ) => {
-  const { selectedFrameId, project, clearGuides } = useProjectStore();
+  const { project, clearGuides } = useProjectStore();
+  const { selectedFrameId } = useUIStore();
   const { undo, redo, canUndo, canRedo, executeCommand } = useCommandStore();
 
   useEffect(() => {
@@ -183,7 +185,7 @@ export const useKeyboardShortcuts = (
         // Delete/Backspace: 删除（支持多选）
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
-          const selectedIds = useProjectStore.getState().selectedFrameIds;
+          const selectedIds = useUIStore.getState().selectedFrameIds;
           
           // 过滤掉锁定的控件
           const unlocked = selectedIds.filter(id => {
@@ -215,7 +217,7 @@ export const useKeyboardShortcuts = (
 
         // Escape: 取消选择
         if (e.key === 'Escape') {
-          useProjectStore.getState().selectFrame(null);
+          useUIStore.getState().selectFrame(null);
         }
 
         // 方向键: 微调位置
@@ -277,7 +279,8 @@ export const useKeyboardShortcuts = (
         const result = await loadProject();
         if (result) {
           // 直接替换整个项目状态
-          useProjectStore.setState({ project: result.project, selectedFrameId: null });
+          useProjectStore.setState({ project: result.project });
+          useUIStore.getState().selectFrame(null);
           setCurrentFilePath(result.path);
           console.log('✅ 项目已打开:', result.path);
         }
@@ -328,7 +331,7 @@ export const useKeyboardShortcuts = (
     };
 
     const handlePasteStyle = () => {
-      const { selectedFrameIds } = useProjectStore.getState();
+      const { selectedFrameIds } = useUIStore.getState();
       if (selectedFrameIds.length > 0) {
         executeCommand(new PasteStyleCommand(selectedFrameIds));
         console.log(`✅ 已粘贴样式到 ${selectedFrameIds.length} 个控件`);
@@ -342,17 +345,17 @@ export const useKeyboardShortcuts = (
       // 获取所有控件ID
       const allFrameIds = Object.keys(project.frames);
       if (allFrameIds.length > 0) {
-        useProjectStore.getState().selectMultipleFrames(allFrameIds);
+        useUIStore.getState().selectMultipleFrames(allFrameIds);
         console.log(`✅ 已全选 ${allFrameIds.length} 个控件`);
       }
     };
 
     const handleInvertSelection = () => {
-      const { selectedFrameIds } = useProjectStore.getState();
+      const { selectedFrameIds } = useUIStore.getState();
       const allFrameIds = Object.keys(project.frames);
       // 反选：选中未选中的，取消选中已选中的
       const newSelection = allFrameIds.filter(id => !selectedFrameIds.includes(id));
-      useProjectStore.getState().selectMultipleFrames(newSelection);
+      useUIStore.getState().selectMultipleFrames(newSelection);
       console.log(`✅ 已反选，当前选中 ${newSelection.length} 个控件`);
     };
 

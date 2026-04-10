@@ -1,5 +1,6 @@
 import { Command } from '../store/commandStore';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { FrameData } from '../types';
 import { nanoid } from 'nanoid';
 import { createDefaultAnchors } from '../utils/anchorUtils';
@@ -12,7 +13,7 @@ export class DuplicateFrameCommand implements Command {
 
   constructor(frameId: string, offsetX: number = 0.02, offsetY: number = 0.02) {
     this.newFrameId = nanoid();
-    this.previousSelection = useProjectStore.getState().selectedFrameId;
+    this.previousSelection = useUIStore.getState().selectedFrameId;
     
     // 创建副本 Frame
     const originalFrame = useProjectStore.getState().getFrame(frameId);
@@ -36,14 +37,13 @@ export class DuplicateFrameCommand implements Command {
     if (this.newFrame) {
       const store = useProjectStore.getState();
       store.addFrame(this.newFrame);
-      store.selectFrame(this.newFrameId);
+      useUIStore.getState().selectFrame(this.newFrameId);
     }
   }
 
   undo(): void {
-    const store = useProjectStore.getState();
-    store.removeFrame(this.newFrameId);
-    store.selectFrame(this.previousSelection);
+    useProjectStore.getState().removeFrame(this.newFrameId);
+    useUIStore.getState().selectFrame(this.previousSelection);
   }
 
   redo(): void {

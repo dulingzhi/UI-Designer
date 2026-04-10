@@ -1,6 +1,7 @@
 import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { useCommandStore } from '../store/commandStore';
 import { AlignCommand, DistributeCommand, EqualSpacingCommand } from '../commands/AlignCommands';
 import { UnifySizeCommand } from '../commands/SizeCommands';
@@ -35,7 +36,8 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFilePath }) => {
-  const { selectedFrameId, selectedFrameIds, project, setProject } = useProjectStore();
+  const { project, setProject } = useProjectStore();
+  const { selectedFrameId, selectedFrameIds } = useUIStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
   const [showShortcutHelp, setShowShortcutHelp] = React.useState(false);
   const [showTextureBrowser, setShowTextureBrowser] = React.useState(false);

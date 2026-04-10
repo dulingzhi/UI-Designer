@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { StylePreset } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useAlert } from '../hooks/useAlert';
@@ -12,13 +13,12 @@ interface StylePresetPanelProps {
 export const StylePresetPanel: React.FC<StylePresetPanelProps> = ({ onClose }) => {
   const { 
     project, 
-    selectedFrameId, 
-    selectedFrameIds,
     updateStylePreset,
     removeStylePreset,
     applyStylePreset,
     saveFrameAsPreset,
   } = useProjectStore();
+  const { selectedFrameId, selectedFrameIds } = useUIStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [showSaveDialog, setShowSaveDialog] = useState(false);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { useCommandStore } from '../store/commandStore';
 import { ChangeParentCommand, RemoveFrameCommand, UpdateFrameCommand } from '../commands/FrameCommands';
 import { DuplicateCommand } from '../commands/DuplicateCommand';
@@ -18,7 +19,8 @@ interface ProjectTreeProps {
 }
 
 export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteRequest }) => {
-  const { project, selectedFrameId, selectFrame, setHighlightedFrames, clearHighlightedFrames } = useProjectStore();
+  const { project } = useProjectStore();
+  const { selectedFrameId, selectFrame, setHighlightedFrames, clearHighlightedFrames } = useUIStore();
   const { executeCommand } = useCommandStore();
   const { showAlert, AlertComponent } = useAlert();
   

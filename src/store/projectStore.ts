@@ -6,11 +6,6 @@ import { war3ProcessManager } from '../utils/war3ProcessManager';
 
 interface ProjectState {
   project: ProjectData;
-  selectedFrameId: string | null;
-  selectedFrameIds: string[]; // 多选支持
-  clipboard: FrameData | null; // 剪贴板，存储被复制的控件
-  styleClipboard: Partial<FrameData> | null; // 样式剪贴板，存储被复制的样式
-  highlightedFrameIds: string[]; // 搜索高亮的控件ID列表
   
   // 项目操作
   setProject: (project: ProjectData) => void;
@@ -18,32 +13,17 @@ interface ProjectState {
   
   // Frame操作
   addFrame: (frame: FrameData) => void;
-  addFrames: (frames: FrameData[]) => void; // 批量添加控件（用于FDF导入）
+  addFrames: (frames: FrameData[]) => void;
   updateFrame: (id: string, updates: Partial<FrameData>) => void;
   removeFrame: (id: string) => void;
-  deleteFrame: (id: string) => void; // 别名，等同于 removeFrame
+  deleteFrame: (id: string) => void;
   getFrame: (id: string) => FrameData | undefined;
-  
-  // 选择操作
-  selectFrame: (id: string | null) => void;
-  toggleSelectFrame: (id: string) => void; // Ctrl+点击切换选择
-  selectMultipleFrames: (ids: string[]) => void; // 框选多个
-  clearSelection: () => void;
-  
-  // 搜索高亮
-  setHighlightedFrames: (ids: string[]) => void;
-  clearHighlightedFrames: () => void;
   
   // 锁定操作
   toggleFrameLock: (id: string) => void;
   
   // 可见性操作
   toggleFrameVisibility: (id: string) => void;
-  
-  // 剪贴板操作
-  copyToClipboard: (frameId: string) => void;
-  copyStyleToClipboard: (frameId: string) => void;
-  pasteStyleFromClipboard: (targetFrameIds: string[]) => void;
   
   // 通用设置
   updateGeneralSettings: (settings: Partial<Pick<ProjectData, 'libraryName' | 'originMode' | 'exportVersion' | 'backgroundImage' | 'hideGameUI' | 'hideHeroBar' | 'hideMiniMap' | 'hideResources' | 'hideButtonBar' | 'hidePortrait' | 'hideChat'>>) => void;
@@ -71,12 +51,11 @@ interface ProjectState {
   saveFrameAsPreset: (frameId: string, name: string, category?: string) => void;
   
   // 控件组合操作
-  createGroup: (name: string, frameIds: string[]) => string; // 返回组ID
+  createGroup: (name: string, frameIds: string[]) => string;
   updateGroup: (id: string, updates: Partial<FrameGroup>) => void;
   removeGroup: (id: string) => void;
   addFramesToGroup: (groupId: string, frameIds: string[]) => void;
   removeFramesFromGroup: (groupId: string, frameIds: string[]) => void;
-  selectGroup: (groupId: string) => void; // 选中组内所有控件
   
   // 种族纹理操作
   setRace: (race: 'Human' | 'Orc' | 'NightElf' | 'Undead' | 'Default') => void;
@@ -109,11 +88,6 @@ const createDefaultProject = (): ProjectData => ({
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   project: createDefaultProject(),
-  selectedFrameId: null,
-  selectedFrameIds: [],
-  clipboard: null,
-  styleClipboard: null,
-  highlightedFrameIds: [],
 
   setProject: (project) => {
     // 修复所有控件的锚点和children字段
@@ -162,7 +136,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   resetProject: () => set({ 
     project: createDefaultProject(),
-    selectedFrameId: null
   }),
 
   addFrame: (frame) => set((state) => {
@@ -321,7 +294,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         frames: updatedFrames,
         rootFrameIds: state.project.rootFrameIds.filter(fid => fid !== id),
       },
-      selectedFrameId: state.selectedFrameId === id ? null : state.selectedFrameId,
+
     };
   }),
 
@@ -329,37 +302,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   deleteFrame: (id) => get().removeFrame(id),
 
   getFrame: (id) => get().project.frames[id],
-
-  selectFrame: (id) => set({ 
-    selectedFrameId: id,
-    selectedFrameIds: id ? [id] : []
-  }),
-
-  toggleSelectFrame: (id) => set((state) => {
-    const isSelected = state.selectedFrameIds.includes(id);
-    const newSelectedIds = isSelected
-      ? state.selectedFrameIds.filter(fid => fid !== id)
-      : [...state.selectedFrameIds, id];
-    
-    return {
-      selectedFrameIds: newSelectedIds,
-      selectedFrameId: newSelectedIds.length > 0 ? newSelectedIds[newSelectedIds.length - 1] : null
-    };
-  }),
-
-  selectMultipleFrames: (ids) => set({
-    selectedFrameIds: ids,
-    selectedFrameId: ids.length > 0 ? ids[ids.length - 1] : null
-  }),
-
-  clearSelection: () => set({
-    selectedFrameId: null,
-    selectedFrameIds: []
-  }),
-
-  setHighlightedFrames: (ids) => set({ highlightedFrameIds: ids }),
-  
-  clearHighlightedFrames: () => set({ highlightedFrameIds: [] }),
 
   toggleFrameLock: (id) => set((state) => {
     const frame = state.project.frames[id];
@@ -396,80 +338,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     };
   }),
-
-  copyToClipboard: (frameId) => {
-    const state = get();
-    const frame = state.project.frames[frameId];
-    if (!frame) return;
-    
-    // 深拷贝控件数据（包括所有子控件）
-    const cloneFrameRecursive = (frame: FrameData): FrameData => {
-      return {
-        ...frame,
-        children: frame.children.map(childId => {
-          const childFrame = state.project.frames[childId];
-          return childFrame ? cloneFrameRecursive(childFrame) : null;
-        }).filter(Boolean) as any[], // 暂时存储子控件的完整数据
-      };
-    };
-    
-    const clonedFrame = cloneFrameRecursive(frame);
-    set({ clipboard: clonedFrame });
-    console.log('[Store] Copied to clipboard:', clonedFrame.name);
-  },
-
-  copyStyleToClipboard: (frameId) => {
-    const state = get();
-    const frame = state.project.frames[frameId];
-    if (!frame) return;
-    
-    // 只复制样式相关属性
-    const styleProps: Partial<FrameData> = {
-      // 视觉属性
-      textColor: frame.textColor,
-      textScale: frame.textScale,
-      horAlign: frame.horAlign,
-      verAlign: frame.verAlign,
-      
-      // 纹理
-      texture: frame.texture,
-      
-      // 文本
-      text: frame.text,
-    };
-    
-    set({ styleClipboard: styleProps });
-    console.log('[Store] Copied style to clipboard');
-  },
-
-  pasteStyleFromClipboard: (targetFrameIds) => {
-    const state = get();
-    if (!state.styleClipboard) {
-      console.warn('[Store] No style in clipboard');
-      return;
-    }
-    
-    const updatedFrames = { ...state.project.frames };
-    
-    targetFrameIds.forEach(frameId => {
-      const frame = updatedFrames[frameId];
-      if (frame && !frame.locked) {
-        updatedFrames[frameId] = {
-          ...frame,
-          ...state.styleClipboard,
-        };
-      }
-    });
-    
-    set({
-      project: {
-        ...state.project,
-        frames: updatedFrames,
-      },
-    });
-    
-    console.log(`[Store] Pasted style to ${targetFrameIds.length} frames`);
-  },
 
   updateGeneralSettings: (settings) => set((state) => ({
     project: {
@@ -690,14 +558,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       ),
     },
   })),
-
-  selectGroup: (groupId) => {
-    const state = get();
-    const group = (state.project.frameGroups || []).find(g => g.id === groupId);
-    if (group) {
-      set({ selectedFrameIds: [...group.frameIds] });
-    }
-  },
 
   // 种族纹理操作
   setRace: async (race) => {

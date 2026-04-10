@@ -5,6 +5,7 @@ import { PreferencesDialog } from './PreferencesDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useAlert } from '../hooks/useAlert';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { useCommandStore } from '../store/commandStore';
 import { saveProject, loadProject, loadProjectFromPath, importFromFDF } from '../utils/fileOperations';
 import { importFromFDFEnhanced, importFDFFolder } from '../utils/fdfImportExport';
@@ -84,7 +85,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const menuBarRef = useRef<HTMLDivElement>(null);
   const { showAlert, AlertComponent } = useAlert();
   
-  const { project, setProject, selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard, clearGuides, addFrames } = useProjectStore();
+  const { project, setProject, clearGuides, addFrames } = useProjectStore();
+  const { selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard } = useUIStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
 
   // FDF导入处理函数
@@ -370,7 +372,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       
       setProject({ ...project });
       // 选中新粘贴的控件
-      const { selectFrame } = useProjectStore.getState();
+      const { selectFrame } = useUIStore.getState();
       selectFrame(newRootId);
     }
   };

@@ -1,5 +1,6 @@
 import { Command } from '../store/commandStore';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { FrameData } from '../types';
 
 // 创建Frame命令
@@ -9,19 +10,17 @@ export class CreateFrameCommand implements Command {
 
   constructor(frame: FrameData) {
     this.frame = frame;
-    this.previousSelection = useProjectStore.getState().selectedFrameId;
+    this.previousSelection = useUIStore.getState().selectedFrameId;
   }
 
   execute(): void {
-    const store = useProjectStore.getState();
-    store.addFrame(this.frame);
-    store.selectFrame(this.frame.id);
+    useProjectStore.getState().addFrame(this.frame);
+    useUIStore.getState().selectFrame(this.frame.id);
   }
 
   undo(): void {
-    const store = useProjectStore.getState();
-    store.removeFrame(this.frame.id);
-    store.selectFrame(this.previousSelection);
+    useProjectStore.getState().removeFrame(this.frame.id);
+    useUIStore.getState().selectFrame(this.previousSelection);
   }
 
   redo(): void {
@@ -37,7 +36,7 @@ export class RemoveFrameCommand implements Command {
 
   constructor(frameId: string) {
     this.frameId = frameId;
-    this.previousSelection = useProjectStore.getState().selectedFrameId;
+    this.previousSelection = useUIStore.getState().selectedFrameId;
   }
 
   execute(): void {
@@ -48,9 +47,8 @@ export class RemoveFrameCommand implements Command {
 
   undo(): void {
     if (this.frameData) {
-      const store = useProjectStore.getState();
-      store.addFrame(this.frameData);
-      store.selectFrame(this.previousSelection);
+      useProjectStore.getState().addFrame(this.frameData);
+      useUIStore.getState().selectFrame(this.previousSelection);
     }
   }
 
@@ -173,8 +171,7 @@ export class CopyFrameCommand implements Command {
   }
 
   execute(): void {
-    const store = useProjectStore.getState();
-    store.copyToClipboard(this.frameId);
+    useUIStore.getState().copyToClipboard(this.frameId);
   }
 
   undo(): void {
@@ -196,12 +193,12 @@ export class PasteFrameCommand implements Command {
   constructor(offsetX: number = 0.01, offsetY: number = 0.01) {
     this.offsetX = offsetX;
     this.offsetY = offsetY;
-    this.previousSelection = useProjectStore.getState().selectedFrameId;
+    this.previousSelection = useUIStore.getState().selectedFrameId;
   }
 
   execute(): void {
     const store = useProjectStore.getState();
-    const clipboard = store.clipboard;
+    const clipboard = useUIStore.getState().clipboard;
     
     if (!clipboard) {
       console.warn('[PasteCommand] Nothing in clipboard');
@@ -249,7 +246,7 @@ export class PasteFrameCommand implements Command {
     const newRootId = pasteFrameRecursive(clipboard, clipboard.parentId, true);
     
     // 选中新粘贴的控件
-    store.selectFrame(newRootId);
+    useUIStore.getState().selectFrame(newRootId);
     
     console.log('[PasteCommand] Pasted frames:', this.pastedFrameIds);
   }
@@ -260,7 +257,7 @@ export class PasteFrameCommand implements Command {
     [...this.pastedFrameIds].reverse().forEach(id => {
       store.removeFrame(id);
     });
-    store.selectFrame(this.previousSelection);
+    useUIStore.getState().selectFrame(this.previousSelection);
   }
 
   redo(): void {
@@ -276,7 +273,7 @@ export class BatchRemoveFrameCommand implements Command {
 
   constructor(frameIds: string[]) {
     this.frameIds = frameIds;
-    this.previousSelection = useProjectStore.getState().selectedFrameId;
+    this.previousSelection = useUIStore.getState().selectedFrameId;
   }
 
   execute(): void {
@@ -297,7 +294,7 @@ export class BatchRemoveFrameCommand implements Command {
     this.framesData.forEach((frame) => {
       store.addFrame(frame);
     });
-    store.selectFrame(this.previousSelection);
+    useUIStore.getState().selectFrame(this.previousSelection);
   }
 
   redo(): void {
@@ -314,8 +311,7 @@ export class CopyStyleCommand implements Command {
   }
 
   execute(): void {
-    const store = useProjectStore.getState();
-    store.copyStyleToClipboard(this.frameId);
+    useUIStore.getState().copyStyleToClipboard(this.frameId);
   }
 
   undo(): void {
@@ -338,7 +334,7 @@ export class PasteStyleCommand implements Command {
 
   execute(): void {
     const store = useProjectStore.getState();
-    const styleClipboard = store.styleClipboard;
+    const styleClipboard = useUIStore.getState().styleClipboard;
     
     if (!styleClipboard) {
       console.warn('[PasteStyleCommand] No style in clipboard');
@@ -361,7 +357,7 @@ export class PasteStyleCommand implements Command {
     });
 
     // 应用样式
-    store.pasteStyleFromClipboard(this.targetFrameIds);
+    useUIStore.getState().pasteStyleFromClipboard(this.targetFrameIds);
   }
 
   undo(): void {
@@ -373,7 +369,6 @@ export class PasteStyleCommand implements Command {
   }
 
   redo(): void {
-    const store = useProjectStore.getState();
-    store.pasteStyleFromClipboard(this.targetFrameIds);
+    useUIStore.getState().pasteStyleFromClipboard(this.targetFrameIds);
   }
 }

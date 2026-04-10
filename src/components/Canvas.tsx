@@ -1,12 +1,13 @@
-import React, { forwardRef, useImperativeHandle, useEffect, useMemo } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
+import { useUIStore } from '../store/uiStore';
 import { UpdateFrameCommand, RemoveFrameCommand, CopyFrameCommand, PasteFrameCommand } from '../commands/FrameCommands';
 import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
-import { FrameType, FramePoint, FrameData } from '../types';
-import { ResizeHandles, ResizeDirection } from './ResizeHandles';
-import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
+import { FrameType, FrameData } from '../types';
+import { ResizeHandles } from './ResizeHandles';
+import { calculatePositionFromAnchors } from '../utils/anchorUtils';
 import { AnchorVisualizer } from './AnchorVisualizer';
 import { Ruler } from './Ruler';
 import { GuideLine } from './GuideLine';
@@ -15,8 +16,11 @@ import { BackdropEdge } from './BackdropEdge';
 import { useTextureLoaderBatch } from '../hooks/useTextureLoader';
 import { ModelViewer } from './ModelViewer';
 import { useProjectContext } from '../contexts/ProjectContext';
+import { useCanvasPan } from '../hooks/useCanvasPan';
+import { useCanvasDrag } from '../hooks/useCanvasDrag';
+import { useCanvasResize } from '../hooks/useCanvasResize';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_MARGIN, WC3_MAX_X, WC3_MAX_Y } from '../constants';
-import { pixelToWc3X, pixelToWc3Y, pixelDeltaToWc3X, pixelDeltaToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
+import { pixelToWc3X, pixelToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
 import './Canvas.css';
 
 // 保留旧名兼容: MARGIN -> CANVAS_MARGIN
@@ -91,64 +95,48 @@ export interface CanvasHandle {
 }
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
-  const { project, selectedFrameId, selectFrame, toggleSelectFrame, setProject, addGuide, updateGuide, removeGuide, highlightedFrameIds } = useProjectStore();
+  const { project, addGuide, updateGuide, removeGuide } = useProjectStore();
+  const { selectedFrameId, selectFrame, toggleSelectFrame, highlightedFrameIds } = useUIStore();
   const { executeCommand } = useCommandStore();
   const { projectDir } = useProjectContext(); // 获取项目目录
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState(1);
-  const [offset, setOffset] = React.useState({ x: 0, y: 0 });
-  
-  // 容器尺寸状态
-  const [containerSize, setContainerSize] = React.useState({ width: 0, height: 0 });
-  const [isPanning, setIsPanning] = React.useState(false);
-  const [panStart, setPanStart] = React.useState({ x: 0, y: 0 });
-  
-  // Frame 拖拽状态
-  const [isDraggingFrame, setIsDraggingFrame] = React.useState(false);
-  const [draggedFrameId, setDraggedFrameId] = React.useState<string | null>(null);
-  const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 }); // 鼠标相对Frame的偏移
-  const [dragStartState, setDragStartState] = React.useState<{ x: number; y: number; anchors: any } | null>(null); // 拖拽开始时的状态
-  
-  // 使用 ref 存储临时拖拽位置，避免频繁状态更新
-  const dragTempPositionRef = React.useRef<{ frameId: string; x: number; y: number; width: number; height: number; anchors: any } | null>(null);
-  const lastUpdateTimeRef = React.useRef<number>(0); // 上次更新时间
-  const UPDATE_THROTTLE_MS = 16; // 每16ms最多更新一次（约60fps）
-  
-  // Frame 调整大小状态
-  const [isResizing, setIsResizing] = React.useState(false);
-  const [resizeFrameId, setResizeFrameId] = React.useState<string | null>(null);
-  const [resizeDirection, setResizeDirection] = React.useState<ResizeDirection | null>(null);
-  const [resizeStartPos, setResizeStartPos] = React.useState({ x: 0, y: 0 });
-  const [resizeStartSize, setResizeStartSize] = React.useState({ x: 0, y: 0, width: 0, height: 0 });
-  const [resizeStartAnchors, setResizeStartAnchors] = React.useState<any>(null); // 调整大小开始时的锚点
-  
-  // 使用 ref 存储临时调整大小位置
-  const resizeTempPositionRef = React.useRef<{ frameId: string; x: number; y: number; width: number; height: number; anchors: any } | null>(null);
 
-  // 框选状态
+  // ===== 显示控制状态 =====
+  const [showGrid, setShowGrid] = React.useState(true);
+  const [showAnchors, setShowAnchors] = React.useState(false);
+  const [showRulers, setShowRulers] = React.useState(true);
+  const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; frameId: string | null } | null>(null);
+  const [snapToGrid, setSnapToGrid] = React.useState(true);
+  const [gridSize, setGridSize] = React.useState(0.01);
+
+  // ===== 框选状态 =====
   const [isBoxSelecting, setIsBoxSelecting] = React.useState(false);
   const [boxSelectStart, setBoxSelectStart] = React.useState({ x: 0, y: 0 });
   const [boxSelectEnd, setBoxSelectEnd] = React.useState({ x: 0, y: 0 });
 
-  // 网格显示状态
-  const [showGrid, setShowGrid] = React.useState(true);
-  
-  // 锚点可视化状态
-  const [showAnchors, setShowAnchors] = React.useState(false);
-  
-  // 标尺显示状态
-  const [showRulers, setShowRulers] = React.useState(true);
-  
-  // 鼠标坐标跟踪（用于调试面板）
-  const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
-  
-  // 右键菜单状态
-  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; frameId: string | null } | null>(null);
-  
-  // 网格吸附状态
-  const [snapToGrid, setSnapToGrid] = React.useState(true);
-  const [gridSize, setGridSize] = React.useState(0.01); // WC3单位，默认0.01
+  // ===== 提取的 Hooks =====
+  const {
+    scale, setScale, offset, setOffset,
+    isPanning, containerSize,
+    startPan, updatePan, endPan,
+  } = useCanvasPan({ canvasRef, containerRef, showRulers });
+
+  const snapValue = (value: number, gs: number): number => {
+    if (!snapToGrid) return value;
+    return Math.round(value / gs) * gs;
+  };
+
+  const {
+    isDragging: isDraggingFrame,
+    startDrag, updateDrag, endDrag,
+  } = useCanvasDrag({ canvasRef, scale, offset, snapValue, snapToGrid, gridSize });
+
+  const {
+    isResizing,
+    startResize: handleResizeStart, updateResize, endResize,
+  } = useCanvasResize({ scale, snapValue, snapToGrid, gridSize });
   
   // 辅助函数：将纹理键名解析为实际路径
   const resolveTexturePath = React.useCallback((textureValue: string | undefined): string | undefined => {
@@ -201,12 +189,6 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   
   // 批量加载纹理
   const textureMap = useTextureLoaderBatch(texturePaths);
-  
-  // 吸附到网格的辅助函数
-  const snapValue = (value: number, gridSize: number): number => {
-    if (!snapToGrid) return value;
-    return Math.round(value / gridSize) * gridSize;
-  };
 
   // 处理从标尺创建参考线
   const handleCreateGuide = (orientation: 'horizontal' | 'vertical', clientX: number, clientY: number) => {
@@ -263,50 +245,10 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     getMousePosition: () => mousePosition,
   }));
 
-  // 使用原生事件监听器处理滚轮缩放（避免 passive 事件警告）
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleWheelNative = (e: WheelEvent) => {
-      if (e.altKey) {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        setScale(prev => Math.max(0.1, Math.min(5, prev * delta)));
-      }
-    };
-
-    // 添加非 passive 的滚轮事件监听器
-    canvas.addEventListener('wheel', handleWheelNative, { passive: false });
-
-    return () => {
-      canvas.removeEventListener('wheel', handleWheelNative);
-    };
-  }, []);
-
-  // 监听容器尺寸变化
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        setContainerSize(entry.contentRect);
-      }
-    });
-
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [showRulers]);
-
   // 处理画布拖拽（平移）
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.altKey || e.button === 1) { // Alt键或中键拖拽画布
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      startPan(e);
       e.preventDefault();
     } else if (e.shiftKey && e.button === 0) {
       // Shift+左键：开始框选
@@ -342,372 +284,29 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     }
 
     if (isPanning) {
-      setOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
-      });
+      updatePan(e);
     } else if (isBoxSelecting) {
-      // 更新框选区域（考虑缩放和偏移）
       const canvasBounds = canvasRef.current?.getBoundingClientRect();
       if (!canvasBounds) return;
-      
       const relativeX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
       const relativeY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
       setBoxSelectEnd({ x: relativeX, y: relativeY });
-    } else if (isDraggingFrame && draggedFrameId) {
-      // 时间节流检查 - 在计算之前就检查
-      const now = Date.now();
-      if (now - lastUpdateTimeRef.current < UPDATE_THROTTLE_MS) {
-        return; // 跳过本次更新
-      }
-      lastUpdateTimeRef.current = now;
-
-      const frame = project.frames[draggedFrameId];
-      if (!frame) return;
-
-      const canvasBounds = canvasRef.current?.getBoundingClientRect();
-      if (!canvasBounds) return;
-
-      // 计算鼠标在画布上的相对位置
-      const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-      const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
-
-      // 转换为魔兽坐标 (0-0.8, 0-0.6)
-      const mouseWc3X = pixelToWc3X(mouseX);
-      const mouseWc3Y = pixelToWc3Y(mouseY);
-
-      // 检查是否有相对锚点
-      const hasRelativeAnchors = frame.anchors?.some(a => a.relativeTo);
-
-      if (hasRelativeAnchors && frame.anchors) {
-        // 有相对锚点：只更新锚点偏移量，保持相对定位
-        let newX = mouseWc3X - dragOffset.x;
-        let newY = mouseWc3Y - dragOffset.y;
-
-        // 网格吸附
-        if (snapToGrid) {
-          newX = snapValue(newX, gridSize);
-          newY = snapValue(newY, gridSize);
-        }
-
-        // 更新每个相对锚点的偏移量
-        const updatedAnchors = frame.anchors.map(anchor => {
-          if (anchor.relativeTo) {
-            const relativeFrame = project.frames[anchor.relativeTo];
-            if (relativeFrame) {
-              const relativePoint = anchor.relativePoint !== undefined ? anchor.relativePoint : FramePoint.TOPLEFT;
-              const relativePos = getAnchorPosition(relativeFrame, relativePoint);
-              
-              // 计算当前锚点在控件上的位置（相对于控件左下角的偏移，WC3坐标系）
-              const anchorOffsetInFrame = getAnchorOffsetWc3(anchor.point, frame.width, frame.height);
-              
-              // 计算锚点的目标绝对位置 = 控件新的左下角位置 + 锚点在控件内的偏移
-              const targetAnchorX = newX + anchorOffsetInFrame.x;
-              const targetAnchorY = newY + anchorOffsetInFrame.y;
-              
-              // 计算新的偏移量 = 目标锚点位置 - 相对锚点位置
-              const newOffsetX = targetAnchorX - relativePos.x;
-              const newOffsetY = targetAnchorY - relativePos.y;
-
-              return { ...anchor, x: newOffsetX, y: newOffsetY };
-            }
-          }
-          return anchor;
-        });
-
-        // 存储到 ref（用于 mouseup 时的最终位置）
-        dragTempPositionRef.current = {
-          frameId: draggedFrameId,
-          x: newX,
-          y: newY,
-          width: frame.width,
-          height: frame.height,
-          anchors: updatedAnchors
-        };
-
-        // 立即更新 project
-        setProject({
-          ...project,
-          frames: {
-            ...project.frames,
-            [draggedFrameId]: {
-              ...frame,
-              x: newX,
-              y: newY,
-              anchors: updatedAnchors
-            }
-          }
-        });
-      } else {
-        // 没有相对锚点：更新绝对位置
-        let newX = Math.max(0, Math.min(WC3_MAX_X - frame.width, mouseWc3X - dragOffset.x));
-        let newY = Math.max(0, Math.min(WC3_MAX_Y - frame.height, mouseWc3Y - dragOffset.y));
-        
-        // 网格吸附
-        if (snapToGrid) {
-          newX = snapValue(newX, gridSize);
-          newY = snapValue(newY, gridSize);
-        }
-
-        // 更新锚点
-        const updatedAnchors = updateAnchorsFromBounds(
-          frame.anchors,
-          newX,
-          newY,
-          frame.width,
-          frame.height
-        );
-
-        // 存储到 ref（用于 mouseup 时的最终位置）
-        dragTempPositionRef.current = {
-          frameId: draggedFrameId,
-          x: newX,
-          y: newY,
-          width: frame.width,
-          height: frame.height,
-          anchors: updatedAnchors
-        };
-
-        // 立即更新 project
-        setProject({
-          ...project,
-          frames: {
-            ...project.frames,
-            [draggedFrameId]: {
-              ...frame,
-              x: newX,
-              y: newY,
-              anchors: updatedAnchors
-            }
-          }
-        });
-      }
-    } else if (isResizing && resizeFrameId && resizeDirection) {
-      // 时间节流检查 - 在计算之前就检查
-      const now = Date.now();
-      if (now - lastUpdateTimeRef.current < UPDATE_THROTTLE_MS) {
-        return; // 跳过本次更新
-      }
-      lastUpdateTimeRef.current = now;
-
-      const frame = project.frames[resizeFrameId];
-      if (!frame) return;
-
-      const canvasBounds = canvasRef.current?.getBoundingClientRect();
-      if (!canvasBounds) return;
-
-      // 计算鼠标移动距离（Canvas 像素）
-      const deltaX = (e.clientX - resizeStartPos.x) / scale;
-      const deltaY = (e.clientY - resizeStartPos.y) / scale;
-
-      // 转换为魔兽坐标增量
-      const deltaWc3X = pixelDeltaToWc3X(deltaX);
-      const deltaWc3Y = -pixelDeltaToWc3Y(deltaY);
-
-      let newX = resizeStartSize.x;
-      let newY = resizeStartSize.y;
-      let newWidth = resizeStartSize.width;
-      let newHeight = resizeStartSize.height;
-
-      // 根据拖拽方向计算新的位置和大小
-      const isShiftPressed = e.shiftKey;
-
-      if (resizeDirection.includes('e')) {
-        newWidth = Math.max(0.01, resizeStartSize.width + deltaWc3X);
-      }
-      if (resizeDirection.includes('w')) {
-        const oldRight = resizeStartSize.x + resizeStartSize.width;
-        newX = Math.max(0, resizeStartSize.x + deltaWc3X);
-        newWidth = oldRight - newX;
-      }
-      if (resizeDirection.includes('n')) {
-        newHeight = Math.max(0.01, resizeStartSize.height + deltaWc3Y);
-      }
-      if (resizeDirection.includes('s')) {
-        const oldTop = resizeStartSize.y + resizeStartSize.height;
-        newY = Math.max(0, resizeStartSize.y + deltaWc3Y);
-        newHeight = Math.max(0.01, oldTop - newY);
-      }
-
-      // Shift 键保持纵横比
-      if (isShiftPressed && (resizeDirection === 'ne' || resizeDirection === 'nw' || resizeDirection === 'se' || resizeDirection === 'sw')) {
-        const aspectRatio = resizeStartSize.width / resizeStartSize.height;
-        if (Math.abs(newWidth - resizeStartSize.width) > Math.abs(newHeight - resizeStartSize.height)) {
-          newHeight = newWidth / aspectRatio;
-        } else {
-          newWidth = newHeight * aspectRatio;
-        }
-      }
-
-      // 边界限制
-      newX = Math.max(0, Math.min(WC3_MAX_X - newWidth, newX));
-      newY = Math.max(0, Math.min(WC3_MAX_Y - newHeight, newY));
-      newWidth = Math.max(0.01, Math.min(WC3_MAX_X - newX, newWidth));
-      newHeight = Math.max(0.01, Math.min(WC3_MAX_Y - newY, newHeight));
-
-      // 网格吸附
-      if (snapToGrid) {
-        newX = snapValue(newX, gridSize);
-        newY = snapValue(newY, gridSize);
-        newWidth = snapValue(newWidth, gridSize);
-        newHeight = snapValue(newHeight, gridSize);
-      }
-
-      // 更新锚点
-      const updatedAnchors = updateAnchorsFromBounds(
-        frame.anchors,
-        newX,
-        newY,
-        newWidth,
-        newHeight
-      );
-
-      // 存储到 ref（用于 mouseup 时的最终位置）
-      resizeTempPositionRef.current = {
-        frameId: resizeFrameId,
-        x: newX,
-        y: newY,
-        width: newWidth,
-        height: newHeight,
-        anchors: updatedAnchors
-      };
-
-      // 立即更新状态
-      setProject({
-        ...project,
-        frames: {
-          ...project.frames,
-          [resizeFrameId]: {
-            ...frame,
-            x: newX,
-            y: newY,
-            width: newWidth,
-            height: newHeight,
-            anchors: updatedAnchors
-          }
-        }
-      });
+    } else if (isDraggingFrame) {
+      updateDrag(e);
+    } else if (isResizing) {
+      updateResize(e);
     }
   };
 
   const handleMouseUp = () => {
-    // 拖拽结束时，使用 ref 中的最终位置更新（确保位置准确）
-    if (isDraggingFrame && draggedFrameId && dragTempPositionRef.current && dragStartState) {
-      const finalPos = dragTempPositionRef.current;
-      const currentFrame = project.frames[draggedFrameId];
-      
-      if (currentFrame) {
-        // 先确保最终位置已更新到 project
-        if (currentFrame.x !== finalPos.x || currentFrame.y !== finalPos.y) {
-          setProject({
-            ...project,
-            frames: {
-              ...project.frames,
-              [draggedFrameId]: {
-                ...currentFrame,
-                x: finalPos.x,
-                y: finalPos.y,
-                anchors: finalPos.anchors
-              }
-            }
-          });
-        }
-        
-        // 只有当位置真的改变了才创建命令
-        if (finalPos.x !== dragStartState.x || finalPos.y !== dragStartState.y) {
-          // 创建命令并手动设置 previousState
-          const command = new UpdateFrameCommand(
-            draggedFrameId,
-            {
-              x: finalPos.x,
-              y: finalPos.y,
-              anchors: finalPos.anchors
-            }
-          );
-          // 手动设置之前的状态（因为 execute 已经在 mouseMove 中完成了）
-          (command as any).previousState = {
-            x: dragStartState.x,
-            y: dragStartState.y,
-            anchors: dragStartState.anchors
-          };
-          // 直接添加到历史栈，不执行 execute
-          const { undoStack } = useCommandStore.getState();
-          useCommandStore.setState({
-            undoStack: [...undoStack, command],
-            redoStack: [], // 清空重做栈
-          });
-        }
-      }
-    } else if (isDraggingFrame && draggedFrameId && dragStartState) {
-      // 没有 dragTempPositionRef 的情况（兼容旧逻辑）
-      const currentFrame = project.frames[draggedFrameId];
-      if (currentFrame) {
-        // 只有当位置真的改变了才创建命令
-        if (currentFrame.x !== dragStartState.x || currentFrame.y !== dragStartState.y) {
-          // 创建命令并手动设置 previousState
-          const command = new UpdateFrameCommand(
-            draggedFrameId,
-            {
-              x: currentFrame.x,
-              y: currentFrame.y,
-              anchors: currentFrame.anchors
-            }
-          );
-          // 手动设置之前的状态（因为 execute 已经在 mouseMove 中完成了）
-          (command as any).previousState = {
-            x: dragStartState.x,
-            y: dragStartState.y,
-            anchors: dragStartState.anchors
-          };
-          // 直接添加到历史栈，不执行 execute
-          const { undoStack } = useCommandStore.getState();
-          useCommandStore.setState({
-            undoStack: [...undoStack, command],
-            redoStack: [], // 清空重做栈
-          });
-        }
-      }
+    // 拖拽结束
+    if (isDraggingFrame) {
+      endDrag();
     }
 
-    // 调整大小结束时，创建命令记录到历史
-    if (isResizing && resizeFrameId && resizeStartAnchors) {
-      const currentFrame = project.frames[resizeFrameId];
-      if (currentFrame) {
-        // 检查是否真的改变了
-        const sizeChanged = 
-          currentFrame.x !== resizeStartSize.x ||
-          currentFrame.y !== resizeStartSize.y ||
-          currentFrame.width !== resizeStartSize.width ||
-          currentFrame.height !== resizeStartSize.height;
-        
-        if (sizeChanged) {
-          // 创建命令
-          const command = new UpdateFrameCommand(
-            resizeFrameId,
-            {
-              x: currentFrame.x,
-              y: currentFrame.y,
-              width: currentFrame.width,
-              height: currentFrame.height,
-              anchors: currentFrame.anchors
-            }
-          );
-          // 手动设置之前的状态
-          (command as any).previousState = {
-            x: resizeStartSize.x,
-            y: resizeStartSize.y,
-            width: resizeStartSize.width,
-            height: resizeStartSize.height,
-            anchors: resizeStartAnchors
-          };
-          // 直接添加到历史栈，不执行 execute
-          const { undoStack } = useCommandStore.getState();
-          useCommandStore.setState({
-            undoStack: [...undoStack, command],
-            redoStack: [], // 清空重做栈
-          });
-        }
-      }
+    // 调整大小结束
+    if (isResizing) {
+      endResize();
     }
 
     // 框选结束时，选中框内的所有控件
@@ -746,25 +345,13 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
         // 更新选中的控件
         if (selectedIds.length > 0) {
-          const store = useProjectStore.getState();
-          store.selectMultipleFrames(selectedIds);
+          useUIStore.getState().selectMultipleFrames(selectedIds);
         }
       }
       setIsBoxSelecting(false);
     }
 
-    setIsPanning(false);
-    setIsDraggingFrame(false);
-    setDraggedFrameId(null);
-    setDragStartState(null);
-    setIsResizing(false);
-    setResizeFrameId(null);
-    setResizeDirection(null);
-    setResizeStartAnchors(null);
-    
-    // 清理临时位置 ref
-    dragTempPositionRef.current = null;
-    resizeTempPositionRef.current = null;
+    endPan();
   };
 
   // 右键菜单处理
@@ -811,7 +398,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           label: '粘贴',
           shortcut: 'Ctrl+V',
           action: () => executeCommand(new PasteFrameCommand(0.02, 0.02)),
-          disabled: !useProjectStore.getState().clipboard
+          disabled: !useUIStore.getState().clipboard
         },
         {
           label: '复制控件',
@@ -837,7 +424,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           label: '粘贴',
           shortcut: 'Ctrl+V',
           action: () => executeCommand(new PasteFrameCommand(0.02, 0.02)),
-          disabled: !useProjectStore.getState().clipboard
+          disabled: !useUIStore.getState().clipboard
         },
         { separator: true },
         {
@@ -866,78 +453,26 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
       // 检查控件或其父控件是否锁定
       if (isFrameOrParentLocked(frameId)) {
-        console.log('[Canvas] Frame or parent is locked:', frame.name);
         return;
       }
 
       // 检查是否有多个锚点 - 如果有则不允许拖动
       const anchorCount = Object.keys(frame.anchors || {}).length;
       if (anchorCount > 1) {
-        // 只选中,不允许拖动
         selectFrame(frameId);
         return;
       }
 
-      const canvasBounds = canvasRef.current?.getBoundingClientRect();
-      if (!canvasBounds) return;
-
-      // 计算鼠标在画布上的位置（魔兽坐标）
-      const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-      const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
-      const mouseWc3X = pixelToWc3X(mouseX);
-      const mouseWc3Y = pixelToWc3Y(mouseY);
-
-      // 获取控件的实际位置（考虑相对锚点）
-      const hasRelativeAnchors = frame.anchors?.some(a => a.relativeTo);
-      let actualX = frame.x;
-      let actualY = frame.y;
-      
-      if (hasRelativeAnchors) {
-        const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
-        if (calculatedPos) {
-          actualX = calculatedPos.x;
-          actualY = calculatedPos.y;
-        }
-      }
-
-      // 计算鼠标相对于控件左下角的偏移
-      const offsetX = mouseWc3X - actualX;
-      const offsetY = mouseWc3Y - actualY;
-
-      // 保存拖拽开始时的状态
-      setDragStartState({
-        x: frame.x,
-        y: frame.y,
-        anchors: JSON.parse(JSON.stringify(frame.anchors)) // 深拷贝
-      });
-
-      setIsDraggingFrame(true);
-      setDraggedFrameId(frameId);
-      setDragOffset({ x: offsetX, y: offsetY });
+      startDrag(e, frameId);
       selectFrame(frameId);
     }
   };
 
-  // 开始调整 Frame 大小
-  const handleResizeStart = (frameId: string) => {
-    return (e: React.MouseEvent, direction: ResizeDirection) => {
-      const frame = project.frames[frameId];
-      if (!frame) return;
-
-      // 检查控件或其父控件是否锁定
-      if (isFrameOrParentLocked(frameId)) {
-        console.log('[Canvas] Frame or parent is locked:', frame.name);
-        return;
-      }
-
-      // 保存调整大小开始时的状态
-      setResizeStartAnchors(JSON.parse(JSON.stringify(frame.anchors))); // 深拷贝
-
-      setIsResizing(true);
-      setResizeFrameId(frameId);
-      setResizeDirection(direction);
-      setResizeStartPos({ x: e.clientX, y: e.clientY });
-      setResizeStartSize({ x: frame.x, y: frame.y, width: frame.width, height: frame.height });
+  // 开始调整 Frame 大小（包含锁定检查）
+  const handleResizeStartWithLockCheck = (frameId: string) => {
+    return (e: React.MouseEvent, direction: import('./ResizeHandles').ResizeDirection) => {
+      if (isFrameOrParentLocked(frameId)) return;
+      handleResizeStart(frameId)(e, direction);
     };
   };
 
@@ -973,8 +508,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     // 如果控件或其任何父控件被隐藏，不渲染
     if (isFrameOrParentHidden(frameId)) return null;
 
-    const store = useProjectStore.getState();
-    const isSelected = store.selectedFrameIds.includes(frameId);
+    const isSelected = useUIStore.getState().selectedFrameIds.includes(frameId);
     const isHighlighted = highlightedFrameIds.includes(frameId);
     
     // 检查是否使用相对锚点，如果是则重新计算位置
@@ -1261,7 +795,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         {/* 调整大小手柄 - 在外层容器中，不受内容层影响 */}
         <ResizeHandles
           isSelected={isSelected && !isLockedOrParentLocked}
-          onResizeStart={handleResizeStart(frameId)}
+          onResizeStart={handleResizeStartWithLockCheck(frameId)}
         />
       </div>
     );

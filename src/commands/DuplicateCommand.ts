@@ -1,5 +1,6 @@
 import { Command } from '../store/commandStore';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { FrameData } from '../types';
 
 /**
@@ -77,7 +78,7 @@ export class DuplicateCommand implements Command {
     }
 
     // 选中新创建的副本
-    store.selectFrame(this.duplicatedFrameId);
+    useUIStore.getState().selectFrame(this.duplicatedFrameId);
 
     console.log(`复制控件 ${frame.name} -> ${newName}`);
   }
@@ -101,7 +102,7 @@ export class DuplicateCommand implements Command {
     store.removeFrame(this.duplicatedFrameId);
 
     // 恢复选择原控件
-    store.selectFrame(this.frameId);
+    useUIStore.getState().selectFrame(this.frameId);
 
     console.log(`撤销复制: 已删除 ${this.duplicatedFrameId}`);
   }

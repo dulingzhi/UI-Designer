@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { FrameGroup } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
 import './FrameGroupPanel.css';
@@ -11,12 +12,11 @@ interface FrameGroupPanelProps {
 export const FrameGroupPanel: React.FC<FrameGroupPanelProps> = ({ onClose }) => {
   const { 
     project, 
-    selectedFrameIds,
     createGroup,
     updateGroup,
     removeGroup,
-    selectGroup,
   } = useProjectStore();
+  const { selectedFrameIds, selectGroup } = useUIStore();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');

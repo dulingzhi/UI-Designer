@@ -15,6 +15,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAlert } from './hooks/useAlert';
 import { useCommandStore } from './store/commandStore';
 import { useProjectStore } from './store/projectStore';
+import { useUIStore } from './store/uiStore';
 import { RemoveFrameCommand, BatchRemoveFrameCommand } from './commands/FrameCommands';
 import { mpqManager } from './utils/mpqManager';
 import { war3ProcessManager } from './utils/war3ProcessManager';
@@ -35,7 +36,8 @@ function AppContent() {
   const [canvasScale, setCanvasScale] = React.useState(1);
   const { showAlert, AlertComponent } = useAlert();
   const executeCommand = useCommandStore(state => state.executeCommand);
-  const { project, selectedFrameId } = useProjectStore();
+  const { project } = useProjectStore();
+  const { selectedFrameId } = useUIStore();
   
   const canvasRef = React.useRef<{ 
     setScale: (s: number | ((prev: number) => number)) => void; 
