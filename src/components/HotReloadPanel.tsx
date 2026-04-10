@@ -6,6 +6,7 @@ import { detectKKWE, launchMapWithKKWE, type KKWEInfo } from '../utils/kkweDetec
 import { getHotReloadExporter, DEFAULT_HOT_RELOAD_CONFIG, type HotReloadConfig } from '../utils/hotReloadExporter';
 import { useProjectStore } from '../store/projectStore';
 import { war3ProcessManager } from '../utils/war3ProcessManager';
+import { useHotReloadSync } from '../hooks/useHotReloadSync';
 import './HotReloadPanel.css';
 
 interface HotReloadPanelProps {
@@ -13,6 +14,7 @@ interface HotReloadPanelProps {
 }
 
 export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
+  const { status, startServer } = useHotReloadSync();
   const [kkweInfo, setKkweInfo] = useState<KKWEInfo>({ installed: false });
   const [config, setConfig] = useState<HotReloadConfig>(DEFAULT_HOT_RELOAD_CONFIG);
   const [isChecking, setIsChecking] = useState(false);
@@ -319,8 +321,25 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
       </div>
       
       <hr />
+
+      {/* TCP 热重载服务 */}
+      <div className="config-section" style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            width: '12px', height: '12px', borderRadius: '50%',
+            backgroundColor: status === 'connected' ? '#4caf50' : status === 'error' ? '#f44336' : status === 'idle' ? '#9e9e9e' : '#ffeb3b',
+            boxShadow: `0 0 8px ${status === 'connected' ? '#4caf50' : status === 'error' ? '#f44336' : 'transparent'}`
+          }} title={`TCP 状态: ${status}`} />
+          <span>TCP极速重载 ({status})</span>
+        </div>
+        <button className="btn-start" onClick={startServer} disabled={status === 'connected'} style={{ padding: '4px 8px', fontSize: '12px' }}>
+          启动服务
+        </button>
+      </div>
+
+      <hr />
       
-      {/* 热重载开关 */}
+      {/* 自动导出设置 */}
       <div className="config-section">
         <label className="checkbox-label">
           <input

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 mod mdx_parser;
 mod blp_handler;
+pub mod tcp_server;
 
 use mdx_parser::MdxParser;
 
@@ -376,6 +377,7 @@ fn extract_template_map(_app_handle: tauri::AppHandle, war3_path: String, map_na
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(tcp_server::TcpServerState::new())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -399,7 +401,9 @@ pub fn run() {
             kill_process_elevated,
             is_war3_running,
             kill_war3_processes,
-            extract_template_map
+            extract_template_map,
+            tcp_server::start_hot_reload_server,
+            tcp_server::send_hot_reload_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

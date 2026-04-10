@@ -31,4 +31,5 @@ image = "0.25"
 base64 = "0.22"
 byteorder = "1.5"
 nom = "7.1"
+tokio = { version = "1.40.0", features = ["full"] }
 

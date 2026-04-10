@@ -64,6 +64,10 @@ export class LuaUIGenerator {
     lines.push(this.generateReloadFunction());
     lines.push('');
     
+    // TCP热重载
+    lines.push(this.generateTcpClientFunction());
+    lines.push('');
+    
     // 初始化函数
     lines.push(this.generateInitFunction());
     
@@ -475,15 +479,19 @@ local ANCHOR_MAP = {
 local UI_FrameCounter = 0
 
 -- 注册 Frame
-local function RegisterFrame(frame, name, frameType)
+local function RegisterFrame(frame, name, frameType, uuid)
     UI_FrameCounter = UI_FrameCounter + 1
     local frameData = {
         handle = frame,
         name = name,
         type = frameType,
+        uuid = uuid,
         id = UI_FrameCounter
     }
     UI_Frames[name] = frameData
+    if uuid and uuid ~= "" then
+        UI_Frames[uuid] = frameData
+    end
     table.insert(UI_Frames, frameData)
     return frame
 end
@@ -600,7 +608,7 @@ _G.UI_Designer_ParseColor = ParseColor`;
     } else {
       lines.push(`${indent}    local frame = API.CreateFrameByType("${frameTypeName}", "${frameName}", ${parentRef}, "", 0)`);
     }
-    lines.push(`${indent}    RegisterFrame(frame, "${frameName}", "${frameTypeName}")`);
+    lines.push(`${indent}    RegisterFrame(frame, "${frameName}", "${frameTypeName}", "${frame.id}")`);
     lines.push(`${indent}    frameCount = frameCount + 1`);
     lines.push('');
     
@@ -877,6 +885,48 @@ local function ReloadUI()
     end
 end`;
   }
+  
+  /**
+   * 生成 TCP 热重载客户端函数
+   */
+  private generateTcpClientFunction(): string {
+    return `--===========================================================================
+-- TCP 极速热重载客户端
+--===========================================================================
+local function Base64Decode(data)
+    local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    data = string.gsub(data, '[^'..b..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r,f='',(b:find(x)-1)
+        for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if (#x ~= 8) then return '' end
+        local c=0
+        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+
+local function StartTCPHotReload()
+    if not _G.RequestDzNetConnect then 
+        -- print("|cffff0000[UI Designer]|r 当前环境不支持 DzAPI_NetConnect，热重载禁用")
+        return 
+    end
+    -- 如果有需要也可以使用 RequestDzNetConnect 连接
+end
+
+_G.UI_Designer_ReceiveSyncPayload = function(payload)
+    -- 此处作为接收接口，C++/Jass 会把以 \\n 分割的每行推过来
+    local success, err = pcall(function()
+        local lua_str = Base64Decode(payload)
+        local f = load(lua_str) 
+        if f then f() end 
+    end)
+end`;
+  }
+
   
   /**
    * 生成初始化函数
