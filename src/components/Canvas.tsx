@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
 import { useUIStore } from '../store/uiStore';
-import { UpdateFrameCommand, RemoveFrameCommand, CopyFrameCommand, PasteFrameCommand } from '../commands/FrameCommands';
+import { UpdateFrameCommand, RemoveFrameCommand, CopyFrameCommand, PasteFrameCommand, CopyStyleCommand, PasteStyleCommand } from '../commands/FrameCommands';
 import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
 import { FrameType, FrameData } from '../types';
 import { ResizeHandles } from './ResizeHandles';
@@ -19,7 +19,7 @@ import { useProjectContext } from '../contexts/ProjectContext';
 import { useCanvasPan } from '../hooks/useCanvasPan';
 import { useCanvasDrag } from '../hooks/useCanvasDrag';
 import { useCanvasResize } from '../hooks/useCanvasResize';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_MARGIN, WC3_MAX_X, WC3_MAX_Y } from '../constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_MARGIN } from '../constants';
 import { pixelToWc3X, pixelToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
 import './Canvas.css';
 
@@ -31,23 +31,20 @@ const BackdropBackground: React.FC<{
   frame: FrameData;
   textureMap: Map<string, any>;
   isSelected: boolean;
-  canvasWidth: number;
-  canvasHeight: number;
-  margin: number;
   resolveTexturePath: (path: string | undefined) => string | undefined;
-}> = ({ frame, textureMap, isSelected, canvasWidth, canvasHeight, margin, resolveTexturePath }) => {
+}> = ({ frame, textureMap, isSelected, resolveTexturePath }) => {
 
   const leftInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[0] / WC3_MAX_X) * (canvasWidth - 2 * margin)
+    ? wc3ToPixelW(frame.backdropBackgroundInsets[0])
     : 0;
   const topInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[1] / WC3_MAX_Y) * canvasHeight
+    ? wc3ToPixelH(frame.backdropBackgroundInsets[1])
     : 0;
   const rightInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[2] / WC3_MAX_X) * (canvasWidth - 2 * margin)
+    ? wc3ToPixelW(frame.backdropBackgroundInsets[2])
     : 0;
   const bottomInset = frame.backdropBackgroundInsets 
-    ? (frame.backdropBackgroundInsets[3] / WC3_MAX_Y) * canvasHeight
+    ? wc3ToPixelH(frame.backdropBackgroundInsets[3])
     : 0;
   
   const resolvedBackdropPath = resolveTexturePath(frame.backdropBackground);
@@ -65,7 +62,7 @@ const BackdropBackground: React.FC<{
         backgroundImage: bgImage,
         backgroundSize: frame.backdropTileBackground 
           ? (frame.backdropBackgroundSize 
-              ? `${(frame.backdropBackgroundSize / WC3_MAX_X) * (canvasWidth - 2 * margin)}px` 
+              ? `${wc3ToPixelW(frame.backdropBackgroundSize)}px` 
               : 'auto')
           : 'cover',
         backgroundRepeat: frame.backdropTileBackground ? 'repeat' : 'no-repeat',
@@ -96,20 +93,17 @@ export interface CanvasHandle {
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const { project, addGuide, updateGuide, removeGuide } = useProjectStore();
-  const { selectedFrameId, selectFrame, toggleSelectFrame, highlightedFrameIds } = useUIStore();
+  const { selectedFrameId, selectFrame, toggleSelectFrame, highlightedFrameIds,
+    showGrid, setShowGrid, showAnchors, setShowAnchors, showRulers,
+    snapToGrid, setSnapToGrid, gridSize, setGridSize } = useUIStore();
   const { executeCommand } = useCommandStore();
   const { projectDir } = useProjectContext(); // 获取项目目录
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // ===== 显示控制状态 =====
-  const [showGrid, setShowGrid] = React.useState(true);
-  const [showAnchors, setShowAnchors] = React.useState(false);
-  const [showRulers, setShowRulers] = React.useState(true);
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; frameId: string | null } | null>(null);
-  const [snapToGrid, setSnapToGrid] = React.useState(true);
-  const [gridSize, setGridSize] = React.useState(0.01);
 
   // ===== 框选状态 =====
   const [isBoxSelecting, setIsBoxSelecting] = React.useState(false);
@@ -238,9 +232,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       setOffset({ x: 0, y: 0 });
       setScale(1);
     },
-    toggleGrid: () => setShowGrid(prev => !prev),
-    toggleAnchors: () => setShowAnchors(prev => !prev),
-    toggleRulers: () => setShowRulers(prev => !prev),
+    toggleGrid: () => { const s = useUIStore.getState(); s.setShowGrid(!s.showGrid); },
+    toggleAnchors: () => { const s = useUIStore.getState(); s.setShowAnchors(!s.showAnchors); },
+    toggleRulers: () => { const s = useUIStore.getState(); s.setShowRulers(!s.showRulers); },
     getScale: () => scale,
     getMousePosition: () => mousePosition,
   }));
@@ -404,6 +398,21 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           label: '复制控件',
           shortcut: 'Ctrl+D',
           action: () => executeCommand(new DuplicateFrameCommand(frameId))
+        },
+        { separator: true },
+        {
+          label: '复制样式',
+          shortcut: 'Ctrl+Shift+C',
+          action: () => executeCommand(new CopyStyleCommand(frameId))
+        },
+        {
+          label: '粘贴样式',
+          shortcut: 'Ctrl+Shift+V',
+          action: () => {
+            const ids = useUIStore.getState().selectedFrameIds;
+            executeCommand(new PasteStyleCommand(ids.length > 0 ? ids : [frameId]));
+          },
+          disabled: !useUIStore.getState().styleClipboard
         },
         { separator: true },
         {
@@ -635,20 +644,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                 frame={frame}
                 textureMap={textureMap}
                 isSelected={isSelected}
-                canvasWidth={CANVAS_WIDTH}
-                canvasHeight={CANVAS_HEIGHT}
-                margin={MARGIN}
                 resolveTexturePath={resolveTexturePath}
               />
-            ) : isSelected && frame.backdropBackgroundInsets && (
-              // 警告：设置了 insets 但没有背景纹理
-              console.warn('[Canvas] ⚠️ 警告: 设置了 backdropBackgroundInsets 但没有 backdropBackground 纹理', {
-                frameName: frame.name,
-                backdropBackgroundInsets: frame.backdropBackgroundInsets,
-                提示: '请在属性面板的 "Backdrop 背景纹理" 中选择一个纹理'
-              }),
-              null
-            )}
+            ) : null}
 
             {/* Backdrop 边框纹理 */}
             {frame.backdropEdgeFile && frame.backdropCornerFlags && frame.backdropCornerSize && (
@@ -975,7 +973,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             >
               {/* 垂直网格线 - 每0.05单位（相当于画布宽度的6.25%） */}
               {Array.from({ length: 16 }, (_, i) => i + 1).map(i => {
-                const x = ((i * 0.05) / WC3_MAX_X) * (CANVAS_WIDTH - 2 * MARGIN);
+                const x = wc3ToPixelW(i * 0.05);
                 return (
                   <line
                     key={`v-${i}`}
@@ -990,7 +988,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               })}
               {/* 水平网格线 - 每0.05单位 */}
               {Array.from({ length: 12 }, (_, i) => i + 1).map(i => {
-                const y = CANVAS_HEIGHT - ((i * 0.05) / WC3_MAX_Y) * CANVAS_HEIGHT;
+                const y = CANVAS_HEIGHT - wc3ToPixelH(i * 0.05);
                 return (
                   <line
                     key={`h-${i}`}
@@ -1005,9 +1003,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               })}
               {/* 中心十字线 */}
               <line
-                x1={(0.4 / WC3_MAX_X) * (CANVAS_WIDTH - 2 * MARGIN)}
+                x1={wc3ToPixelW(0.4)}
                 y1={0}
-                x2={(0.4 / WC3_MAX_X) * (CANVAS_WIDTH - 2 * MARGIN)}
+                x2={wc3ToPixelW(0.4)}
                 y2={CANVAS_HEIGHT}
                 stroke="rgba(0, 255, 0, 0.4)"
                 strokeWidth={1}
@@ -1015,9 +1013,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               />
               <line
                 x1={0}
-                y1={CANVAS_HEIGHT - (0.3 / WC3_MAX_Y) * CANVAS_HEIGHT}
+                y1={CANVAS_HEIGHT - wc3ToPixelH(0.3)}
                 x2={CANVAS_WIDTH - 2 * MARGIN}
-                y2={CANVAS_HEIGHT - (0.3 / WC3_MAX_Y) * CANVAS_HEIGHT}
+                y2={CANVAS_HEIGHT - wc3ToPixelH(0.3)}
                 stroke="rgba(0, 255, 0, 0.4)"
                 strokeWidth={1}
                 strokeDasharray="5,5"

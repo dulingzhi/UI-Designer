@@ -1,6 +1,6 @@
 import { Command } from '../store/commandStore';
 import { useProjectStore } from '../store/projectStore';
-import { useUIStore } from '../store/uiStore';
+import { useUIStore, STYLE_PROPERTIES } from '../store/uiStore';
 import { FrameData } from '../types';
 
 // 创建Frame命令
@@ -345,14 +345,11 @@ export class PasteStyleCommand implements Command {
     this.targetFrameIds.forEach(frameId => {
       const frame = store.project.frames[frameId];
       if (frame) {
-        this.previousStyles.set(frameId, {
-          textColor: frame.textColor,
-          textScale: frame.textScale,
-          horAlign: frame.horAlign,
-          verAlign: frame.verAlign,
-          texture: frame.texture,
-          text: frame.text,
-        });
+        this.previousStyles.set(frameId, Object.fromEntries(
+          STYLE_PROPERTIES
+            .filter(key => frame[key] !== undefined)
+            .map(key => [key, frame[key]])
+        ));
       }
     });
 

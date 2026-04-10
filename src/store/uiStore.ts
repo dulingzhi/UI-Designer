@@ -2,6 +2,25 @@ import { create } from 'zustand';
 import { FrameData } from '../types';
 import { useProjectStore } from './projectStore';
 
+/** 样式复制/粘贴涉及的属性列表 */
+export const STYLE_PROPERTIES: (keyof FrameData)[] = [
+  // 文本
+  'textColor', 'textScale', 'horAlign', 'verAlign', 'text',
+  'font', 'fontSize', 'fontFlags',
+  'fontHighlightColor', 'fontDisabledColor', 'fontShadowOffset', 'fontShadowColor',
+  // 纹理
+  'texture', 'textureFile', 'texCoord', 'alphaMode', 'decorateFileNames',
+  // Backdrop
+  'backdropBackground', 'backdropTileBackground', 'backdropBackgroundSize',
+  'backdropBackgroundInsets', 'backdropEdgeFile', 'backdropCornerSize',
+  'backdropCornerFlags', 'backdropBlendAll',
+  // 按钮状态
+  'controlBackdrop', 'controlPushedBackdrop', 'controlDisabledBackdrop',
+  'controlMouseOverHighlight', 'buttonPushedTextOffset',
+  // 高亮
+  'highlightType', 'highlightAlphaFile', 'highlightAlphaMode',
+];
+
 interface UIState {
   // 选择状态
   selectedFrameId: string | null;
@@ -13,6 +32,13 @@ interface UIState {
   
   // 搜索高亮
   highlightedFrameIds: string[];
+  
+  // Canvas 显示状态
+  showGrid: boolean;
+  showAnchors: boolean;
+  showRulers: boolean;
+  snapToGrid: boolean;
+  gridSize: number;
   
   // 选择操作
   selectFrame: (id: string | null) => void;
@@ -29,6 +55,13 @@ interface UIState {
   copyStyleToClipboard: (frameId: string) => void;
   pasteStyleFromClipboard: (targetFrameIds: string[]) => void;
   
+  // Canvas 显示操作
+  setShowGrid: (v: boolean) => void;
+  setShowAnchors: (v: boolean) => void;
+  setShowRulers: (v: boolean) => void;
+  setSnapToGrid: (v: boolean) => void;
+  setGridSize: (v: number) => void;
+  
   // 组选择
   selectGroup: (groupId: string) => void;
 }
@@ -39,6 +72,11 @@ export const useUIStore = create<UIState>((set, get) => ({
   clipboard: null,
   styleClipboard: null,
   highlightedFrameIds: [],
+  showGrid: true,
+  showAnchors: false,
+  showRulers: true,
+  snapToGrid: true,
+  gridSize: 0.01,
 
   selectFrame: (id) => set({
     selectedFrameId: id,
@@ -71,6 +109,12 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   clearHighlightedFrames: () => set({ highlightedFrameIds: [] }),
 
+  setShowGrid: (v) => set({ showGrid: v }),
+  setShowAnchors: (v) => set({ showAnchors: v }),
+  setShowRulers: (v) => set({ showRulers: v }),
+  setSnapToGrid: (v) => set({ snapToGrid: v }),
+  setGridSize: (v) => set({ gridSize: v }),
+
   copyToClipboard: (frameId) => {
     const { project } = useProjectStore.getState();
     const frame = project.frames[frameId];
@@ -95,14 +139,11 @@ export const useUIStore = create<UIState>((set, get) => ({
     if (!frame) return;
 
     set({
-      styleClipboard: {
-        textColor: frame.textColor,
-        textScale: frame.textScale,
-        horAlign: frame.horAlign,
-        verAlign: frame.verAlign,
-        texture: frame.texture,
-        text: frame.text,
-      },
+      styleClipboard: Object.fromEntries(
+        STYLE_PROPERTIES
+          .filter(key => frame[key] !== undefined)
+          .map(key => [key, frame[key]])
+      ),
     });
   },
 
