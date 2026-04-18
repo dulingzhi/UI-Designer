@@ -21,6 +21,35 @@ function rgbaToCSS(rgba: [number, number, number, number] | undefined): string {
   return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] / 255})`;
 }
 
+/** 文本内边距: TextAreaInset (WC3 单位) 优先, 否则历史默认 2px. 返回单边像素值(未乘 scale). */
+export function getTextInsetPx(frame: FrameData): number {
+  if (typeof frame.textAreaInset === 'number') {
+    return Math.max(0, wc3ToPixelW(frame.textAreaInset));
+  }
+  return 2;
+}
+
+/**
+ * 行高: ChatDisplayLineHeight > TextAreaLineHeight > 历史默认(fontSize * 1.2 / scale).
+ * 返回未乘 scale 的像素值; 调用方再乘当前 canvas scale.
+ */
+export function getTextLineHeightPx(frame: FrameData, baseFontSizePx: number): number {
+  const explicit = frame.chatDisplayLineHeight ?? frame.textAreaLineHeight;
+  if (typeof explicit === 'number') {
+    const lineGap = typeof frame.textAreaLineGap === 'number' ? wc3ToPixelH(frame.textAreaLineGap) : 0;
+    return Math.max(1, wc3ToPixelH(explicit) + lineGap);
+  }
+  return Math.max(1, baseFontSizePx * 1.2);
+}
+
+/** 最大可见行数: 仅在 TextAreaMaxLines 设置时裁剪. */
+export function applyMaxLines(lines: string[], frame: FrameData): string[] {
+  if (typeof frame.textAreaMaxLines !== 'number' || !Number.isFinite(frame.textAreaMaxLines)) {
+    return lines;
+  }
+  return lines.slice(0, Math.max(0, Math.floor(frame.textAreaMaxLines)));
+}
+
 /**
  * 预处理渲染文本：应用 TextLength / maxChars / PASSWORDFIELD.
  *
@@ -63,6 +92,11 @@ function makeTextKey(frame: FrameData, pixelW: number, pixelH: number, state: Bu
     typ: frame.type,
     tl: frame.textLength,
     mc: frame.maxChars,
+    tahi: frame.textAreaLineHeight,
+    tag: frame.textAreaLineGap,
+    tai: frame.textAreaInset,
+    taml: frame.textAreaMaxLines,
+    cdlh: frame.chatDisplayLineHeight,
     // 按钮态独立缓存: pushed 加 buttonPushedTextOffset; disabled/mouseover 换颜色.
     st: state,
     bpo: frame.buttonPushedTextOffset,
@@ -160,16 +194,19 @@ export function renderTextTexture(
   ctx.textBaseline = 'top';
 
   // 换行处理
-  const lines = wrapText(ctx, renderableText, cw - 4 * scale);
-  const lineHeight = fontSize * 1.2;
+  const insetPx = getTextInsetPx(frame);
+  const paddedWidth = Math.max(0, cw - insetPx * 2 * scale);
+  const wrappedLines = wrapText(ctx, renderableText, paddedWidth);
+  const lines = applyMaxLines(wrappedLines, frame);
+  const lineHeight = getTextLineHeightPx(frame, baseFontSize) * scale;
   const totalTextH = lines.length * lineHeight;
   const startY = getTextY(frame, ch, totalTextH);
 
   // X 坐标
   let textX: number;
   if (textAlign === 'center') textX = cw / 2;
-  else if (textAlign === 'right') textX = cw - 2 * scale;
-  else textX = 2 * scale;
+  else if (textAlign === 'right') textX = cw - insetPx * scale;
+  else textX = insetPx * scale;
 
   // FontJustificationOffset (WC3 单位, Y-up) — 整段文本基线再做一次微调
   // vendor 真实值如 `0.0 -0.001` (向下微调 1.8 px @ 1800 px/wc3-unit).

@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { FrameType, type FrameData } from '../../src/types';
+import { applyMaxLines, getTextInsetPx, getTextLineHeightPx } from '../../src/renderer/textLayout';
+
+function mkFrame(overrides: Partial<FrameData> = {}): FrameData {
+  return {
+    id: 'ta1',
+    name: 'TA',
+    type: FrameType.TEXTAREA,
+    x: 0,
+    y: 0,
+    width: 0.2,
+    height: 0.1,
+    z: 0,
+    parentId: null,
+    children: [],
+    anchors: [],
+    ...overrides,
+  } as FrameData;
+}
+
+describe('textLayout metrics helpers', () => {
+  it('默认 inset = 2px', () => {
+    expect(getTextInsetPx(mkFrame())).toBe(2);
+  });
+
+  it('TextAreaInset 使用 WC3→px 换算', () => {
+    expect(getTextInsetPx(mkFrame({ textAreaInset: 0.005 }))).toBeCloseTo(9, 4);
+  });
+
+  it('默认 lineHeight = baseFontSize * 1.2', () => {
+    expect(getTextLineHeightPx(mkFrame(), 18)).toBeCloseTo(21.6, 4);
+  });
+
+  it('TextAreaLineHeight + TextAreaLineGap 覆盖默认行高', () => {
+    expect(getTextLineHeightPx(mkFrame({ textAreaLineHeight: 0.01, textAreaLineGap: 0.0015 }), 18))
+      .toBeCloseTo(20.7, 4);
+  });
+
+  it('ChatDisplayLineHeight 优先于 TextAreaLineHeight', () => {
+    expect(getTextLineHeightPx(mkFrame({ chatDisplayLineHeight: 0.01, textAreaLineHeight: 0.02, textAreaLineGap: 0.0015 }), 18))
+      .toBeCloseTo(20.7, 4);
+  });
+
+  it('TextAreaMaxLines 裁剪行数', () => {
+    expect(applyMaxLines(['a', 'b', 'c'], mkFrame({ textAreaMaxLines: 2 }))).toEqual(['a', 'b']);
+  });
+
+  it('未设置 TextAreaMaxLines 时保留所有行', () => {
+    expect(applyMaxLines(['a', 'b', 'c'], mkFrame())).toEqual(['a', 'b', 'c']);
+  });
+
+  it('TextAreaMaxLines=0 返回空行集', () => {
+    expect(applyMaxLines(['a', 'b'], mkFrame({ textAreaMaxLines: 0 }))).toEqual([]);
+  });
+});
