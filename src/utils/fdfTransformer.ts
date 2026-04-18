@@ -730,6 +730,41 @@ export class FDFTransformer {
         }
         break;
 
+      case 'editbordersize':
+        // EditBox 边框宽度, WC3 单位 (4 vendor)
+        if (typeof value === 'number') frame.editBorderSize = value;
+        break;
+
+      case 'textareainset':
+        // TextArea 内边距, WC3 单位 (8 vendor)
+        if (typeof value === 'number') frame.textAreaInset = value;
+        break;
+
+      case 'textarealineheight':
+        // TextArea 行高, WC3 单位 (8 vendor)
+        if (typeof value === 'number') frame.textAreaLineHeight = value;
+        break;
+
+      case 'textarealinegap':
+        // TextArea 行间距, WC3 单位 (8 vendor)
+        if (typeof value === 'number') frame.textAreaLineGap = value;
+        break;
+
+      case 'textareamaxlines':
+        // TextArea 最大显示行数, 整数 (6 vendor)
+        if (typeof value === 'number') frame.textAreaMaxLines = value;
+        break;
+
+      case 'menuitemheight':
+        // 菜单项高度, WC3 单位 (5 vendor)
+        if (typeof value === 'number') frame.menuItemHeight = value;
+        break;
+
+      case 'popupbuttoninset':
+        // 弹出菜单按钮内边距, WC3 单位 (vendor: AdvancedOptionsPane.fdf 等)
+        if (typeof value === 'number') frame.popupButtonInset = value;
+        break;
+
       case 'decoratefilenames':
         // FDF: `DecorateFileNames,` 是无值标志；parser 将其 value 置为
         // Identifier "unknown"。也兼容显式 `DecorateFileNames true`。

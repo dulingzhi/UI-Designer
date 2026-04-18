@@ -180,6 +180,17 @@ export interface FrameData {
   editTextColor?: [number, number, number, number];      // 编辑文本颜色
   editCursorColor?: [number, number, number, number];    // 光标颜色
   editBorderColor?: [number, number, number, number];    // 边框颜色
+  editBorderSize?: number;             // EditBox 边框宽度 (WC3 单位)
+
+  // ========== TEXTAREA 属性 ==========
+  textAreaInset?: number;              // 内边距 (WC3 单位)
+  textAreaLineHeight?: number;         // 行高 (WC3 单位)
+  textAreaLineGap?: number;            // 行间距 (WC3 单位)
+  textAreaMaxLines?: number;           // 最大显示行数
+
+  // ========== MENU / POPUP 属性 ==========
+  menuItemHeight?: number;             // 菜单项高度 (WC3 单位)
+  popupButtonInset?: number;           // 弹出按钮内边距 (WC3 单位)
   
   // ========== SLIDER 属性 ==========
   minValue?: number;                   // 最小值
