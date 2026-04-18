@@ -29,6 +29,7 @@ import { snapRectToPixels, snapToPixel } from './pixelSnap';
 import { computeEdgePlacement, computeBackgroundPlacement } from './backdropLayout';
 import { renderTextTexture, disposeTextCache } from './textLayout';
 import { resolveButtonState, type ButtonState } from './buttonState';
+import { planSplitEdges } from './backdropSplitEdges';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -473,6 +474,21 @@ export class SceneGraphManager {
     renderOrderBase: number,
   ): void {
     const edgePath = this.resolveTexturePath(frame.backdropEdgeFile);
+
+    // ??????: 5 ??? BLP (CornerFile + TopFile/BottomFile/LeftFile/RightFile)
+    // ??? atlas ? BackdropEdgeFile. ????: HeavyBorder / LightBorder ??.
+    const hasSplitEdges = Boolean(
+      frame.backdropCornerFile
+        || frame.backdropTopFile
+        || frame.backdropBottomFile
+        || frame.backdropLeftFile
+        || frame.backdropRightFile,
+    );
+    if (!edgePath && hasSplitEdges) {
+      this.syncBackdropSplitEdges(id, node, frame, revision, width, height, renderOrderBase);
+      return;
+    }
+
     const flags = frame.backdropCornerFlags ? parseCornerFlags(frame.backdropCornerFlags) : [];
     // cornerSize ????????????????????
     const cornerSizePx = frame.backdropCornerSize ? snapToPixel(wc3ToPixelW(frame.backdropCornerSize)) : 0;
@@ -544,6 +560,110 @@ export class SceneGraphManager {
 
         this.markDirty();
       });
+  }
+
+  /**
+   * ???? Backdrop ?? ? ??? atlas ? BackdropEdgeFile.
+   *
+   * ?? 5 ??? BLP ?? 9-slice:
+   *   - BackdropCornerFile  ? UL/UR/BL/BR (??????, ?? UV ?????)
+   *   - BackdropTopFile     ? T
+   *   - BackdropBottomFile  ? B
+   *   - BackdropLeftFile    ? L
+   *   - BackdropRightFile   ? R
+   *
+   * ??? texture ? clone ??, ???? mesh ???? Texture ???
+   * ??? repeat/offset.
+   */
+  private syncBackdropSplitEdges(
+    id: string,
+    node: FrameRenderNode,
+    frame: FrameData,
+    revision: number,
+    width: number,
+    height: number,
+    renderOrderBase: number,
+  ): void {
+    const cornerSizePx = frame.backdropCornerSize
+      ? snapToPixel(wc3ToPixelW(frame.backdropCornerSize))
+      : 0;
+    if (cornerSizePx <= 0) {
+      this.clearEdgeMeshes(node);
+      return;
+    }
+
+    // ????? flag ? { path, UV }
+    const plan = planSplitEdges(
+      frame,
+      (p) => this.resolveTexturePath(p),
+      width,
+      height,
+      cornerSizePx,
+    );
+    const flags = Array.from(plan.keys());
+    if (flags.length === 0) {
+      this.clearEdgeMeshes(node);
+      return;
+    }
+
+    // ??????? edge meshes
+    const expectedFlags = new Set(flags);
+    for (const [flag, mesh] of node.edgeMeshes) {
+      if (!expectedFlags.has(flag)) {
+        node.group.remove(mesh);
+        (mesh.material as THREE.Material).dispose();
+        node.edgeMeshes.delete(flag);
+      }
+    }
+
+    // ??/???? edge mesh
+    for (const flag of flags) {
+      if (!node.edgeMeshes.has(flag)) {
+        const mesh = new THREE.Mesh(this.unitPlane, createMaterial(frame));
+        mesh.userData.frameId = id;
+        node.edgeMeshes.set(flag, mesh);
+        node.group.add(mesh);
+      }
+      this.layoutEdgeMesh(node.edgeMeshes.get(flag)!, flag, width, height, cornerSizePx, renderOrderBase);
+      updateMaterial(node.edgeMeshes.get(flag)!.material as FrameMaterial, frame);
+    }
+
+    // ???? flag ????? (clone ??? UV)
+    for (const flag of flags) {
+      const uv = plan.get(flag)!;
+      const mesh = node.edgeMeshes.get(flag);
+      if (!mesh) continue;
+
+      void this.textureCache.loadTexture(uv.path)
+        .then((sharedTex) => {
+          if (!this.isNodeCurrent(id, revision)) return;
+          if (!mesh.parent) return; // ????
+
+          const tex = sharedTex.clone();
+          tex.needsUpdate = true;
+
+          updateMaterial(mesh.material as FrameMaterial, frame, {
+            texture: tex,
+            repeatX: uv.repeatX,
+            repeatY: uv.repeatY,
+            offsetX: uv.offsetX,
+            offsetY: uv.offsetY,
+            wrapX: uv.wrapRepeatX ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping,
+            wrapY: uv.wrapRepeatY ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping,
+          });
+          mesh.visible = true;
+          this.markDirty();
+        })
+        .catch((err) => {
+          if (!this.isNodeCurrent(id, revision)) return;
+          console.warn(`[SGM] split-edge load FAILED "${frame.name}" flag=${flag} path=${uv.path}`, err);
+          updateMaterial(mesh.material as FrameMaterial, frame, {
+            texture: this.textureCache.getFallback(),
+          });
+          mesh.visible = true;
+          this.markDirty();
+        });
+    }
   }
 
   private layoutEdgeMesh(
