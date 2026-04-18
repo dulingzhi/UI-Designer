@@ -173,6 +173,7 @@ export interface FrameData {
   fontSize?: number;                   // 字体大小
   fontFlags?: string[];                // 字体标志 ['FIXEDSIZE', 'THICKOUTLINE']
   fontShadowOffset?: [number, number]; // 阴影偏移 [x, y]
+  fontJustificationOffset?: [number, number]; // 文本对齐微调偏移 (WC3 单位, Y-up; 4 vendor)
   
   // ========== EDITBOX 属性 ==========
   multiline?: boolean;                 // 多行文本
@@ -235,6 +236,18 @@ export interface FrameData {
   menuBorderRef?: string;              // MENU 边框 BACKDROP 子 frame 名
   controlShortcutKey?: string;         // 控件快捷键 (键盘绑定; 无视觉影响)
   tabFocusNext?: string;               // Tab 顺序中下一个 frame 名 (无视觉影响)
+  textAreaScrollBarRef?: string;       // TEXTAREA 嵌套的滚动条子 frame 名 (8 vendor)
+  sliderThumbButtonFrameRef?: string;  // SLIDER 拖拽按钮子 frame 名 (9 vendor)
+  scrollBarIncButtonFrameRef?: string; // SCROLLBAR 加按钮 (3)
+  scrollBarDecButtonFrameRef?: string; // SCROLLBAR 减按钮 (3)
+  checkBoxCheckHighlightRef?: string;  // CHECKBOX 勾选高亮子 frame (7)
+  checkBoxDisabledCheckHighlightRef?: string; // CHECKBOX 禁用高亮 (4)
+
+  // ========== CHATDISPLAY 属性 ==========
+  chatDisplayBorderSize?: number;      // 聊天框边框宽, WC3 单位 (1 vendor)
+  chatDisplayLineHeight?: number;      // 聊天框行高 (1 vendor)
+  chatDisplayEditBoxRef?: string;      // 聊天框输入框子 frame 名 (1 vendor)
+  chatDisplayScrollBarRef?: string;    // 聊天框滚动条子 frame 名 (1 vendor)
   
   // ========== SPRITE / MODEL 属性 ==========
   backgroundArt?: string;              // 模型文件路径 (.mdx/.mdl)

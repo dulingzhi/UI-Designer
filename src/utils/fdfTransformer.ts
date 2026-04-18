@@ -851,6 +851,51 @@ export class FDFTransformer {
       case 'tabfocusnext':
         if (typeof value === 'string') frame.tabFocusNext = value;
         break;
+      case 'textareascrollbar':
+        if (typeof value === 'string') frame.textAreaScrollBarRef = value;
+        break;
+      case 'sliderthumbbuttonframe':
+        if (typeof value === 'string') frame.sliderThumbButtonFrameRef = value;
+        break;
+      case 'scrollbarincbuttonframe':
+        if (typeof value === 'string') frame.scrollBarIncButtonFrameRef = value;
+        break;
+      case 'scrollbardecbuttonframe':
+        if (typeof value === 'string') frame.scrollBarDecButtonFrameRef = value;
+        break;
+      case 'checkboxcheckhighlight':
+        if (typeof value === 'string') frame.checkBoxCheckHighlightRef = value;
+        break;
+      case 'checkboxdisabledcheckhighlight':
+        if (typeof value === 'string') frame.checkBoxDisabledCheckHighlightRef = value;
+        break;
+
+      case 'chatdisplaybordersize':
+        if (typeof value === 'number') frame.chatDisplayBorderSize = value;
+        break;
+      case 'chatdisplaylineheight':
+        if (typeof value === 'number') frame.chatDisplayLineHeight = value;
+        break;
+      case 'chatdisplayeditbox':
+        if (typeof value === 'string') frame.chatDisplayEditBoxRef = value;
+        break;
+      case 'chatdisplayscrollbar':
+        if (typeof value === 'string') frame.chatDisplayScrollBarRef = value;
+        break;
+
+      case 'backgroundart':
+        // MODEL / frame 背景贴图或 .mdx (9 vendor: BattleNetTeamLevelBar 等)
+        if (typeof value === 'string') frame.backgroundArt = value;
+        break;
+
+      case 'fontjustificationoffset':
+        // FDF: FontJustificationOffset x y  (WC3 单位, Y-up; 4 vendor)
+        // 与 fontShadowOffset / buttonPushedTextOffset 同协议.
+        if (Array.isArray(value) && value.length >= 2) {
+          const [x, y] = value as number[];
+          frame.fontJustificationOffset = [x, y];
+        }
+        break;
       case 'menuitem':
         // MenuItem 在 POPUPMENU 中可重复出现, 每次声明一个项. 在 vendor 中常为
         //   MenuItem "FULL_OBSERVERS", -2,
