@@ -446,7 +446,31 @@ export class FDFTransformer {
           frame.textColor = this.rgbaToHex(r, g, b, a);
         }
         break;
-        
+
+      case 'fontshadowcolor':
+        // FDF: FontShadowColor r g b a   (0..1 floats, 与 FontColor 同)
+        // 渲染器 (textLayout.rgbaToCSS) 期望 0..255 RGB 与 0..255 alpha 元组
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.fontShadowColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+
+      case 'fontshadowoffset':
+        // FDF: FontShadowOffset x y   (WC3 单位, Y-up)
+        // 与 frame.width 等保持一致, 存为 WC3 单位; 由渲染器 (textLayout)
+        // 在使用时通过 wc3ToPixelW/H 转像素并翻转 Y 轴。
+        if (Array.isArray(value) && value.length >= 2) {
+          const [x, y] = value as number[];
+          frame.fontShadowOffset = [x, y];
+        }
+        break;
+
       case 'fontjustificationh':
         if (typeof value === 'string') {
           const hAlign = value.toLowerCase();
