@@ -471,6 +471,53 @@ export class FDFTransformer {
         }
         break;
 
+      case 'framefont':
+        // FDF: FrameFont "MasterFont", 0.011, ""
+        //   [0]=fontName, [1]=height (WC3 单位, Y-up), [2]=flags 字符串
+        // 105 处官方 FDF 引用; 之前完全被丢弃。
+        // height 保持 WC3 单位, 由渲染器通过 wc3ToPixelH 转像素 (与 fontShadowOffset 同).
+        if (Array.isArray(value)) {
+          const arr = value as unknown[];
+          if (typeof arr[0] === 'string') frame.font = arr[0];
+          if (typeof arr[1] === 'number') frame.fontSize = arr[1];
+          if (typeof arr[2] === 'string' && arr[2]) {
+            frame.fontFlags = (arr[2] as string).split('|').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        break;
+
+      case 'fontflags':
+        // FDF: FontFlags "FIXEDSIZE|PASSWORDFIELD"
+        if (typeof value === 'string' && value) {
+          frame.fontFlags = value.split('|').map(s => s.trim()).filter(Boolean);
+        }
+        break;
+
+      case 'fonthighlightcolor':
+        // 与 FontShadowColor 同: 0..1 → 0..255 元组
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.fontHighlightColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+
+      case 'fontdisabledcolor':
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.fontDisabledColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+
       case 'fontjustificationh':
         if (typeof value === 'string') {
           const hAlign = value.toLowerCase();
