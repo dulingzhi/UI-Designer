@@ -20,6 +20,7 @@ import { useCanvasResize } from '../hooks/useCanvasResize';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_MARGIN } from '../constants';
 import { pixelToWc3X, pixelToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
 import { SceneGraphManager } from '../renderer/SceneGraphManager';
+import { ensureWar3FontLoaded, setFontResolverContext } from '../renderer/fontResolver';
 import { hitTest } from '../renderer/hitTest';
 import './Canvas.css';
 
@@ -142,6 +143,16 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     return textureValue;
   }, [project.war3Skins, project.currentRace, getBuiltinTextureFallback]);
 
+  const usedFontNames = React.useMemo(() => {
+    const names = new Set<string>();
+    for (const frame of Object.values(project.frames)) {
+      if (frame.font) {
+        names.add(frame.font);
+      }
+    }
+    return Array.from(names).sort();
+  }, [project.frames]);
+
   // ===== WebGL 渲染层 =====
   React.useEffect(() => {
     const canvas = webglCanvasRef.current;
@@ -176,6 +187,30 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   React.useEffect(() => {
     sceneGraphRef.current?.setResolveTexturePath(resolveTexturePath);
   }, [resolveTexturePath]);
+
+  React.useEffect(() => {
+    setFontResolverContext({
+      projectDir: projectDir || undefined,
+      war3Skins: project.war3Skins,
+      race: project.currentRace,
+    });
+
+    if (!projectDir || !project.war3Skins || usedFontNames.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all(usedFontNames.map((fontName) => ensureWar3FontLoaded(fontName)))
+      .then((loaded) => {
+        if (cancelled) return;
+        if (!loaded.some(Boolean)) return;
+        sceneGraphRef.current?.sync(project.frames, project.rootFrameIds);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectDir, project.war3Skins, project.currentRace, usedFontNames, project.frames, project.rootFrameIds]);
 
   React.useEffect(() => {
     const sg = sceneGraphRef.current;

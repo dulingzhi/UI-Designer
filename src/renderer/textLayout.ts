@@ -10,6 +10,7 @@ import type { FrameData } from '../types';
 import { FrameType } from '../types';
 import { wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
 import { resolveButtonState, type ButtonState } from './buttonState';
+import { getResolvedFontFamily } from './fontResolver';
 
 /** 缓存 key = text + style hash → CanvasTexture */
 const textTextureCache = new Map<string, THREE.CanvasTexture>();
@@ -107,7 +108,7 @@ export function renderTextTexture(
     ? wc3ToPixelH(frame.fontSize)
     : (frame.textScale || 1) * 14;
   const fontSize = baseFontSize * scale;
-  const fontFamily = frame.font || 'Arial, sans-serif';
+  const fontFamily = getResolvedFontFamily(frame.font) || frame.font || 'Arial, sans-serif';
   const fontWeight = frame.fontFlags?.includes('BOLD') ? 'bold' : 'normal';
   const fontStyle = frame.fontFlags?.includes('ITALIC') ? 'italic' : 'normal';
   ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
