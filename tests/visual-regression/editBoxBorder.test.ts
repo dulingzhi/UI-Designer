@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildEditBoxBorderPositions, getEditBoxBorderInsetPx } from '../../src/renderer/editBoxBorder';
+import {
+  buildEditBoxBorderPositions,
+  getEditBoxBorderInsetPx,
+  normalizeEditBoxBorderColor,
+} from '../../src/renderer/editBoxBorder';
 
 describe('editBoxBorder helper', () => {
   it('无 EditBorderSize 时边框贴合外框', () => {
@@ -27,5 +31,24 @@ describe('editBoxBorder helper', () => {
     expect(pos[1]).toBeCloseTo(2.5, 4);
     expect(pos[3]).toBeCloseTo(7.5, 4);
     expect(pos[10]).toBeCloseTo(3.5, 4);
+  });
+
+  it('边框颜色兼容 0..255 输入', () => {
+    expect(normalizeEditBoxBorderColor([51, 102, 153, 128])).toEqual({
+      r: 0.2,
+      g: 0.4,
+      b: 0.6,
+      a: 128 / 255,
+    });
+  });
+
+  it('边框颜色兼容 0..1 输入与默认值', () => {
+    expect(normalizeEditBoxBorderColor([0.2, 0.4, 0.6, 0.5])).toEqual({
+      r: 0.2,
+      g: 0.4,
+      b: 0.6,
+      a: 0.5,
+    });
+    expect(normalizeEditBoxBorderColor()).toEqual({ r: 0.6, g: 0.6, b: 0.6, a: 0.8 });
   });
 });

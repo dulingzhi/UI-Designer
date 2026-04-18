@@ -57,7 +57,7 @@ interface FrameRenderNode {
 }
 
 export class SceneGraphManager {
-import { buildEditBoxBorderPositions } from './editBoxBorder';
+import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
   readonly renderer: WebGPURenderer | THREE.WebGLRenderer;
   readonly backend: RenderBackend;
   readonly scene: THREE.Scene;
@@ -956,10 +956,9 @@ import { buildEditBoxBorderPositions } from './editBoxBorder';
       return;
     }
 
-    const borderColor = frame.editBorderColor
-      ? new THREE.Color(frame.editBorderColor[0], frame.editBorderColor[1], frame.editBorderColor[2])
-      : new THREE.Color(0.6, 0.6, 0.6);
-    const borderAlpha = frame.editBorderColor ? frame.editBorderColor[3] : 0.8;
+    const normalized = normalizeEditBoxBorderColor(frame.editBorderColor);
+    const borderColor = new THREE.Color(normalized.r, normalized.g, normalized.b);
+    const borderAlpha = normalized.a;
 
     if (!node.borderMesh) {
       const positions = new Float32Array(8 * 3); // 4 lines × 2 points × 3 components

@@ -66,4 +66,12 @@ describe('FDF Menu / Popup / EditBox 标量', () => {
     }`;
     expect(parse(src)[0].editBorderSize).toBeCloseTo(0.009);
   });
+
+  it('EditBorderColor 0..1 浮点被映射到 0..255 RGBA', () => {
+    const src = `Frame "EDITBOX" "E" {
+      Width 0.1, Height 0.02,
+      EditBorderColor 0.2 0.4 0.6 0.5,
+    }`;
+    expect(parse(src)[0].editBorderColor).toEqual([51, 102, 153, 128]);
+  });
 });

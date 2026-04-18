@@ -749,6 +749,20 @@ export class FDFTransformer {
         }
         break;
 
+      case 'editbordercolor':
+        // FDF: EditBorderColor r g b a  (0..1 floats)
+        // 与 FontColor/EditCursorColor 协议一致: 转为 0..255 RGBA.
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.editBorderColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+
       case 'editbordersize':
         // EditBox 边框宽度, WC3 单位 (4 vendor)
         if (typeof value === 'number') frame.editBorderSize = value;
