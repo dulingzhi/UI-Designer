@@ -348,7 +348,14 @@ export class FDFParser {
       values.push(this.parsePropertyValue());
     }
     
-    // 读取后续值（用逗号分隔）
+    // 读取后续值
+    //   FDF 中同一属性的多个值有两种分隔方式：
+    //     1. 逗号分隔：FontColor 1.0, 1.0, 1.0, 1.0,
+    //     2. 空格分隔：BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    //   因此我们持续吞入紧随其后的 NUMBER（与逗号分隔的 path 共存）。
+    while (this.check(TokenType.NUMBER)) {
+      values.push(this.parsePropertyValue());
+    }
     while (this.check(TokenType.COMMA)) {
       this.advance(); // 跳过逗号
       
