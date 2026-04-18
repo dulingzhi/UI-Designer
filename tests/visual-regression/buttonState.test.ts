@@ -15,6 +15,7 @@ function mkButton(overrides: Partial<FrameData> = {}): FrameData {
     controlPushedBackdrop: 'pushed.blp',
     controlDisabledBackdrop: 'disabled.blp',
     controlMouseOverHighlight: 'hover.blp',
+    controlStyle: 'AUTOTRACK|HIGHLIGHTONMOUSEOVER',
     buttonPushedTextOffset: [-0.0015, -0.0015],
     fontHighlightColor: [255, 200, 0, 255],
     fontDisabledColor: [100, 100, 100, 255],
@@ -60,6 +61,19 @@ describe('resolveButtonState — 4 状态映射', () => {
   it('mouseover: 缺 controlMouseOverHighlight 时只改字色, 不返回 overlay path', () => {
     const r = resolveButtonState(mkButton({ controlMouseOverHighlight: undefined }), 'mouseover');
     expect(r.highlightPath).toBeUndefined();
+    expect(r.textColor).toEqual([0, 255, 255, 255]);
+  });
+
+  it('mouseover: 缺 HIGHLIGHTONMOUSEOVER flag 时不应用任何悬停覆盖', () => {
+    const r = resolveButtonState(mkButton({ controlStyle: 'AUTOTRACK' }), 'mouseover');
+    expect(r.backdropPath).toBe('normal.blp');
+    expect(r.highlightPath).toBeUndefined();
+    expect(r.textColor).toBeUndefined();
+  });
+
+  it('mouseover: ControlStyle 大小写不敏感', () => {
+    const r = resolveButtonState(mkButton({ controlStyle: 'autotrack|highlightonmouseover' }), 'mouseover');
+    expect(r.highlightPath).toBe('hover.blp');
     expect(r.textColor).toEqual([0, 255, 255, 255]);
   });
 

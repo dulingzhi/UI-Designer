@@ -25,6 +25,14 @@ export interface ResolvedButtonRender {
   highlightPath?: string;
 }
 
+function hasControlStyleFlag(controlStyle: string | undefined, flag: string): boolean {
+  if (!controlStyle) return false;
+  return controlStyle
+    .split('|')
+    .map((token) => token.trim().toUpperCase())
+    .includes(flag.toUpperCase());
+}
+
 /**
  * 解析 Button / Checkbox 的渲染状态.
  *
@@ -51,6 +59,7 @@ export function resolveButtonState(
   }
 
   const normalBackdrop = frame.controlBackdrop ?? frame.backdropBackground;
+  const canMouseoverHighlight = hasControlStyleFlag(frame.controlStyle, 'HIGHLIGHTONMOUSEOVER');
 
   switch (state) {
     case 'disabled':
@@ -70,8 +79,10 @@ export function resolveButtonState(
       return {
         backdropPath: normalBackdrop,
         textOffset: [0, 0],
-        textColor: frame.menuTextHighlightColor ?? frame.fontHighlightColor,
-        highlightPath: frame.controlMouseOverHighlight,
+        textColor: canMouseoverHighlight
+          ? (frame.menuTextHighlightColor ?? frame.fontHighlightColor)
+          : undefined,
+        highlightPath: canMouseoverHighlight ? frame.controlMouseOverHighlight : undefined,
       };
 
     case 'normal':
