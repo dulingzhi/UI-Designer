@@ -42,6 +42,14 @@ export function getTextLineHeightPx(frame: FrameData, baseFontSizePx: number): n
   return Math.max(1, baseFontSizePx * 1.2);
 }
 
+/** THICKOUTLINE 文本描边宽度（未乘 scale）. */
+export function getTextOutlineWidthPx(frame: FrameData, baseFontSizePx: number): number {
+  if (!frame.fontFlags?.includes('THICKOUTLINE')) {
+    return 0;
+  }
+  return Math.max(1, Math.round(baseFontSizePx * 0.12));
+}
+
 export interface MeasuredGlyphMetrics {
   actualBoundingBoxAscent?: number;
   actualBoundingBoxDescent?: number;
@@ -223,6 +231,7 @@ export function renderTextTexture(
   if (resolved.textColor) {
     textColor = rgbaToCSS(resolved.textColor);
   }
+  const outlineWidth = getTextOutlineWidthPx(frame, baseFontSize) * scale;
 
   // 对齐
   const textAlign = getTextAlign(frame);
@@ -283,6 +292,16 @@ export function renderTextTexture(
   }
 
   // 主文字
+  if (outlineWidth > 0) {
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = outlineWidth;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+    for (let i = 0; i < lines.length; i++) {
+      ctx.strokeText(lines[i], textX + jx, firstBaselineY + i * lineHeight + jy);
+    }
+  }
+
   ctx.fillStyle = textColor;
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i], textX + jx, firstBaselineY + i * lineHeight + jy);

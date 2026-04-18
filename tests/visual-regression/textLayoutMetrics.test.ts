@@ -5,6 +5,7 @@ import {
   getDefaultTextVerticalMetricsPx,
   getTextInsetPx,
   getTextLineHeightPx,
+  getTextOutlineWidthPx,
 } from '../../src/renderer/textLayout';
 
 function mkFrame(overrides: Partial<FrameData> = {}): FrameData {
@@ -66,5 +67,14 @@ describe('textLayout metrics helpers', () => {
 
   it('TextAreaMaxLines=0 返回空行集', () => {
     expect(applyMaxLines(['a', 'b'], mkFrame({ textAreaMaxLines: 0 }))).toEqual([]);
+  });
+
+  it('THICKOUTLINE 未设置时不描边', () => {
+    expect(getTextOutlineWidthPx(mkFrame(), 20)).toBe(0);
+  });
+
+  it('THICKOUTLINE 使用字号比例并保底 1px', () => {
+    expect(getTextOutlineWidthPx(mkFrame({ fontFlags: ['THICKOUTLINE'] }), 20)).toBe(2);
+    expect(getTextOutlineWidthPx(mkFrame({ fontFlags: ['THICKOUTLINE'] }), 6)).toBe(1);
   });
 });
