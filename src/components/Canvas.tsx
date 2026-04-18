@@ -182,8 +182,13 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     if (!sg) return;
     sg.sync(project.frames, project.rootFrameIds);
   }, [project.frames, project.rootFrameIds, resolveTexturePath]);
-  
-  // 纹理加载已完全由 WebGL 层 (TextureCache) 负责；DOM 不再需要任何纹理。
+
+  // Button/Checkbox 预览态: uiStore.buttonPreviewState 变化时通知 SceneGraphManager
+  // 重新解析多态 backdrop (controlPushedBackdrop / controlDisabledBackdrop / ...).
+  const buttonPreviewState = useUIStore((s) => s.buttonPreviewState);
+  React.useEffect(() => {
+    sceneGraphRef.current?.setButtonPreviewState(buttonPreviewState);
+  }, [buttonPreviewState, isWebGLReady]);
 
 
   // 处理从标尺创建参考线

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { FrameData } from '../types';
 import { useProjectStore } from './projectStore';
+import type { ButtonState } from '../renderer/buttonState';
 
 /** 样式复制/粘贴涉及的属性列表 */
 export const STYLE_PROPERTIES: (keyof FrameData)[] = [
@@ -39,6 +40,10 @@ interface UIState {
   showRulers: boolean;
   snapToGrid: boolean;
   gridSize: number;
+
+  // Button/Checkbox 预览态 — 全局状态, 让 Canvas 显示 normal/pushed/disabled/mouseover
+  // 哪张 backdrop + 对应的 text offset/color. 默认 'normal'.
+  buttonPreviewState: ButtonState;
   
   // 选择操作
   selectFrame: (id: string | null) => void;
@@ -61,6 +66,7 @@ interface UIState {
   setShowRulers: (v: boolean) => void;
   setSnapToGrid: (v: boolean) => void;
   setGridSize: (v: number) => void;
+  setButtonPreviewState: (v: ButtonState) => void;
   
   // 组选择
   selectGroup: (groupId: string) => void;
@@ -77,6 +83,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   showRulers: true,
   snapToGrid: true,
   gridSize: 0.01,
+  buttonPreviewState: 'normal',
 
   selectFrame: (id) => set({
     selectedFrameId: id,
@@ -114,6 +121,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setShowRulers: (v) => set({ showRulers: v }),
   setSnapToGrid: (v) => set({ snapToGrid: v }),
   setGridSize: (v) => set({ gridSize: v }),
+  setButtonPreviewState: (v) => set({ buttonPreviewState: v }),
 
   copyToClipboard: (frameId) => {
     const { project } = useProjectStore.getState();

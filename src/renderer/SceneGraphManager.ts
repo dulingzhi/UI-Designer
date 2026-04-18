@@ -28,6 +28,7 @@ import { TextureCache } from './TextureCache';
 import { snapRectToPixels, snapToPixel } from './pixelSnap';
 import { computeEdgePlacement, computeBackgroundPlacement } from './backdropLayout';
 import { renderTextTexture, disposeTextCache } from './textLayout';
+import { resolveButtonState, type ButtonState } from './buttonState';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -68,6 +69,8 @@ export class SceneGraphManager {
   private contextLost = false;
   private lastFrames: Record<string, FrameData> = {};
   private lastRootIds: string[] = [];
+  /** ????/?????? ? ??? UI ???? pushed/disabled/mouseover ??. */
+  private buttonPreviewState: ButtonState = 'normal';
   private onContextLost = (e: Event) => {
     e.preventDefault();
     this.contextLost = true;
@@ -175,6 +178,21 @@ export class SceneGraphManager {
 
   setResolveTexturePath(resolveTexturePath: (path: string | undefined) => string | undefined): void {
     this.resolveTexturePath = resolveTexturePath;
+  }
+
+  /**
+   * ????????? ('normal' | 'pushed' | 'disabled' | 'mouseover').
+   * ????? sync ????, ? Button/Checkbox ?????? backdrop ??.
+   */
+  setButtonPreviewState(state: ButtonState): void {
+    if (this.buttonPreviewState === state) return;
+    this.buttonPreviewState = state;
+    // ?? sync ???, ?? Button/Checkbox syncControlTexture ????.
+    this.sync(this.lastFrames, this.lastRootIds);
+  }
+
+  getButtonPreviewState(): ButtonState {
+    return this.buttonPreviewState;
   }
 
   sync(frames: Record<string, FrameData>, rootFrameIds: string[]): void {
@@ -621,13 +639,10 @@ export class SceneGraphManager {
     const isSprite = frame.type === FrameType.SPRITE;
 
     let textureProp: string | undefined;
-    if (isCheckbox) {
-      // Checkbox: checked �?pushed 纹理表示选中状态，否则用默�?
-      textureProp = frame.checked
-        ? (frame.controlPushedBackdrop ?? frame.controlBackdrop)
-        : frame.controlBackdrop;
-    } else if (isButton) {
-      textureProp = frame.controlBackdrop;
+    if (isCheckbox || isButton) {
+      // ????? resolveButtonState ???????? + Checkbox.checked ??.
+      const resolved = resolveButtonState(frame, this.buttonPreviewState);
+      textureProp = resolved.backdropPath;
     } else if (isHighlight) {
       textureProp = frame.highlightAlphaFile;
     } else if (isSprite) {
