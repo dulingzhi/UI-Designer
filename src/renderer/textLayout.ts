@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import type { FrameData } from '../types';
 import { FrameType } from '../types';
 import { wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
+import { resolveButtonState, type ButtonState } from './buttonState';
 
 /** 缓存 key = text + style hash → CanvasTexture */
 const textTextureCache = new Map<string, THREE.CanvasTexture>();
@@ -20,7 +21,7 @@ function rgbaToCSS(rgba: [number, number, number, number] | undefined): string {
 }
 
 /** 生成文本样式的 cache key */
-function makeTextKey(frame: FrameData, pixelW: number, pixelH: number): string {
+function makeTextKey(frame: FrameData, pixelW: number, pixelH: number, state: ButtonState): string {
   return JSON.stringify({
     t: frame.text,
     ts: frame.textScale,
@@ -38,6 +39,12 @@ function makeTextKey(frame: FrameData, pixelW: number, pixelH: number): string {
     h: pixelH,
     etc: frame.editTextColor,
     typ: frame.type,
+    // 按钮态独立缓存: pushed 加 buttonPushedTextOffset; disabled/mouseover 换颜色.
+    st: state,
+    bpo: frame.buttonPushedTextOffset,
+    fdc: frame.fontDisabledColor,
+    fhc: frame.fontHighlightColor,
+    mth: frame.menuTextHighlightColor,
   });
 }
 
@@ -62,15 +69,20 @@ function getTextY(frame: FrameData, canvasH: number, textH: number): number {
 /**
  * 渲染帧文字到 CanvasTexture
  * 返回 null 表示该帧无文字
+ *
+ * @param state Button/Checkbox 预览态 — pushed 时额外应用
+ *              buttonPushedTextOffset; disabled/mouseover 时切换文字颜色.
+ *              默认 'normal' (非按钮类帧等同于 normal).
  */
 export function renderTextTexture(
   frame: FrameData,
   pixelW: number,
   pixelH: number,
+  state: ButtonState = 'normal',
 ): THREE.CanvasTexture | null {
   if (!frame.text || pixelW <= 0 || pixelH <= 0) return null;
 
-  const cacheKey = makeTextKey(frame, pixelW, pixelH);
+  const cacheKey = makeTextKey(frame, pixelW, pixelH, state);
   const cached = textTextureCache.get(cacheKey);
   if (cached) return cached;
 
@@ -110,6 +122,13 @@ export function renderTextTexture(
     textColor = frame.textColor;
   }
 
+  // Button/Checkbox 状态覆盖: disabled→fontDisabledColor, mouseover→menu/fontHighlightColor.
+  // resolveButtonState 统一处理优先级 + 缺省回退.
+  const resolved = resolveButtonState(frame, state);
+  if (resolved.textColor) {
+    textColor = rgbaToCSS(resolved.textColor);
+  }
+
   // 对齐
   const textAlign = getTextAlign(frame);
   ctx.textAlign = textAlign;
@@ -135,6 +154,13 @@ export function renderTextTexture(
   if (frame.fontJustificationOffset) {
     jx = wc3ToPixelW(frame.fontJustificationOffset[0] || 0) * scale;
     jy = -wc3ToPixelH(frame.fontJustificationOffset[1] || 0) * scale;
+  }
+
+  // ButtonPushedTextOffset (pushed 态) — 模拟按下时文字跟随按钮下沉.
+  // resolved.textOffset 在非 pushed 态时为 [0,0], 不影响结果.
+  if (resolved.textOffset[0] !== 0 || resolved.textOffset[1] !== 0) {
+    jx += wc3ToPixelW(resolved.textOffset[0]) * scale;
+    jy += -wc3ToPixelH(resolved.textOffset[1]) * scale;
   }
 
   // 阴影

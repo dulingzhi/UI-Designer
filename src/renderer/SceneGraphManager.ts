@@ -569,7 +569,7 @@ export class SceneGraphManager {
     height: number,
     renderOrderBase: number,
   ): void {
-    const texture = renderTextTexture(frame, width, height);
+    const texture = renderTextTexture(frame, width, height, this.buttonPreviewState);
     if (!texture) {
       if (node.textMesh) {
         node.group.remove(node.textMesh);
