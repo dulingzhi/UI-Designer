@@ -56,6 +56,18 @@ describe('resolveButtonState — 4 状态映射', () => {
     const r = resolveButtonState(mkButton({ menuTextHighlightColor: undefined }), 'mouseover');
     expect(r.textColor).toEqual([255, 200, 0, 255]);
   });
+
+  it('mouseover: 缺 controlMouseOverHighlight 时只改字色, 不返回 overlay path', () => {
+    const r = resolveButtonState(mkButton({ controlMouseOverHighlight: undefined }), 'mouseover');
+    expect(r.highlightPath).toBeUndefined();
+    expect(r.textColor).toEqual([0, 255, 255, 255]);
+  });
+
+  it('normal/pushed/disabled: highlightPath 始终为空', () => {
+    expect(resolveButtonState(mkButton(), 'normal').highlightPath).toBeUndefined();
+    expect(resolveButtonState(mkButton(), 'pushed').highlightPath).toBeUndefined();
+    expect(resolveButtonState(mkButton(), 'disabled').highlightPath).toBeUndefined();
+  });
 });
 
 describe('resolveButtonState — 健壮回退', () => {

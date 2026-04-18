@@ -44,6 +44,8 @@ interface FrameRenderNode {
   textMesh: THREE.Mesh | null;
   /** 控件状态纹�?mesh (Button controlBackdrop / Highlight / Sprite) */
   controlMesh: THREE.Mesh | null;
+  /** Button/Checkbox mouseover ????? */
+  highlightOverlayMesh: THREE.Mesh | null;
   /** StatusBar 填充 mesh */
   fillMesh: THREE.Mesh | null;
   /** Slider 滑块 mesh */
@@ -320,6 +322,7 @@ export class SceneGraphManager {
       backgroundMesh: null,
       textMesh: null,
       controlMesh: null,
+      highlightOverlayMesh: null,
       fillMesh: null,
       thumbMesh: null,
       borderMesh: null,
@@ -759,10 +762,12 @@ export class SceneGraphManager {
     const isSprite = frame.type === FrameType.SPRITE;
 
     let textureProp: string | undefined;
+    let highlightTextureProp: string | undefined;
     if (isCheckbox || isButton) {
       // ????? resolveButtonState ???????? + Checkbox.checked ??.
       const resolved = resolveButtonState(frame, this.buttonPreviewState);
       textureProp = resolved.backdropPath;
+      highlightTextureProp = resolved.highlightPath;
     } else if (isHighlight) {
       textureProp = frame.highlightAlphaFile;
     } else if (isSprite) {
@@ -772,36 +777,71 @@ export class SceneGraphManager {
     const texturePath = this.resolveTexturePath(textureProp);
     if (!texturePath) {
       this.disposeControlMesh(node);
+    } else {
+      if (!node.controlMesh) {
+        node.controlMesh = new THREE.Mesh(this.unitPlane, createMaterial(frame));
+        node.controlMesh.userData.frameId = id;
+        node.group.add(node.controlMesh);
+      }
+
+      node.controlMesh.position.set(width / 2, height / 2, 0.15);
+      node.controlMesh.scale.set(width, height, 1);
+      node.controlMesh.renderOrder = renderOrderBase + 0.15;
+      node.controlMesh.visible = false;
+      updateMaterial(node.controlMesh.material as FrameMaterial, frame);
+
+      void this.textureCache.loadTexture(texturePath)
+        .then((texture) => {
+          if (!this.isNodeCurrent(id, revision)) return;
+          if (!node.controlMesh) return;
+          updateMaterial(node.controlMesh.material as FrameMaterial, frame, { texture });
+          node.controlMesh.visible = true;
+          this.markDirty();
+        })
+        .catch(() => {
+          if (!this.isNodeCurrent(id, revision)) return;
+          if (!node.controlMesh) return;
+          updateMaterial(node.controlMesh.material as FrameMaterial, frame, {
+            texture: this.textureCache.getFallback(),
+          });
+          node.controlMesh.visible = true;
+          this.markDirty();
+        });
+    }
+
+    const highlightTexturePath = this.resolveTexturePath(highlightTextureProp);
+    if (!highlightTexturePath) {
+      this.disposeHighlightOverlayMesh(node);
       return;
     }
 
-    if (!node.controlMesh) {
-      node.controlMesh = new THREE.Mesh(this.unitPlane, createMaterial(frame));
-      node.controlMesh.userData.frameId = id;
-      node.group.add(node.controlMesh);
+    if (!node.highlightOverlayMesh) {
+      node.highlightOverlayMesh = new THREE.Mesh(this.unitPlane, createMaterial(frame));
+      node.highlightOverlayMesh.userData.frameId = id;
+      node.group.add(node.highlightOverlayMesh);
     }
 
-    node.controlMesh.position.set(width / 2, height / 2, 0.15);
-    node.controlMesh.scale.set(width, height, 1);
-    node.controlMesh.renderOrder = renderOrderBase + 0.15;
-    node.controlMesh.visible = false;
-    updateMaterial(node.controlMesh.material as FrameMaterial, frame);
+    node.highlightOverlayMesh.position.set(width / 2, height / 2, 0.16);
+    node.highlightOverlayMesh.scale.set(width, height, 1);
+    node.highlightOverlayMesh.renderOrder = renderOrderBase + 0.16;
+    node.highlightOverlayMesh.visible = false;
+    updateMaterial(node.highlightOverlayMesh.material as FrameMaterial, frame);
 
-    void this.textureCache.loadTexture(texturePath)
+    void this.textureCache.loadTexture(highlightTexturePath)
       .then((texture) => {
         if (!this.isNodeCurrent(id, revision)) return;
-        if (!node.controlMesh) return;
-        updateMaterial(node.controlMesh.material as FrameMaterial, frame, { texture });
-        node.controlMesh.visible = true;
+        if (!node.highlightOverlayMesh) return;
+        updateMaterial(node.highlightOverlayMesh.material as FrameMaterial, frame, { texture });
+        node.highlightOverlayMesh.visible = true;
         this.markDirty();
       })
       .catch(() => {
         if (!this.isNodeCurrent(id, revision)) return;
-        if (!node.controlMesh) return;
-        updateMaterial(node.controlMesh.material as FrameMaterial, frame, {
+        if (!node.highlightOverlayMesh) return;
+        updateMaterial(node.highlightOverlayMesh.material as FrameMaterial, frame, {
           texture: this.textureCache.getFallback(),
         });
-        node.controlMesh.visible = true;
+        node.highlightOverlayMesh.visible = true;
         this.markDirty();
       });
   }
@@ -970,6 +1010,14 @@ export class SceneGraphManager {
     }
   }
 
+  private disposeHighlightOverlayMesh(node: FrameRenderNode): void {
+    if (node.highlightOverlayMesh) {
+      node.group.remove(node.highlightOverlayMesh);
+      (node.highlightOverlayMesh.material as THREE.Material).dispose();
+      node.highlightOverlayMesh = null;
+    }
+  }
+
   private disposeFillMesh(node: FrameRenderNode): void {
     if (node.fillMesh) {
       node.group.remove(node.fillMesh);
@@ -1016,6 +1064,7 @@ export class SceneGraphManager {
     this.disposeFillMesh(node);
     this.disposeThumbMesh(node);
     this.disposeBorderMesh(node);
+    this.disposeHighlightOverlayMesh(node);
     for (const mesh of node.edgeMeshes.values()) {
       (mesh.material as THREE.Material).dispose();
     }
