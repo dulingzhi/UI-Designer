@@ -21,10 +21,31 @@ function rgbaToCSS(rgba: [number, number, number, number] | undefined): string {
   return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] / 255})`;
 }
 
+/**
+ * 预处理渲染文本：应用 TextLength / maxChars / PASSWORDFIELD.
+ *
+ * 目标是贴近 WC3 的“最终可见文本”，让设计器里的截断结果与游戏一致。
+ */
+export function getRenderableText(frame: FrameData): string {
+  let text = frame.text ?? '';
+
+  const charLimit = frame.maxChars ?? frame.textLength;
+  if (typeof charLimit === 'number' && Number.isFinite(charLimit) && charLimit >= 0) {
+    text = text.slice(0, Math.max(0, Math.floor(charLimit)));
+  }
+
+  if (frame.fontFlags?.includes('PASSWORDFIELD')) {
+    text = text.replace(/[^\r\n]/g, '*');
+  }
+
+  return text;
+}
+
 /** 生成文本样式的 cache key */
 function makeTextKey(frame: FrameData, pixelW: number, pixelH: number, state: ButtonState): string {
+  const renderedText = getRenderableText(frame);
   return JSON.stringify({
-    t: frame.text,
+    t: renderedText,
     ts: frame.textScale,
     tc: frame.textColor,
     fc: frame.fontColor,
@@ -40,6 +61,8 @@ function makeTextKey(frame: FrameData, pixelW: number, pixelH: number, state: Bu
     h: pixelH,
     etc: frame.editTextColor,
     typ: frame.type,
+    tl: frame.textLength,
+    mc: frame.maxChars,
     // 按钮态独立缓存: pushed 加 buttonPushedTextOffset; disabled/mouseover 换颜色.
     st: state,
     bpo: frame.buttonPushedTextOffset,
@@ -81,7 +104,8 @@ export function renderTextTexture(
   pixelH: number,
   state: ButtonState = 'normal',
 ): THREE.CanvasTexture | null {
-  if (!frame.text || pixelW <= 0 || pixelH <= 0) return null;
+  const renderableText = getRenderableText(frame);
+  if (!renderableText || pixelW <= 0 || pixelH <= 0) return null;
 
   const cacheKey = makeTextKey(frame, pixelW, pixelH, state);
   const cached = textTextureCache.get(cacheKey);
@@ -136,7 +160,7 @@ export function renderTextTexture(
   ctx.textBaseline = 'top';
 
   // 换行处理
-  const lines = wrapText(ctx, frame.text, cw - 4 * scale);
+  const lines = wrapText(ctx, renderableText, cw - 4 * scale);
   const lineHeight = fontSize * 1.2;
   const totalTextH = lines.length * lineHeight;
   const startY = getTextY(frame, ch, totalTextH);
