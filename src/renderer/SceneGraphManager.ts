@@ -57,6 +57,7 @@ interface FrameRenderNode {
 }
 
 export class SceneGraphManager {
+import { buildEditBoxBorderPositions } from './editBoxBorder';
   readonly renderer: WebGPURenderer | THREE.WebGLRenderer;
   readonly backend: RenderBackend;
   readonly scene: THREE.Scene;
@@ -93,17 +94,13 @@ export class SceneGraphManager {
 
   /**
    * 异步创建 SceneGraphManager。优�?WebGPU，失败时降级�?WebGL2�?
-   */
-  static async create(
-    canvas: HTMLCanvasElement,
-    options: SceneGraphManagerOptions = {},
-  ): Promise<SceneGraphManager> {
-    let renderer: WebGPURenderer | THREE.WebGLRenderer;
-    let backend: RenderBackend;
-
-    const tryWebGPU = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
-
-    if (tryWebGPU) {
+    // ??????: EditBorderSize ???????????
+    const geo = node.borderMesh.geometry;
+    const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+    const positions = buildEditBoxBorderPositions(width, height, frame.editBorderSize, 0.25);
+    for (let i = 0; i < 8; i++) {
+      pos.setXYZ(i, positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+    }
       try {
         const gpu = new WebGPURenderer({
           canvas,
