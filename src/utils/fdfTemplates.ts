@@ -4,9 +4,9 @@
  * 管理 FDF 模板的注册、解析和应用
  */
 
-import { FDFFrameDefinition } from './fdfAst';
+import { FDFFrameDefinition, FDFProperty, FDFNodeType } from './fdfAst';
 import { parseFDFToAST } from './fdf';
-import { FrameData, FDFTemplate } from '../types';
+import { FrameData, FDFTemplate, FDFTextureData, FDFStringData, FDFBackdropData } from '../types';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 
 export class FDFTemplateManager {
@@ -138,15 +138,29 @@ export class FDFTemplateManager {
       return frame;
     }
     
-    // TODO: 将 FDFFrameDefinition 的属性应用到 FrameData
-    // 这需要使用 fdfTransformer 的逻辑
+    const properties = resolved.properties.filter(
+      (p): p is FDFProperty => p.type === FDFNodeType.PROPERTY
+    );
+    
+    const rawProperties: Record<string, any> = {};
+    properties.forEach(prop => {
+      rawProperties[prop.name] = extractPropValue(prop.value);
+    });
+    
+    const fdfTexture = extractTemplateTexture(properties);
+    const fdfString = extractTemplateString(properties);
+    const fdfBackdrop = extractTemplateBackdrop(properties);
     
     return {
       ...frame,
       fdfMetadata: {
         ...frame.fdfMetadata,
         inherits: templateName,
+        rawProperties,
       },
+      ...(fdfTexture && { fdfTexture }),
+      ...(fdfString && { fdfString }),
+      ...(fdfBackdrop && { fdfBackdrop }),
     };
   }
   
@@ -224,3 +238,76 @@ export class FDFTemplateManager {
 
 // 全局单例
 export const templateManager = new FDFTemplateManager();
+
+// ==================== 模板属性提取辅助函数 ====================
+
+function extractPropValue(value: any): any {
+  if (!value) return null;
+  switch (value.type) {
+    case FDFNodeType.STRING_LITERAL: return value.value;
+    case FDFNodeType.NUMBER_LITERAL: return value.value;
+    case FDFNodeType.IDENTIFIER: return value.name;
+    case FDFNodeType.ARRAY_LITERAL: return value.elements.map(extractPropValue);
+    default: return null;
+  }
+}
+
+function findProp(properties: FDFProperty[], name: string): any {
+  const prop = properties.find(p => p.name === name);
+  if (!prop) return null;
+  return extractPropValue(prop.value);
+}
+
+function extractTemplateTexture(properties: FDFProperty[]): FDFTextureData | undefined {
+  const file = findProp(properties, 'SetTexture');
+  const texCoord = findProp(properties, 'SetTexCoord');
+  const alphaMode = findProp(properties, 'SetAlphaMode');
+  if (!file && !texCoord && !alphaMode) return undefined;
+  
+  const am = alphaMode ? String(alphaMode).toUpperCase() : undefined;
+  return {
+    file: file ? String(file) : '',
+    texCoord: Array.isArray(texCoord) && texCoord.length === 4
+      ? texCoord.map(Number) as [number, number, number, number] : undefined,
+    alphaMode: (am === 'ALPHAKEY' || am === 'BLEND' || am === 'ADD') ? am : undefined,
+  };
+}
+
+function extractTemplateString(properties: FDFProperty[]): FDFStringData | undefined {
+  const content = findProp(properties, 'SetText');
+  const font = findProp(properties, 'SetFont');
+  const fontSize = findProp(properties, 'SetFontSize');
+  const fontFlags = findProp(properties, 'SetFontFlags');
+  if (!content && !font && !fontSize && !fontFlags) return undefined;
+  return {
+    content: content ? String(content) : '',
+    font: font ? String(font) : undefined,
+    fontSize: fontSize ? Number(fontSize) : undefined,
+    fontFlags: fontFlags
+      ? (Array.isArray(fontFlags) ? fontFlags.map(String) : [String(fontFlags)])
+      : undefined,
+  };
+}
+
+function extractTemplateBackdrop(properties: FDFProperty[]): FDFBackdropData | undefined {
+  const background = findProp(properties, 'BackdropBackground');
+  const edgeFile = findProp(properties, 'BackdropEdgeFile');
+  const cornerFlags = findProp(properties, 'BackdropCornerFlags');
+  const cornerSize = findProp(properties, 'BackdropCornerSize');
+  const tileBackground = findProp(properties, 'BackdropTileBackground');
+  const backgroundSize = findProp(properties, 'BackdropBackgroundSize');
+  const backgroundInsets = findProp(properties, 'BackdropBackgroundInsets');
+  const blendAll = findProp(properties, 'BackdropBlendAll');
+  if (!background && !edgeFile && !cornerFlags) return undefined;
+  return {
+    background: background ? String(background) : undefined,
+    edgeFile: edgeFile ? String(edgeFile) : undefined,
+    cornerFlags: cornerFlags ? String(cornerFlags) : undefined,
+    cornerSize: cornerSize ? Number(cornerSize) : undefined,
+    tileBackground: tileBackground != null ? Boolean(tileBackground) : undefined,
+    backgroundSize: backgroundSize ? Number(backgroundSize) : undefined,
+    backgroundInsets: Array.isArray(backgroundInsets) && backgroundInsets.length === 4
+      ? backgroundInsets.map(Number) as [number, number, number, number] : undefined,
+    blendAll: blendAll != null ? Boolean(blendAll) : undefined,
+  };
+}

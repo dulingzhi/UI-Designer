@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { TextureAtlasSplitter, parseCornerFlags, type EdgeFlag } from '../utils/textureAtlas';
 import { WC3_MAX_X } from '../constants';
+import { useTextureLoader } from '../hooks/useTextureLoader';
 
 export interface BackdropEdgeProps {
   /** 边框纹理文件路径 */
@@ -24,7 +25,7 @@ export interface BackdropEdgeProps {
  * 纹理图集包含 8 个部分：4个角 + 4条边
  */
 export const BackdropEdge: React.FC<BackdropEdgeProps> = ({
-  edgeFile: _edgeFile,
+  edgeFile,
   cornerFlags,
   cornerSize,
   backgroundInsets: _backgroundInsets = [0, 0, 0, 0],
@@ -33,6 +34,9 @@ export const BackdropEdge: React.FC<BackdropEdgeProps> = ({
 }) => {
   const [subTextures, setSubTextures] = useState<Map<EdgeFlag, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const edgeTextureState = useTextureLoader(edgeFile);
+
+  const activeTextureUrl = textureDataURL || edgeTextureState.url || undefined;
 
   // 解析要渲染的边框部分
   const flags = useMemo(() => parseCornerFlags(cornerFlags), [cornerFlags]);
@@ -44,7 +48,7 @@ export const BackdropEdge: React.FC<BackdropEdgeProps> = ({
 
   // 加载并分割纹理图集
   useEffect(() => {
-    if (!textureDataURL) {
+    if (!activeTextureUrl) {
       setLoading(false);
       return;
     }
@@ -55,8 +59,8 @@ export const BackdropEdge: React.FC<BackdropEdgeProps> = ({
         const splitter = new TextureAtlasSplitter();
         
         // 自动检测布局并提取子纹理
-        const { layout, subSize } = await splitter.detectLayout(textureDataURL);
-        const textures = await splitter.extractSubTextures(textureDataURL, layout, subSize);
+        const { layout, subSize } = await splitter.detectLayout(activeTextureUrl);
+        const textures = await splitter.extractSubTextures(activeTextureUrl, layout, subSize);
         
         setSubTextures(textures);
       } catch (error) {
@@ -67,9 +71,9 @@ export const BackdropEdge: React.FC<BackdropEdgeProps> = ({
     };
 
     loadTextures();
-  }, [textureDataURL]);
+  }, [activeTextureUrl]);
 
-  if (loading || !textureDataURL) {
+  if (loading || !activeTextureUrl) {
     return null;
   }
 

@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useMemo } from 'react';
+import React, { forwardRef, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useCommandStore } from '../store/commandStore';
@@ -12,74 +12,20 @@ import { AnchorVisualizer } from './AnchorVisualizer';
 import { Ruler } from './Ruler';
 import { GuideLine } from './GuideLine';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
-import { BackdropEdge } from './BackdropEdge';
-import { useTextureLoaderBatch } from '../hooks/useTextureLoader';
-import { ModelViewer } from './ModelViewer';
+import { MDXModelViewer } from './MDXModelViewer';
 import { useProjectContext } from '../contexts/ProjectContext';
 import { useCanvasPan } from '../hooks/useCanvasPan';
 import { useCanvasDrag } from '../hooks/useCanvasDrag';
 import { useCanvasResize } from '../hooks/useCanvasResize';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, CANVAS_MARGIN } from '../constants';
 import { pixelToWc3X, pixelToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
+import { SceneGraphManager } from '../renderer/SceneGraphManager';
+import { hitTest } from '../renderer/hitTest';
 import './Canvas.css';
 
 // 保留旧名兼容: MARGIN -> CANVAS_MARGIN
 const MARGIN = CANVAS_MARGIN;
 
-// BackdropBackground 内部组件 - 避免 IIFE 导致的渲染问题
-const BackdropBackground: React.FC<{
-  frame: FrameData;
-  textureMap: Map<string, any>;
-  isSelected: boolean;
-  resolveTexturePath: (path: string | undefined) => string | undefined;
-}> = ({ frame, textureMap, isSelected, resolveTexturePath }) => {
-
-  const leftInset = frame.backdropBackgroundInsets 
-    ? wc3ToPixelW(frame.backdropBackgroundInsets[0])
-    : 0;
-  const topInset = frame.backdropBackgroundInsets 
-    ? wc3ToPixelH(frame.backdropBackgroundInsets[1])
-    : 0;
-  const rightInset = frame.backdropBackgroundInsets 
-    ? wc3ToPixelW(frame.backdropBackgroundInsets[2])
-    : 0;
-  const bottomInset = frame.backdropBackgroundInsets 
-    ? wc3ToPixelH(frame.backdropBackgroundInsets[3])
-    : 0;
-  
-  const resolvedBackdropPath = resolveTexturePath(frame.backdropBackground);
-  const textureState = resolvedBackdropPath ? textureMap.get(resolvedBackdropPath) : undefined;
-  const bgImage = textureState?.url ? `url(${textureState.url})` : undefined;
-  
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: leftInset,
-        top: topInset,
-        right: rightInset,
-        bottom: bottomInset,
-        backgroundImage: bgImage,
-        backgroundSize: frame.backdropTileBackground 
-          ? (frame.backdropBackgroundSize 
-              ? `${wc3ToPixelW(frame.backdropBackgroundSize)}px` 
-              : 'auto')
-          : 'cover',
-        backgroundRepeat: frame.backdropTileBackground ? 'repeat' : 'no-repeat',
-        backgroundPosition: 'center center',
-        pointerEvents: 'none',
-        // 临时：添加边框以便调试
-        border: isSelected ? '2px dashed red' : undefined,
-      }}
-    />
-  );
-};
-
-// 辅助函数：将RGBA数组转换为CSS颜色字符串
-const rgbaToCSS = (rgba: [number, number, number, number] | undefined): string | undefined => {
-  if (!rgba) return undefined;
-  return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] / 255})`;
-};
 
 export interface CanvasHandle {
   setScale: (scale: number | ((prev: number) => number)) => void;
@@ -93,13 +39,16 @@ export interface CanvasHandle {
 
 export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const { project, addGuide, updateGuide, removeGuide } = useProjectStore();
-  const { selectedFrameId, selectFrame, toggleSelectFrame, highlightedFrameIds,
+  const { selectedFrameId, selectedFrameIds, selectFrame, toggleSelectFrame, highlightedFrameIds,
     showGrid, setShowGrid, showAnchors, setShowAnchors, showRulers,
     snapToGrid, setSnapToGrid, gridSize, setGridSize } = useUIStore();
   const { executeCommand } = useCommandStore();
   const { projectDir } = useProjectContext(); // 获取项目目录
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const webglCanvasRef = React.useRef<HTMLCanvasElement>(null);
+  const sceneGraphRef = React.useRef<SceneGraphManager | null>(null);
+  const [isWebGLReady, setIsWebGLReady] = React.useState(false);
 
   // ===== 显示控制状态 =====
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
@@ -131,6 +80,35 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     isResizing,
     startResize: handleResizeStart, updateResize, endResize,
   } = useCanvasResize({ scale, snapValue, snapToGrid, gridSize });
+
+  const getBuiltinTextureFallback = React.useCallback((key: string): string | undefined => {
+    const race = project.currentRace || 'Human';
+    const raceName = race === 'Default' ? 'Human' : race;
+    const lowerRace = raceName.toLowerCase();
+
+    const builtin: Record<string, string> = {
+      EscMenuBorder: `UI\\Widgets\\EscMenu\\${raceName}\\${lowerRace}-options-menu-border.blp`,
+      EscMenuBackground: `UI\\Widgets\\EscMenu\\${raceName}\\${lowerRace}-options-menu-background.blp`,
+    };
+
+    const relative = builtin[key];
+    if (!relative) return undefined;
+
+    if (!projectDir) {
+      return relative;
+    }
+
+    const normalizedDir = projectDir.replace(/[\\/]+$/, '');
+    const relForFs = relative.replace(/\//g, '\\');
+
+    // 优先尝试当前工程目录中的 vendor（例如 ...\\target\\vendor\\UI\\...）
+    const inProjectVendor = `${normalizedDir}\\vendor\\${relForFs}`;
+    // 兼容项目目录在根目录时（例如 ...\\target\\vendor\\UI\\...）
+    const inTargetVendor = `${normalizedDir}\\target\\vendor\\${relForFs}`;
+
+    // 如果当前目录已是 target，第一条路径通常可用；否则走第二条。
+    return /[\\/]target$/i.test(normalizedDir) ? inProjectVendor : inTargetVendor;
+  }, [project.currentRace, projectDir]);
   
   // 辅助函数：将纹理键名解析为实际路径
   const resolveTexturePath = React.useCallback((textureValue: string | undefined): string | undefined => {
@@ -153,36 +131,60 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         return defaultConfig[textureValue];
       }
     }
+
+    // war3Skins 未加载或缺失键名时，使用常见内置键名回退
+    const fallback = getBuiltinTextureFallback(textureValue);
+    if (fallback) {
+      return fallback;
+    }
     
     // 如果无法解析，返回原值
     return textureValue;
-  }, [project.war3Skins, project.currentRace]);
+  }, [project.war3Skins, project.currentRace, getBuiltinTextureFallback]);
+
+  // ===== WebGL 渲染层 =====
+  React.useEffect(() => {
+    const canvas = webglCanvasRef.current;
+    if (!canvas) return;
+
+    let sg: SceneGraphManager | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const created = await SceneGraphManager.create(canvas, { resolveTexturePath });
+        if (cancelled) {
+          created.dispose();
+          return;
+        }
+        sg = created;
+        sceneGraphRef.current = sg;
+        setIsWebGLReady(true);
+      } catch (err) {
+        console.error('[Canvas] 渲染器初始化失败:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      setIsWebGLReady(false);
+      sg?.dispose();
+      sceneGraphRef.current = null;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    sceneGraphRef.current?.setResolveTexturePath(resolveTexturePath);
+  }, [resolveTexturePath]);
+
+  React.useEffect(() => {
+    const sg = sceneGraphRef.current;
+    if (!sg) return;
+    sg.sync(project.frames, project.rootFrameIds);
+  }, [project.frames, project.rootFrameIds, resolveTexturePath]);
   
-  // 收集所有需要加载的纹理路径
-  const texturePaths = useMemo(() => {
-    const paths: string[] = [];
-    
-    Object.values(project.frames).forEach(frame => {
-      const resolvedTexture = resolveTexturePath(frame.texture);
-      if (resolvedTexture) {
-        paths.push(resolvedTexture);
-      }
-      // 添加 Backdrop 背景纹理路径
-      const resolvedBackdrop = resolveTexturePath(frame.backdropBackground);
-      if (resolvedBackdrop) {
-        paths.push(resolvedBackdrop);
-      }
-      // 添加边框纹理路径
-      const resolvedEdge = resolveTexturePath(frame.backdropEdgeFile);
-      if (resolvedEdge) {
-        paths.push(resolvedEdge);
-      }
-    });
-    return paths;
-  }, [project.frames, resolveTexturePath, project.currentRace]);
-  
-  // 批量加载纹理
-  const textureMap = useTextureLoaderBatch(texturePaths);
+  // 纹理加载已完全由 WebGL 层 (TextureCache) 负责；DOM 不再需要任何纹理。
+
 
   // 处理从标尺创建参考线
   const handleCreateGuide = (orientation: 'horizontal' | 'vertical', clientX: number, clientY: number) => {
@@ -352,16 +354,22 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // 检查是否点击在某个Frame上
-    const target = e.target as HTMLElement;
-    const frameElement = target.closest('.canvas-frame');
-    
+
+    // 优先用 WebGL hitTest 查找命中的帧
     let frameId: string | null = null;
-    
-    if (frameElement) {
-      // 通过 data-frame-id 属性获取 frameId
-      frameId = frameElement.getAttribute('data-frame-id');
+    if (isWebGLReady && sceneGraphRef.current) {
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (canvasBounds) {
+        const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
+        const mouseY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
+        frameId = hitTest(mouseX, mouseY, sceneGraphRef.current.scene, sceneGraphRef.current.camera);
+      }
+    }
+    // 回退：命中选中/锁定/MODEL 帧的 DOM 叠加层
+    if (!frameId) {
+      const target = e.target as HTMLElement;
+      const frameElement = target.closest('.canvas-frame');
+      if (frameElement) frameId = frameElement.getAttribute('data-frame-id');
     }
 
     // 如果点击在Frame上且该Frame未选中，则选中它
@@ -509,82 +517,69 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     return false;
   };
 
-  // 渲染单个Frame
-  const renderFrame = (frameId: string) => {
+  // 计算帧的像素矩形（考虑锚点）
+  const computeFramePixelRect = (frameId: string) => {
     const frame = project.frames[frameId];
     if (!frame) return null;
+    const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
+    const actualFrame = calculatedPos ? { ...frame, ...calculatedPos } : frame;
+    return {
+      frame,
+      left: wc3ToPixelX(actualFrame.x),
+      bottom: wc3ToPixelYBottom(actualFrame.y),
+      width: wc3ToPixelW(actualFrame.width),
+      height: wc3ToPixelH(actualFrame.height),
+    };
+  };
 
-    // 如果控件或其任何父控件被隐藏，不渲染
+  /**
+   * 渲染帧的 DOM 叠加层（仅为需要交互/视觉反馈的帧生成 DOM）
+   * 覆盖场景：选中边框 / 高亮边框 / 锁定边框 + 🔒 / ResizeHandles / ModelViewer
+   * 普通未选中的帧完全由 WebGL 渲染，不再产生 DOM 节点
+   */
+  const renderFrameOverlay = (frameId: string) => {
+    const frame = project.frames[frameId];
+    if (!frame) return null;
     if (isFrameOrParentHidden(frameId)) return null;
 
-    const isSelected = useUIStore.getState().selectedFrameIds.includes(frameId);
+    const isSelected = selectedFrameIds.includes(frameId);
     const isHighlighted = highlightedFrameIds.includes(frameId);
-    
-    // 检查是否使用相对锚点，如果是则重新计算位置
-    const calculatedPos = calculatePositionFromAnchors(frame, project.frames);
-    const actualFrame = calculatedPos 
-      ? { ...frame, ...calculatedPos }
-      : frame;
-    
-    // 计算实际位置（从底部左侧开始）
-    const left = wc3ToPixelX(actualFrame.x);
-    const bottom = wc3ToPixelYBottom(actualFrame.y);
-    const width = wc3ToPixelW(actualFrame.width);
-    const height = wc3ToPixelH(actualFrame.height);
-
-    // 检查控件或父控件是否锁定
     const isLockedOrParentLocked = isFrameOrParentLocked(frameId);
+    const isModel = frame.type === FrameType.MODEL;
 
-    // 外层容器样式（定位和基础属性，不包含边框）
+    // 仅在以下情况需要渲染 DOM 叠加：选中/高亮/锁定/MODEL(独立 WebGL)
+    const needsOverlay = isSelected || isHighlighted || isLockedOrParentLocked || isModel;
+    if (!needsOverlay) return null;
+
+    const rect = computeFramePixelRect(frameId);
+    if (!rect) return null;
+    const { left, bottom, width, height } = rect;
+
     const containerStyle: React.CSSProperties = {
       position: 'absolute',
       left: `${left}px`,
       bottom: `${bottom}px`,
       width: `${width}px`,
       height: `${height}px`,
-      cursor: isLockedOrParentLocked ? 'not-allowed' : 'pointer',
-      zIndex: frame.z,
-      pointerEvents: 'auto',
-      opacity: (isLockedOrParentLocked ? 0.7 : 1) * (frame.alpha ?? 1),
+      zIndex: (frame.z || 0) + 1,
+      pointerEvents: 'none', // 所有鼠标事件由根画布 hitTest 处理
+      opacity: isLockedOrParentLocked ? 0.7 : 1,
     };
 
-    // 使用 texture 字段，解析纹理键名为实际路径
-    const texturePath = resolveTexturePath(frame.texture);
-    let backgroundImage: string | undefined = undefined;
-    
-    if (texturePath && typeof texturePath === 'string') {
-      // 如果纹理已加载,使用加载后的URL
-      const textureState = textureMap.get(texturePath);
-      if (textureState && textureState.url) {
-        backgroundImage = `url(${textureState.url})`;
-      } else if (texturePath.startsWith('data:') || texturePath.startsWith('http://') || texturePath.startsWith('https://')) {
-        // 如果是Data URL或HTTP URL,直接使用
-        backgroundImage = `url(${texturePath})`;
-      }
-    }
-
-    // 内层内容样式
-    const contentStyle: React.CSSProperties = {
-      position: 'relative',
-      width: '100%',
-      height: '100%',
-      backgroundColor: getFrameBackgroundColor(frame.type),
-      backgroundImage,
-      backgroundSize: 'cover',
-      color: frame.textColor || '#ffffff',
-      display: 'flex',
-      alignItems: frame.verAlign === 'start' ? 'flex-start' : frame.verAlign === 'center' ? 'center' : 'flex-end',
-      justifyContent: frame.horAlign === 'left' ? 'flex-start' : frame.horAlign === 'center' ? 'center' : 'flex-end',
-      fontSize: frame.fontSize ? `${frame.fontSize}px` : `${(frame.textScale || 1) * 14}px`,
-      fontFamily: frame.font || undefined,
-      fontWeight: frame.fontFlags?.includes('BOLD') ? 'bold' : undefined,
-      fontStyle: frame.fontFlags?.includes('ITALIC') ? 'italic' : undefined,
-      textDecoration: frame.fontFlags?.includes('UNDERLINE') ? 'underline' : frame.fontFlags?.includes('STRIKEOUT') ? 'line-through' : undefined,
-      textShadow: frame.fontShadowColor && frame.fontShadowOffset 
-        ? `${frame.fontShadowOffset[0]}px ${frame.fontShadowOffset[1]}px 2px ${rgbaToCSS(frame.fontShadowColor)}`
-        : undefined,
-      overflow: 'visible',
-    };
+    // 边框样式（仅在选中/高亮/锁定时显示）
+    const showBorder = isSelected || isHighlighted || isLockedOrParentLocked;
+    const borderStyle: React.CSSProperties | undefined = showBorder ? {
+      position: 'absolute',
+      inset: 0,
+      border: isLockedOrParentLocked
+        ? '2px dashed #888888'
+        : isSelected
+          ? '2px solid #f22613'
+          : '2px solid #00aaff',
+      boxSizing: 'border-box',
+      pointerEvents: 'none',
+      boxShadow: isHighlighted && !isSelected ? '0 0 10px rgba(0, 170, 255, 0.5)' : undefined,
+    } : undefined;
 
     return (
       <div
@@ -592,209 +587,56 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
         className="canvas-frame"
         data-frame-id={frameId}
         style={containerStyle}
-        onMouseDown={(e) => {
-          // 先处理选择逻辑（在拖拽开始之前）
-          if (e.button === 0) { // 只处理左键
-            if (e.ctrlKey || e.metaKey) {
-              toggleSelectFrame(frameId);
-              e.stopPropagation();
-              return; // Ctrl+点击时不启动拖拽
-            } else {
-              selectFrame(frameId);
-            }
-          }
-          handleFrameMouseDown(e, frameId);
-        }}
-        onClick={(e) => {
-          e.stopPropagation(); // 阻止事件冒泡到画布
-        }}
         title={frame.name}
       >
-        {/* 选择框 - 最外层，不受内容影响 */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            border: isLockedOrParentLocked 
-              ? '2px dashed #888888' 
-              : isSelected 
-                ? '2px solid #f22613' 
-                : isHighlighted 
-                  ? '2px solid #00aaff'
-                  : '1px solid #00e640',
-            boxSizing: 'border-box',
-            pointerEvents: 'none',
-            boxShadow: isHighlighted ? '0 0 10px rgba(0, 170, 255, 0.5)' : undefined,
-          }}
-        />
+        {borderStyle && <div style={borderStyle} />}
 
-        {/* Backdrop 背景和边框容器 */}
-        {(frame.backdropBackground || frame.backdropEdgeFile) && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              overflow: 'hidden',
+        {/* MODEL: 3D 模型独立 WebGPU/WebGL 上下文，无法合入主 scene */}
+        {isModel && frame.backgroundArt && (
+          <MDXModelViewer
+            modelPath={frame.backgroundArt}
+            projectDir={projectDir || undefined}
+            width={Math.round(width)}
+            height={Math.round(height)}
+            cameraYaw={frame.cameraYaw}
+            cameraPitch={frame.cameraPitch}
+            cameraDistance={frame.cameraDistance}
+            onCameraChange={(params) => {
+              executeCommand(new UpdateFrameCommand(frameId, {
+                cameraYaw: params.yaw,
+                cameraPitch: params.pitch,
+                cameraDistance: params.distance,
+              }));
             }}
-          >
-            {/* Backdrop 背景纹理（带内边距） */}
-            {frame.backdropBackground ? (
-              <BackdropBackground
-                frame={frame}
-                textureMap={textureMap}
-                isSelected={isSelected}
-                resolveTexturePath={resolveTexturePath}
-              />
-            ) : null}
+          />
+        )}
 
-            {/* Backdrop 边框纹理 */}
-            {frame.backdropEdgeFile && frame.backdropCornerFlags && frame.backdropCornerSize && (
-              <BackdropEdge
-                edgeFile={frame.backdropEdgeFile}
-                cornerFlags={frame.backdropCornerFlags}
-                cornerSize={frame.backdropCornerSize}
-                backgroundInsets={frame.backdropBackgroundInsets}
-                textureDataURL={(() => {
-                  const resolvedEdgePath = resolveTexturePath(frame.backdropEdgeFile);
-                  const textureState = resolvedEdgePath ? textureMap.get(resolvedEdgePath) : undefined;
-                  return textureState?.url || undefined;
-                })()}
-                canvasWidth={CANVAS_WIDTH - 2 * MARGIN}
-              />
-            )}
+        {/* 锁定图标 */}
+        {isLockedOrParentLocked && (
+          <div style={{
+            position: 'absolute',
+            top: '2px',
+            right: '2px',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#888888',
+            padding: '2px 4px',
+            fontSize: '12px',
+            borderRadius: '2px',
+            pointerEvents: 'none',
+          }}>
+            🔒
           </div>
         )}
 
-        {/* 内容层 */}
-        <div style={contentStyle}>
-          {frame.text && (
-            <span 
-              className={`frame-text ${
-                [FrameType.BUTTON, FrameType.GLUETEXTBUTTON, FrameType.GLUEBUTTON, 
-                 FrameType.SIMPLEBUTTON, FrameType.CHECKBOX].includes(frame.type) 
-                  ? 'frame-text-hoverable' 
-                  : ''
-              }`}
-              style={{
-                color: frame.type === FrameType.EDITBOX && frame.editTextColor 
-                  ? rgbaToCSS(frame.editTextColor) 
-                  : undefined,
-                // 为可交互控件添加hover颜色变量
-                ['--hover-color' as string]: frame.fontHighlightColor 
-                  ? rgbaToCSS(frame.fontHighlightColor) 
-                  : undefined,
-              }}
-            >
-              {frame.text}
-            </span>
-          )}
-          
-          {/* EDITBOX 光标和边框样式 */}
-          {frame.type === FrameType.EDITBOX && isSelected && (
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              borderColor: frame.editBorderColor ? rgbaToCSS(frame.editBorderColor) : undefined,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              pointerEvents: 'none',
-            }} />
-          )}
-          
-          {/* SPRITE / MODEL 渲染或占位符 */}
-          {(frame.type === FrameType.SPRITE || frame.type === FrameType.MODEL) && (
-            <>
-              {/* 如果有 backgroundArt，尝试渲染 3D 模型 */}
-              {frame.type === FrameType.MODEL && frame.backgroundArt && (
-                <ModelViewer
-                  modelPath={frame.backgroundArt}
-                  projectDir={projectDir || undefined}
-                  width={Math.round(width)}
-                  height={Math.round(height)}
-                  cameraYaw={frame.cameraYaw}
-                  cameraPitch={frame.cameraPitch}
-                  cameraDistance={frame.cameraDistance}
-                  onCameraChange={(params) => {
-                    executeCommand(new UpdateFrameCommand(frameId, {
-                      cameraYaw: params.yaw,
-                      cameraPitch: params.pitch,
-                      cameraDistance: params.distance
-                    }));
-                  }}
-                />
-              )}
-              
-              {/* 占位符：无模型文件或 SPRITE 类型 */}
-              {(!frame.backgroundArt || frame.type === FrameType.SPRITE) && (
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: frame.type === FrameType.MODEL 
-                    ? 'rgba(200, 100, 255, 0.15)' 
-                    : 'rgba(255, 100, 200, 0.15)',
-                  border: `1px dashed ${frame.type === FrameType.MODEL ? 'rgba(200, 100, 255, 0.5)' : 'rgba(255, 100, 200, 0.5)'}`,
-                  pointerEvents: 'none',
-                  fontSize: '11px',
-                  color: '#aaa',
-                  textAlign: 'center',
-                  padding: '4px',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{ fontSize: '20px', marginBottom: '4px' }}>
-                    {frame.type === FrameType.MODEL ? '🎭' : '🎨'}
-                  </div>
-                  <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
-                    {frame.type === FrameType.MODEL ? '3D Model' : 'Sprite'}
-                  </div>
-                  {frame.backgroundArt && (
-                    <div style={{ 
-                      fontSize: '9px', 
-                      wordBreak: 'break-all',
-                      maxHeight: '40px',
-                      overflow: 'hidden',
-                      lineHeight: '1.2',
-                    }}>
-                      {frame.backgroundArt.split('/').pop()?.split('\\').pop() || frame.backgroundArt}
-                    </div>
-                  )}
-                  {!frame.backgroundArt && (
-                    <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#666' }}>
-                      未设置模型文件
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          
-          {/* 锁定图标 */}
-          {isLockedOrParentLocked && (
-            <div style={{
-              position: 'absolute',
-              top: '2px',
-              right: '2px',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              color: '#888888',
-              padding: '2px 4px',
-              fontSize: '12px',
-              borderRadius: '2px',
-              pointerEvents: 'none',
-            }}>
-              🔒
+        {/* ResizeHandles: 启用 pointer-events 接收手柄点击 */}
+        {isSelected && !isLockedOrParentLocked && (
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }}>
+            <ResizeHandles
+              isSelected={true}
+              onResizeStart={handleResizeStartWithLockCheck(frameId)}
+            />
           </div>
         )}
-        </div>
-        
-        {/* 调整大小手柄 - 在外层容器中，不受内容层影响 */}
-        <ResizeHandles
-          isSelected={isSelected && !isLockedOrParentLocked}
-          onResizeStart={handleResizeStartWithLockCheck(frameId)}
-        />
       </div>
     );
   };
@@ -813,67 +655,6 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     
     frameIds.forEach(id => traverse(id));
     return result;
-  };
-
-  const getFrameBackgroundColor = (type: FrameType): string => {
-    switch (type) {
-      // 容器类型 - 灰色
-      case FrameType.ORIGIN:
-      case FrameType.FRAME:
-      case FrameType.BACKDROP:
-      case FrameType.SIMPLEFRAME:
-        return 'rgba(128, 128, 128, 0.3)';
-      
-      // 按钮类型 - 蓝色
-      case FrameType.BUTTON:
-      case FrameType.GLUETEXTBUTTON:
-      case FrameType.GLUEBUTTON:
-      case FrameType.SIMPLEBUTTON:
-      case FrameType.BROWSER_BUTTON:
-      case FrameType.SCRIPT_DIALOG_BUTTON:
-      case FrameType.INVIS_BUTTON:
-        return 'rgba(0, 100, 200, 0.3)';
-      
-      // 文本类型 - 透明
-      case FrameType.TEXT_FRAME:
-      case FrameType.SIMPLEFONTSTRING:
-      case FrameType.TEXTAREA:
-        return 'transparent';
-      
-      // 交互控件 - 黄色
-      case FrameType.CHECKBOX:
-        return 'rgba(255, 255, 0, 0.3)';
-      case FrameType.EDITBOX:
-        return 'rgba(255, 200, 100, 0.3)';
-      case FrameType.SLIDER:
-        return 'rgba(200, 255, 100, 0.3)';
-      case FrameType.SCROLLBAR:
-        return 'rgba(150, 255, 150, 0.3)';
-      case FrameType.LISTBOX:
-        return 'rgba(255, 150, 255, 0.3)';
-      case FrameType.MENU:
-      case FrameType.POPUPMENU:
-        return 'rgba(255, 100, 150, 0.3)';
-      
-      // 图形控件 - 紫色
-      case FrameType.SPRITE:
-      case FrameType.MODEL:
-        return 'rgba(200, 100, 255, 0.3)';
-      case FrameType.HIGHLIGHT:
-        return 'rgba(255, 255, 100, 0.2)';
-      
-      // 状态栏 - 绿色
-      case FrameType.SIMPLESTATUSBAR:
-      case FrameType.STATUSBAR:
-        return 'rgba(100, 255, 100, 0.3)';
-      
-      // 其他 - 默认灰色
-      case FrameType.CONTROL:
-      case FrameType.DIALOG:
-      case FrameType.TIMERTEXT:
-      default:
-        return 'rgba(100, 100, 100, 0.3)';
-    }
   };
 
   return (
@@ -937,9 +718,33 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             backgroundColor: '#1a1a1a',
           }}
           onMouseDown={(e) => {
-            // 只在非 Ctrl、非 Shift 左键点击时清空选择
-            if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-              selectFrame(null);
+            // 左键：先用 WebGL hitTest 查找被点击的帧
+            if (e.button === 0) {
+              const canvasBounds = canvasRef.current?.getBoundingClientRect();
+              const sg = sceneGraphRef.current;
+              let frameId: string | null = null;
+              if (canvasBounds && sg) {
+                const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
+                const mouseY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
+                frameId = hitTest(mouseX, mouseY, sg.scene, sg.camera);
+              }
+
+              if (frameId) {
+                // 命中某帧 —— 处理选择 + 拖拽
+                e.stopPropagation();
+                if (e.ctrlKey || e.metaKey) {
+                  toggleSelectFrame(frameId);
+                  return;
+                }
+                selectFrame(frameId);
+                handleFrameMouseDown(e, frameId);
+                return;
+              }
+
+              // 未命中：空白区域点击 → 清空选择（Ctrl/Shift 除外，由其他 handler 处理框选/平移）
+              if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+                selectFrame(null);
+              }
             }
           }}
           onClick={() => {
@@ -956,6 +761,22 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               bottom: 0,
               border: '2px solid rgba(0, 255, 0, 0.5)',
               pointerEvents: 'none',
+            }}
+          />
+
+          {/* WebGL 渲染层 — 位于画布背景之上、DOM 帧之下（DOM 帧背景透明，透见此层纹理） */}
+          <canvas
+            ref={webglCanvasRef}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: `${CANVAS_WIDTH}px`,
+              height: `${CANVAS_HEIGHT}px`,
+              pointerEvents: 'none',
+              zIndex: 0,
             }}
           />
 
@@ -1023,8 +844,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
             </svg>
           )}
           
-          {/* 渲染所有Frame（包括子控件），子控件也在画布根部独立渲染 */}
-          {getAllFrameIds(project.rootFrameIds).map(frameId => renderFrame(frameId))}
+          {/* 渲染需要 DOM 叠加的 Frame（选中/高亮/锁定/MODEL）。
+              普通 Frame 全部由 WebGL 层直接渲染，无 DOM 节点。 */}
+          {getAllFrameIds(project.rootFrameIds).map(frameId => renderFrameOverlay(frameId))}
           
           {/* 锚点可视化 - 在canvas内部，跟随缩放变换 */}
           {showAnchors && (

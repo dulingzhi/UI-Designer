@@ -35,6 +35,20 @@ export const DEFAULT_BORDER_LAYOUT: SubTextureLayout = {
  * WC3 实际使用的布局（human-options-menu-border.blp）
  * 从左到右水平排列（512x64，每个子纹理64x64）：
  * [L] [R] [T] [B] [UL] [UR] [BL] [BR]
+ *
+ * ⚠️ TODO(P1) — Hexrays 验证存在差异：
+ *   反编译 WorldEditKKWE.exe sub_44D1A0 (CBackdropFrame::OnUpdateModels) 显示
+ *   游戏内 v88=true（hasEdgeFile）模式下，每条边占纹理 1/8 strip，bit↔索引 映射为：
+ *     0x01 → idx0  (Top)
+ *     0x02 → idx1  (Bottom)
+ *     0x04 → idx2  (Left  或 Right — vertex 推导未确认)
+ *     0x08 → idx3  (Right 或 Left)
+ *     0x10 → idx4  (TL/UL)
+ *     0x20 → idx5  (TR/UR)
+ *     0x40 → idx6  (BL)
+ *     0x80 → idx7  (BR)
+ *   即真实顺序应为 [T, B, L?, R?, UL, UR, BL, BR]，与下方 [L, R, T, B, ...] 不同。
+ *   修复需配合 tests/baselines/ 真实游戏截图验证后再改，避免破坏现有用户的自定义边缘文件。
  */
 export const HORIZONTAL_BORDER_LAYOUT: SubTextureLayout = {
   L:  [0, 0],  // 索引0: 左边

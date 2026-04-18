@@ -368,8 +368,85 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
       code += `    call ${frameSetEnable}(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
       break;
     
+    case FrameType.FRAME:
+    case FrameType.SIMPLEFRAME:
+    case FrameType.CONTROL:
+    case FrameType.DIALOG:
+      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      break;
+    
+    case FrameType.SIMPLEFONTSTRING:
+    case FrameType.TEXTAREA:
+    case FrameType.TIMERTEXT:
+      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.text) {
+        code += `    call ${frameSetText}(${frame.name}, "${frame.text}")\n`;
+      }
+      break;
+    
+    case FrameType.GLUETEXTBUTTON:
+    case FrameType.GLUEBUTTON:
+    case FrameType.SIMPLEBUTTON:
+    case FrameType.INVIS_BUTTON:
+      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      break;
+    
+    case FrameType.SCROLLBAR:
+      code += `    set ${frame.name} = ${createFrameByType}("SCROLLBAR", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    call ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      break;
+    
+    case FrameType.LISTBOX:
+    case FrameType.MENU:
+    case FrameType.POPUPMENU:
+      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      break;
+    
+    case FrameType.SPRITE:
+    case FrameType.MODEL:
+      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.texture) {
+        code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+      }
+      break;
+    
+    case FrameType.HIGHLIGHT:
+      code += `    set ${frame.name} = ${createFrameByType}("HIGHLIGHT", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.texture) {
+        code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+      }
+      break;
+    
+    case FrameType.SIMPLESTATUSBAR:
+    case FrameType.STATUSBAR:
+      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.texture) {
+        code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+      }
+      code += `    call ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      break;
+    
     default:
-      code += `    // TODO: Implement ${FrameType[frame.type]}\n`;
+      code += `    set ${frame.name} = ${createFrameByType}("FRAME", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(frame.name, anchors, version);
+      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
   }
   
@@ -444,8 +521,85 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
       code += `    ${frameSetEnable}(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
       break;
     
+    case FrameType.FRAME:
+    case FrameType.SIMPLEFRAME:
+    case FrameType.CONTROL:
+    case FrameType.DIALOG:
+      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      break;
+    
+    case FrameType.SIMPLEFONTSTRING:
+    case FrameType.TEXTAREA:
+    case FrameType.TIMERTEXT:
+      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.text) {
+        code += `    ${frameSetText}(${frame.name}, "${frame.text}")\n`;
+      }
+      break;
+    
+    case FrameType.GLUETEXTBUTTON:
+    case FrameType.GLUEBUTTON:
+    case FrameType.SIMPLEBUTTON:
+    case FrameType.INVIS_BUTTON:
+      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      break;
+    
+    case FrameType.SCROLLBAR:
+      code += `    ${frame.name} = ${createFrameByType}("SCROLLBAR", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      break;
+    
+    case FrameType.LISTBOX:
+    case FrameType.MENU:
+    case FrameType.POPUPMENU:
+      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      break;
+    
+    case FrameType.SPRITE:
+    case FrameType.MODEL:
+      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+      }
+      break;
+    
+    case FrameType.HIGHLIGHT:
+      code += `    ${frame.name} = ${createFrameByType}("HIGHLIGHT", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+      }
+      break;
+    
+    case FrameType.SIMPLESTATUSBAR:
+    case FrameType.STATUSBAR:
+      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+      }
+      code += `    ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      break;
+    
     default:
-      code += `    -- TODO: Implement ${FrameType[frame.type]}\n`;
+      code += `    ${frame.name} = ${createFrameByType}("FRAME", "${frame.name}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(frame.name, anchors, version);
+      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
   }
   
@@ -527,6 +681,14 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       }
       break;
     
+    case FrameType.BUTTON:
+    case FrameType.BROWSER_BUTTON:
+    case FrameType.SCRIPT_DIALOG_BUTTON:
+      code += `    this.${frame.name} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      break;
+    
     case FrameType.TEXT_FRAME:
       code += `    this.${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0);\n`;
       code += generateAnchorsTypeScript(frame.name, anchors, version);
@@ -559,8 +721,85 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       code += `    ${frameSetEnable}(this.${frame.name}, ${frame.checked || false});\n`;
       break;
     
+    case FrameType.FRAME:
+    case FrameType.SIMPLEFRAME:
+    case FrameType.CONTROL:
+    case FrameType.DIALOG:
+      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      break;
+    
+    case FrameType.SIMPLEFONTSTRING:
+    case FrameType.TEXTAREA:
+    case FrameType.TIMERTEXT:
+      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      if (frame.text) {
+        code += `    ${frameSetText}(this.${frame.name}, "${frame.text}");\n`;
+      }
+      break;
+    
+    case FrameType.GLUETEXTBUTTON:
+    case FrameType.GLUEBUTTON:
+    case FrameType.SIMPLEBUTTON:
+    case FrameType.INVIS_BUTTON:
+      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      break;
+    
+    case FrameType.SCROLLBAR:
+      code += `    this.${frame.name} = ${createFrameByType}("SCROLLBAR", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetMinMaxValue}(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
+      code += `    ${frameSetStepSize}(this.${frame.name}, ${frame.stepSize || 1});\n`;
+      break;
+    
+    case FrameType.LISTBOX:
+    case FrameType.MENU:
+    case FrameType.POPUPMENU:
+      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      break;
+    
+    case FrameType.SPRITE:
+    case FrameType.MODEL:
+      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+      }
+      break;
+    
+    case FrameType.HIGHLIGHT:
+      code += `    this.${frame.name} = ${createFrameByType}("HIGHLIGHT", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+      }
+      break;
+    
+    case FrameType.SIMPLESTATUSBAR:
+    case FrameType.STATUSBAR:
+      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      if (frame.texture) {
+        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+      }
+      code += `    ${frameSetMinMaxValue}(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
+      break;
+    
     default:
-      code += `    // TODO: Implement ${FrameType[frame.type]}\n`;
+      code += `    this.${frame.name} = ${createFrameByType}("FRAME", "${frame.name}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(frame.name, anchors, version);
+      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
   }
   
   return code;

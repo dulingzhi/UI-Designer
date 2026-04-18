@@ -595,8 +595,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         label: '全选',
         shortcut: 'Ctrl+A',
         action: () => {
-          // TODO: 实现全选
-          console.log('Select All');
+          const allFrameIds = Object.keys(project.frames);
+          if (allFrameIds.length > 0) {
+            useUIStore.getState().selectMultipleFrames(allFrameIds);
+          }
         }
       },
       { separator: true },

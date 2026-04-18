@@ -1,0 +1,192 @@
+// ============================================================
+// textLayout — 文本测量/布局/渲染引擎
+// ============================================================
+// 将 FrameData 的文字属性渲染到 OffscreenCanvas，
+// 输出 THREE.CanvasTexture 用于 WebGL 渲染。
+// 比 SDF 字体方案简单得多，且支持所有 CSS 字体特性。
+
+import * as THREE from 'three';
+import type { FrameData } from '../types';
+import { FrameType } from '../types';
+
+/** 缓存 key = text + style hash → CanvasTexture */
+const textTextureCache = new Map<string, THREE.CanvasTexture>();
+
+/** RGBA 数组转 CSS 字符串 */
+function rgbaToCSS(rgba: [number, number, number, number] | undefined): string {
+  if (!rgba) return '#ffffff';
+  return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] / 255})`;
+}
+
+/** 生成文本样式的 cache key */
+function makeTextKey(frame: FrameData, pixelW: number, pixelH: number): string {
+  return JSON.stringify({
+    t: frame.text,
+    ts: frame.textScale,
+    tc: frame.textColor,
+    fc: frame.fontColor,
+    ff: frame.font,
+    fs: frame.fontSize,
+    ffl: frame.fontFlags,
+    fso: frame.fontShadowOffset,
+    fsc: frame.fontShadowColor,
+    ha: frame.horAlign ?? frame.fontJustificationH,
+    va: frame.verAlign ?? frame.fontJustificationV,
+    w: pixelW,
+    h: pixelH,
+    etc: frame.editTextColor,
+    typ: frame.type,
+  });
+}
+
+/** 解析水平对齐方式 */
+function getTextAlign(frame: FrameData): CanvasTextAlign {
+  if (frame.fontJustificationH === 'JUSTIFYRIGHT' || frame.horAlign === 'right') return 'right';
+  if (frame.fontJustificationH === 'JUSTIFYCENTER' || frame.horAlign === 'center') return 'center';
+  return 'left';
+}
+
+/** 解析垂直对齐方式 → y 起始位置 */
+function getTextY(frame: FrameData, canvasH: number, textH: number): number {
+  if (frame.fontJustificationV === 'JUSTIFYBOTTOM' || frame.verAlign === 'flex-end') {
+    return canvasH - textH;
+  }
+  if (frame.fontJustificationV === 'JUSTIFYMIDDLE' || frame.verAlign === 'center') {
+    return (canvasH - textH) / 2;
+  }
+  return 0; // TOP
+}
+
+/**
+ * 渲染帧文字到 CanvasTexture
+ * 返回 null 表示该帧无文字
+ */
+export function renderTextTexture(
+  frame: FrameData,
+  pixelW: number,
+  pixelH: number,
+): THREE.CanvasTexture | null {
+  if (!frame.text || pixelW <= 0 || pixelH <= 0) return null;
+
+  const cacheKey = makeTextKey(frame, pixelW, pixelH);
+  const cached = textTextureCache.get(cacheKey);
+  if (cached) return cached;
+
+  // 创建 offscreen canvas (使用 2x 分辨率保证清晰度)
+  const scale = 2;
+  const cw = Math.ceil(pixelW * scale);
+  const ch = Math.ceil(pixelH * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // 清除
+  ctx.clearRect(0, 0, cw, ch);
+
+  // 字体
+  const baseFontSize = frame.fontSize
+    ? frame.fontSize
+    : (frame.textScale || 1) * 14;
+  const fontSize = baseFontSize * scale;
+  const fontFamily = frame.font || 'Arial, sans-serif';
+  const fontWeight = frame.fontFlags?.includes('BOLD') ? 'bold' : 'normal';
+  const fontStyle = frame.fontFlags?.includes('ITALIC') ? 'italic' : 'normal';
+  ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+
+  // 颜色
+  let textColor = '#ffffff';
+  if (frame.type === FrameType.EDITBOX && frame.editTextColor) {
+    textColor = rgbaToCSS(frame.editTextColor);
+  } else if (frame.fontColor) {
+    textColor = rgbaToCSS(frame.fontColor);
+  } else if (frame.textColor) {
+    textColor = frame.textColor;
+  }
+
+  // 对齐
+  const textAlign = getTextAlign(frame);
+  ctx.textAlign = textAlign;
+  ctx.textBaseline = 'top';
+
+  // 换行处理
+  const lines = wrapText(ctx, frame.text, cw - 4 * scale);
+  const lineHeight = fontSize * 1.2;
+  const totalTextH = lines.length * lineHeight;
+  const startY = getTextY(frame, ch, totalTextH);
+
+  // X 坐标
+  let textX: number;
+  if (textAlign === 'center') textX = cw / 2;
+  else if (textAlign === 'right') textX = cw - 2 * scale;
+  else textX = 2 * scale;
+
+  // 阴影
+  if (frame.fontShadowOffset && frame.fontShadowColor) {
+    ctx.fillStyle = rgbaToCSS(frame.fontShadowColor);
+    const sx = (frame.fontShadowOffset[0] || 0) * scale;
+    const sy = (frame.fontShadowOffset[1] || 0) * scale;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], textX + sx, startY + i * lineHeight + sy);
+    }
+  }
+
+  // 主文字
+  ctx.fillStyle = textColor;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], textX, startY + i * lineHeight);
+  }
+
+  // 创建纹理
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+
+  // LRU 缓存（限制 200 条）
+  if (textTextureCache.size > 200) {
+    const firstKey = textTextureCache.keys().next().value;
+    if (firstKey !== undefined) {
+      textTextureCache.get(firstKey)?.dispose();
+      textTextureCache.delete(firstKey);
+    }
+  }
+  textTextureCache.set(cacheKey, texture);
+  return texture;
+}
+
+/** 简单换行：按像素宽度折行 */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  if (maxWidth <= 0) return [text];
+
+  const paragraphs = text.split('\n');
+  const result: string[] = [];
+
+  for (const para of paragraphs) {
+    const words = para.split('');
+    let line = '';
+
+    for (const char of words) {
+      const test = line + char;
+      if (ctx.measureText(test).width > maxWidth && line.length > 0) {
+        result.push(line);
+        line = char;
+      } else {
+        line = test;
+      }
+    }
+    result.push(line);
+  }
+
+  return result;
+}
+
+/** 清理缓存 */
+export function disposeTextCache(): void {
+  for (const tex of textTextureCache.values()) {
+    tex.dispose();
+  }
+  textTextureCache.clear();
+}
