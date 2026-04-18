@@ -491,6 +491,15 @@ export class FDFTransformer {
         break;
       
       case 'backdropbackgroundinsets':
+        // FDF 语法：BackdropBackgroundInsets <left> <top> <right> <bottom>
+        // （社区惯例顺序，与 fdfExport 写出顺序对称，由
+        //   tests/visual-regression/fdfInsetOrder.test.ts 守护。）
+        //
+        // 注意：hexrays sub_44D1A0 (CBackdropFrame::OnUpdateModels) 揭示
+        // 内存布局是 this[114]=R, this[115]=L, this[116]=B, this[117]=T，
+        // 但 FDF token → 这四个 slot 的写入顺序仍未经 hexrays 静态验证
+        // （FDF 解析器使用 0x7991xx 处的运行时字符串分发表，无静态 xref）。
+        // 渲染器侧 (src/renderer/backdropLayout.ts) 当前按 [L,T,R,B] 消费此数组。
         // 值可能是单个数字或数组
         if (Array.isArray(value)) {
           // 确保是4个值：[left, top, right, bottom]
