@@ -30,6 +30,8 @@ import { computeEdgePlacement, computeBackgroundPlacement } from './backdropLayo
 import { renderTextTexture, disposeTextCache } from './textLayout';
 import { resolveButtonState, type ButtonState } from './buttonState';
 import { planSplitEdges } from './backdropSplitEdges';
+import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
+import { resolveHighlightTint } from './highlightColor';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -57,7 +59,6 @@ interface FrameRenderNode {
 }
 
 export class SceneGraphManager {
-import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
   readonly renderer: WebGPURenderer | THREE.WebGLRenderer;
   readonly backend: RenderBackend;
   readonly scene: THREE.Scene;
@@ -771,6 +772,16 @@ import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './edit
       textureProp = frame.backgroundArt;
     }
 
+    const applyHighlightTint = (): void => {
+      if (!isHighlight || !node.controlMesh) return;
+      const tint = resolveHighlightTint(frame.highlightColor, frame.alpha);
+      if (!tint) return;
+      const mat = node.controlMesh.material as FrameMaterial;
+      mat.color.setRGB(tint.r, tint.g, tint.b);
+      mat.opacity = tint.opacity;
+      mat.needsUpdate = true;
+    };
+
     const texturePath = this.resolveTexturePath(textureProp);
     if (!texturePath) {
       this.disposeControlMesh(node);
@@ -786,12 +797,14 @@ import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './edit
       node.controlMesh.renderOrder = renderOrderBase + 0.15;
       node.controlMesh.visible = false;
       updateMaterial(node.controlMesh.material as FrameMaterial, frame);
+      applyHighlightTint();
 
       void this.textureCache.loadTexture(texturePath)
         .then((texture) => {
           if (!this.isNodeCurrent(id, revision)) return;
           if (!node.controlMesh) return;
           updateMaterial(node.controlMesh.material as FrameMaterial, frame, { texture });
+          applyHighlightTint();
           node.controlMesh.visible = true;
           this.markDirty();
         })
@@ -801,6 +814,7 @@ import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './edit
           updateMaterial(node.controlMesh.material as FrameMaterial, frame, {
             texture: this.textureCache.getFallback(),
           });
+          applyHighlightTint();
           node.controlMesh.visible = true;
           this.markDirty();
         });
