@@ -653,11 +653,26 @@ export class FDFTransformer {
       case 'texcoord':
         // 纹理坐标暂不处理，WC3 使用不同的系统
         break;
-        
+
       case 'alphamode':
-        // Alpha 模式暂不处理
+        // FDF: AlphaMode "ALPHAKEY" | "BLEND" | "ADD"
+        // ShaderLib.parseAlphaMode 消费 frame.alphaMode; 之前完全丢弃。
+        if (typeof value === 'string') {
+          const m = value.toUpperCase();
+          if (m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
+            frame.alphaMode = m;
+          }
+        }
         break;
-        
+
+      case 'decoratefilenames':
+        // FDF: `DecorateFileNames,` 是无值标志；parser 将其 value 置为
+        // Identifier "unknown"。也兼容显式 `DecorateFileNames true`。
+        // 语义：贴图路径应用本地化前缀 (e.g. zhCN\\)。渲染器暂不消费,
+        // 但保留为布尔供导出/回转使用。
+        frame.decorateFileNames = value !== false && value !== 'false';
+        break;
+
       // 其他属性暂不处理
       default:
         // 可以扩展以支持更多属性
@@ -671,13 +686,21 @@ export class FDFTransformer {
   private applyNestedFrame(frame: FrameData, nested: FDFNestedFrame): void {
     if (nested.frameType.toLowerCase() === 'texture') {
       // 应用 Texture 属性
+      // 官方 FDF 常见结构:
+      //   Texture { File "...", TexCoord ..., AlphaMode "ALPHAKEY", Width .., Height .., Anchor .. }
+      // 这里至少把 File 与 AlphaMode 提升到父 frame, 让 ShaderLib 能拿到混合模式.
       for (const prop of nested.properties) {
         if (prop.type === FDFNodeType.PROPERTY) {
-          const name = prop.name;
+          const name = prop.name.toLowerCase();
           const value = this.extractValue(prop.value);
-          
-          if (name.toLowerCase() === 'file') {
+
+          if (name === 'file') {
             frame.texture = value as string;
+          } else if (name === 'alphamode' && typeof value === 'string') {
+            const m = value.toUpperCase();
+            if (m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
+              frame.alphaMode = m;
+            }
           }
         }
       }
