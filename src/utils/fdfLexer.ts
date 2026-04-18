@@ -219,7 +219,17 @@ export class FDFLexer {
         value += this.advance();
       }
     }
-    
+
+    // C 风格 float 后缀 'f' / 'F' (e.g. -0.0015f) — 官方 FDF 在
+    // ButtonPushedTextOffset 等少量字段使用。仅吞掉后缀，不影响数值。
+    // 必须紧跟在数字后且后面不再是字母数字，避免吃掉合法标识符如 'final'。
+    if (
+      (this.current() === 'f' || this.current() === 'F')
+      && !/[A-Za-z0-9_]/.test(this.peek())
+    ) {
+      this.advance();
+    }
+
     return {
       type: TokenType.NUMBER,
       value,
