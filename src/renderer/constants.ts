@@ -52,7 +52,17 @@ export const EDGE_UV_STRIPS = {
  */
 export const CORNER_INSET_FACTOR_HORIZONTAL = 0.95;
 
-/** Edge piece bitfield flags */
+/**
+ * Edge piece bitfield flags.
+ *
+ * **hexrays 交叉验证** (sub_44D000 — UV-array enumerator called by sub_44D1A0)：
+ * 该函数按 `*(BYTE *)(this+432)` 上的位顺序枚举 edge piece：
+ *   0x10 → T,  0x20 → B,  0x40 → L,  0x80 → R    （edges 先）
+ *   0x01 → TL, 0x02 → TR, 0x04 → BL, 0x08 → BR   （corners 后）
+ * 这里的 8 个 bit 与 `EDGE_UV_STRIPS` 的 8 段 UV (1/8 间隔) 一一对应。
+ * 注意游戏内 enumeration 顺序是 edges-then-corners（与渲染顺序相反：
+ * 我们渲染时是 corners 先、edges 后绘制以正确遮挡）。
+ */
 export const EDGE_FLAGS = {
   TL: 0x01, TR: 0x02, BL: 0x04, BR: 0x08,
   T:  0x10, B:  0x20, L:  0x40, R:  0x80,
