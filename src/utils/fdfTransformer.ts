@@ -699,6 +699,37 @@ export class FDFTransformer {
         }
         break;
 
+      case 'sliderinitialvalue':
+        // FDF: SliderInitialValue 0.5  (14 vendor 处)
+        if (typeof value === 'number') frame.sliderInitialValue = value;
+        break;
+
+      case 'sliderminvalue':
+        if (typeof value === 'number') frame.minValue = value;
+        break;
+
+      case 'slidermaxvalue':
+        if (typeof value === 'number') frame.maxValue = value;
+        break;
+
+      case 'sliderstepsize':
+        if (typeof value === 'number') frame.stepSize = value;
+        break;
+
+      case 'editcursorcolor':
+        // FDF: EditCursorColor r g b a  (0..1 floats)
+        // 与 fontColor 等同, 由 4-float Color 数组转 0..255 RGBA.
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.editCursorColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+
       case 'decoratefilenames':
         // FDF: `DecorateFileNames,` 是无值标志；parser 将其 value 置为
         // Identifier "unknown"。也兼容显式 `DecorateFileNames true`。
