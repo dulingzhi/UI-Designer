@@ -599,7 +599,50 @@ export class FDFTransformer {
       case 'backdropblendall':
         frame.backdropBlendAll = true;
         break;
-        
+
+      // Control 状态背景 — 同一字段族，之前完全被丢弃
+      // 101 / 32 / 59 / 23 处官方 FDF 引用
+      // 值为模板/Frame 名字符串 (如 "UserGameButtonBackdropTemplate"),
+      // 由 SceneGraphManager.syncControlTexture 消费。
+      case 'controlbackdrop':
+        frame.controlBackdrop = value as string;
+        break;
+
+      case 'controlpushedbackdrop':
+        frame.controlPushedBackdrop = value as string;
+        break;
+
+      case 'controldisabledbackdrop':
+        frame.controlDisabledBackdrop = value as string;
+        break;
+
+      case 'controlmouseoverhighlight':
+        frame.controlMouseOverHighlight = value as string;
+        break;
+
+      case 'controlstyle':
+        // "AUTOTRACK|HIGHLIGHTONMOUSEOVER" — 存为原字符串 (消费方 split)
+        frame.controlStyle = value as string;
+        break;
+
+      // Highlight 相关 — SceneGraphManager 用 highlightAlphaFile 作为贴图
+      case 'highlighttype':
+        frame.highlightType = value as string;
+        break;
+
+      case 'highlightalphafile':
+        frame.highlightAlphaFile = value as string;
+        break;
+
+      case 'highlightalphamode':
+        frame.highlightAlphaMode = value as string;
+        break;
+
+      case 'layerstyle':
+        // "NOSHADING|IGNORETRACKEVENTS"
+        frame.layerStyle = value as string;
+        break;
+
       case 'texcoord':
         // 纹理坐标暂不处理，WC3 使用不同的系统
         break;
