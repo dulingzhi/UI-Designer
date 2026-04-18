@@ -34,12 +34,13 @@ describe('backdropLayout — computeEdgePlacement', () => {
     expect(p.renderOrderOffset).toBe(0.21);
   });
 
-  it('L edge — height-spanning, left', () => {
+  it('L edge — height-spanning, left, NO 0.95 factor on Y (matches game asymmetry)', () => {
     const p = computeEdgePlacement('L', W, H, CS);
     expect(p.centerX).toBe(10);
     expect(p.centerY).toBe(50);
     expect(p.scaleX).toBe(20);
-    expect(p.scaleY).toBe(62);
+    // innerH = H - 2*cs = 100 - 40 = 60  (NOT 100 - 2*round(0.95*cs) = 62)
+    expect(p.scaleY).toBe(60);
     expect(p.isCorner).toBe(false);
   });
 
@@ -48,16 +49,28 @@ describe('backdropLayout — computeEdgePlacement', () => {
       .toBeGreaterThan(computeEdgePlacement('UL', W, H, CS).renderOrderOffset);
   });
 
-  it('5% overlap — edge length is (size − 2 × 0.95 × cs), NOT (size − 2 × cs)', () => {
-    // Overlap proof: corner + edge spans must overlap.
-    //   corner UL covers X=[0, cs] = [0, 20]
-    //   edge T  covers X=[midX - innerW/2, midX + innerW/2] = [19, 181]
-    //   overlap = [19, 20] = 1px (= round(0.05 × cs) at cs=20)
-    const t = computeEdgePlacement('T', W, H, CS);
-    const tLeft = t.centerX - t.scaleX / 2;
-    expect(tLeft).toBe(19);              // = round(0.95 × 20)
-    // 旧 (无 0.95 inset) 时 tLeft 会 == 20，与 corner 边界精确接但易因 alpha 衰减出接缝
-    expect(tLeft).toBeLessThan(CS);
+  it('5% overlap is HORIZONTAL ONLY — hexrays asymmetry (T/B use 0.95cs, L/R use full cs)', () => {
+    // Horizontal edges (T/B): inner span shrinks by 2 × round(0.95 × cs)
+    //   T edge for W=200, cs=20: scaleX = 200 - 2 × 19 = 162
+    expect(computeEdgePlacement('T', 200, 100, 20).scaleX).toBe(162);
+    expect(computeEdgePlacement('B', 200, 100, 20).scaleX).toBe(162);
+
+    // Vertical edges (L/R): inner span shrinks by 2 × cs (NO 0.95 factor)
+    //   L edge for H=100, cs=20: scaleY = 100 - 2 × 20 = 60   (NOT 62!)
+    expect(computeEdgePlacement('L', 200, 100, 20).scaleY).toBe(60);
+    expect(computeEdgePlacement('R', 200, 100, 20).scaleY).toBe(60);
+
+    // Proof from hexrays sub_44D1A0:
+    //   bit 0x01 (BOTTOM edge, 0x44dd4f):  v47 = 0.94999999 * this[110]
+    //   bit 0x02 (TOP edge,    0x44df0f):  v59 = 0.94999999 * this[110]
+    //   bit 0x04 (RIGHT edge,  0x44e029):  uses this[110] directly, no 0.95 multiplier
+    //   bit 0x08 (LEFT edge,   0x44e21f):  uses this[110] directly, no 0.95 multiplier
+  });
+
+  it('horizontal edges still overlap corners by ~5% of cs', () => {
+    // T edge X starts at round(0.95×cs) inside corner UL [0..cs]
+    const t = computeEdgePlacement('T', 200, 100, 20);
+    expect(t.centerX - t.scaleX / 2).toBe(19);
   });
 
   it('innerWidth 0 ⇒ T edge invisible (cornerSize > width/2)', () => {

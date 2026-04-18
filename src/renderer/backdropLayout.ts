@@ -4,9 +4,12 @@
 // 逆向自 WC3 1.27a / WorldEditKKWE.exe sub_44D1A0
 //   = CBackdropFrame::OnUpdateModels (0x44d1a0)
 //
-// 关键常量：
-//   • 0.95 corner factor — 边缘条向 corner 内嵌入 5%（hexrays 0x44dd4f: v47 = 0.94999999 * cornerSize）
-//   • 5% 重叠用于隐藏 corner 与 edge 的 alpha 衰减接缝
+// 关键常量（hexrays 验证）：
+//   • 0.95 corner factor — **仅**水平边 (bit 0x01/0x02 = T/B) 沿 X 嵌入 5%
+//     hexrays 0x44dd4f / 0x44df0f: v47 = v59 = 0.94999999 * this[110]
+//   • 垂直边 (bit 0x04/0x08 = L/R) 不使用 0.95 因子，沿 Y 用完整 cornerSize
+//     hexrays bit 0x04 块 (0x44e029): 直接 v103+this[110] / v105-this[110]
+//   • 这一非对称设计是 WC3 引擎本身的特征，匹配以求像素级一致
 //   • 所有几何尺寸 round 到整数像素 (CSimpleFrame::SnapTexelsToPixels)
 //
 // 渲染顺序：先 4 corner，后 4 edge（edge 绘在 corner 之上）
@@ -31,7 +34,8 @@ export interface EdgePiecePlacement {
   isCorner: boolean;
 }
 
-const CORNER_INSET_FACTOR = 0.95;
+/** 水平边 (T/B) 沿 X 收缩到 corner 内的因子。垂直边 (L/R) 不使用此因子。 */
+const CORNER_INSET_FACTOR_HORIZONTAL = 0.95;
 
 /**
  * 计算九宫格单个边/角的 placement。
@@ -47,9 +51,10 @@ export function computeEdgePlacement(
   height: number,
   cornerSize: number,
 ): EdgePiecePlacement {
-  const cornerInset = snapToPixel(cornerSize * CORNER_INSET_FACTOR);
-  const innerW = Math.max(0, snapToPixel(width - cornerInset * 2));
-  const innerH = Math.max(0, snapToPixel(height - cornerInset * 2));
+  // 水平边 (T/B) 收缩 0.95cs；垂直边 (L/R) 收缩完整 cs（与游戏一致）
+  const cornerInsetH = snapToPixel(cornerSize * CORNER_INSET_FACTOR_HORIZONTAL);
+  const innerW = Math.max(0, snapToPixel(width - cornerInsetH * 2));
+  const innerH = Math.max(0, snapToPixel(height - cornerSize * 2));
   const half = snapToPixel(cornerSize / 2);
   const rightX = snapToPixel(width - cornerSize / 2);
   const topY = snapToPixel(height - cornerSize / 2);
