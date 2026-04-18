@@ -679,7 +679,13 @@ export class FDFTransformer {
         break;
 
       case 'texcoord':
-        // 纹理坐标暂不处理，WC3 使用不同的系统
+        // FDF: TexCoord left, right, top, bottom  (4 floats, 0..1 UV; Y 与 OpenGL 同向: 0=top, 1=bottom)
+        // SceneGraphManager.computeTexCoordOptions 已消费 frame.texCoord;
+        // 之前完全丢弃, 导致所有官方 FDF 子图取样错误 (整张大图被拉伸).
+        if (Array.isArray(value) && value.length >= 4) {
+          const [l, r, t, b] = value as number[];
+          frame.texCoord = [l, r, t, b];
+        }
         break;
 
       case 'alphamode':
@@ -729,6 +735,10 @@ export class FDFTransformer {
             if (m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
               frame.alphaMode = m;
             }
+          } else if (name === 'texcoord' && Array.isArray(value) && value.length >= 4) {
+            // 嵌套 Texture { TexCoord ... } 也提升到父 frame
+            const [l, r, t, b] = value as number[];
+            frame.texCoord = [l, r, t, b];
           }
         }
       }
