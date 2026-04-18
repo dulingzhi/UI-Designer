@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import type { FrameData } from '../types';
 import { FrameType } from '../types';
+import { wc3ToPixelW, wc3ToPixelH } from '../utils/coordinateService';
 
 /** 缓存 key = text + style hash → CanvasTexture */
 const textTextureCache = new Map<string, THREE.CanvasTexture>();
@@ -125,8 +126,10 @@ export function renderTextTexture(
   // 阴影
   if (frame.fontShadowOffset && frame.fontShadowColor) {
     ctx.fillStyle = rgbaToCSS(frame.fontShadowColor);
-    const sx = (frame.fontShadowOffset[0] || 0) * scale;
-    const sy = (frame.fontShadowOffset[1] || 0) * scale;
+    // FDF FontShadowOffset 是 WC3 单位 (Y-up)。Canvas Y 是向下增长，
+    // 故在 Y 轴上取负 (FDF "向下阴影" -0.001 → canvas +正 px)。
+    const sx = wc3ToPixelW(frame.fontShadowOffset[0] || 0) * scale;
+    const sy = -wc3ToPixelH(frame.fontShadowOffset[1] || 0) * scale;
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], textX + sx, startY + i * lineHeight + sy);
     }
