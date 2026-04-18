@@ -16,6 +16,7 @@
 
 import type { EdgeFlag } from '../utils/textureAtlas';
 import { snapToPixel } from './pixelSnap';
+import { CORNER_INSET_FACTOR_HORIZONTAL } from './constants';
 
 export interface EdgePiecePlacement {
   /** mesh 中心 x（像素，Y-up 坐标系，原点在 frame 左下） */
@@ -33,9 +34,6 @@ export interface EdgePiecePlacement {
   /** 是否角块 */
   isCorner: boolean;
 }
-
-/** 水平边 (T/B) 沿 X 收缩到 corner 内的因子。垂直边 (L/R) 不使用此因子。 */
-const CORNER_INSET_FACTOR_HORIZONTAL = 0.95;
 
 /**
  * 计算九宫格单个边/角的 placement。

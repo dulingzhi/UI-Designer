@@ -40,8 +40,17 @@ export const EDGE_UV_STRIPS = {
   RIGHT:  [0.875, 1.000],
 } as const;
 
-/** Corner position inset factor (逆向: 0.94999999 ≈ 0.95) */
-export const CORNER_POSITION_FACTOR = 0.95;
+/**
+ * 水平边 (T/B) 沿 X 缩入的角块因子（逆向: 0.94999999 ≈ 0.95）
+ *
+ * **关键非对称性**（hexrays sub_44D1A0 验证）：
+ *   - 此因子**仅**应用于水平边 (bit 0x01/0x02 = T/B)
+ *   - 垂直边 (bit 0x04/0x08 = L/R) 不缩入，使用完整 cornerSize
+ *   - 详见 hexrays 0x44dd4f / 0x44df0f vs 0x44e029
+ *
+ * 这是 WC3 引擎本身的非对称设计，匹配以求像素级一致。
+ */
+export const CORNER_INSET_FACTOR_HORIZONTAL = 0.95;
 
 /** Edge piece bitfield flags */
 export const EDGE_FLAGS = {
