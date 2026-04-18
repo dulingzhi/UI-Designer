@@ -87,8 +87,11 @@ export function renderTextTexture(
   ctx.clearRect(0, 0, cw, ch);
 
   // 字体
+  // FDF FrameFont 的高度参数是 WC3 单位 (e.g. 0.011)，与 frame.width / fontShadowOffset
+  // 相同。必须经 wc3ToPixelH 转像素，否则 0.011 * 2x scale ≈ 0.022 px = 不可见。
+  // 当 fontSize 缺失时，回退到 textScale * 14 px (历史默认，px 单位)。
   const baseFontSize = frame.fontSize
-    ? frame.fontSize
+    ? wc3ToPixelH(frame.fontSize)
     : (frame.textScale || 1) * 14;
   const fontSize = baseFontSize * scale;
   const fontFamily = frame.font || 'Arial, sans-serif';
