@@ -248,7 +248,12 @@ export interface FrameData {
   backdropTileBackground?: boolean;    // 平铺背景
   backdropBackgroundSize?: number;     // 背景尺寸
   backdropBackgroundInsets?: [number, number, number, number]; // 背景内边距
-  backdropEdgeFile?: string;           // 边框纹理
+  backdropEdgeFile?: string;           // 边框纹理 (合并 “九宫格” 单图; 与下面五个拆分字段二选一)
+  backdropCornerFile?: string;         // 拆分拆灯 · 四角 BLP (常与下面 4 个边文件一起使用, 取代 BackdropEdgeFile)
+  backdropTopFile?: string;            // 拆分·上边 BLP
+  backdropBottomFile?: string;         // 拆分·下边 BLP
+  backdropLeftFile?: string;           // 拆分·左边 BLP
+  backdropRightFile?: string;          // 拆分·右边 BLP
   backdropCornerFlags?: string;        // 角标志 "UL|UR|BL|BR|T|L|B|R"
   backdropCornerSize?: number;         // 角尺寸
   backdropBlendAll?: boolean;          // 混合所有层

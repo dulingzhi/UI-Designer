@@ -583,6 +583,25 @@ export class FDFTransformer {
       case 'backdropedgefile':
         frame.backdropEdgeFile = value as string;
         break;
+
+      // 5 个拆分·9-slice 边贴图文件 (与 BackdropEdgeFile 二选一).
+      // vendor (TemplatesGlue.fdf) 常调: HeavyBorder / LightBorder 模板拆为
+      // {Top,Bottom,Left,Right,Corner}File 五张 BLP. 之前完全丢弃 → 全部净色.
+      case 'backdropcornerfile':
+        frame.backdropCornerFile = value as string;
+        break;
+      case 'backdroptopfile':
+        frame.backdropTopFile = value as string;
+        break;
+      case 'backdropbottomfile':
+        frame.backdropBottomFile = value as string;
+        break;
+      case 'backdropleftfile':
+        frame.backdropLeftFile = value as string;
+        break;
+      case 'backdroprightfile':
+        frame.backdropRightFile = value as string;
+        break;
       
       case 'backdropcornerflags':
         frame.backdropCornerFlags = value as string;
