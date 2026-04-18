@@ -218,6 +218,23 @@ export interface FrameData {
   highlightType?: string;              // 高亮类型
   highlightAlphaFile?: string;         // 高亮Alpha文件
   highlightAlphaMode?: string;         // 高亮混合模式
+  highlightColor?: [number, number, number, number];      // 高亮颜色 (HIGHLIGHT 帧填充, RGBA 0..255)
+  menuTextHighlightColor?: [number, number, number, number]; // 菜单项文本高亮颜色 RGBA 0..255
+
+  // ========== 子 frame 引用 (frame 名引用, 由 BUTTON/POPUPMENU/DIALOG 等组合控件指向其内部子 frame) ==========
+  buttonTextRef?: string;              // BUTTON 显示文本所用的 TEXT 子 frame 名 (182 vendor)
+  normalTextRef?: string;              // 默认态文本 frame 名
+  highlightTextRef?: string;           // 鼠标悬停态文本 frame 名
+  disabledTextRef?: string;            // 禁用态文本 frame 名
+  menuItemRefs?: string[];             // POPUPMENU 子项 frame 名列表 (MenuItem 多次出现累加)
+  popupMenuFrameRef?: string;          // POPUPMENU 菜单子 frame 名
+  popupArrowFrameRef?: string;         // POPUPMENU 箭头子 frame 名
+  popupTitleFrameRef?: string;         // POPUPMENU 标题子 frame 名
+  editTextFrameRef?: string;           // EDITBOX 内嵌 TEXT 子 frame 名
+  dialogBackdropRef?: string;          // DIALOG 背景 BACKDROP 子 frame 名
+  menuBorderRef?: string;              // MENU 边框 BACKDROP 子 frame 名
+  controlShortcutKey?: string;         // 控件快捷键 (键盘绑定; 无视觉影响)
+  tabFocusNext?: string;               // Tab 顺序中下一个 frame 名 (无视觉影响)
   
   // ========== SPRITE / MODEL 属性 ==========
   backgroundArt?: string;              // 模型文件路径 (.mdx/.mdl)

@@ -765,6 +765,89 @@ export class FDFTransformer {
         if (typeof value === 'number') frame.popupButtonInset = value;
         break;
 
+      case 'highlightcolor': {
+        // HIGHLIGHT 帧填充颜色 (10 vendor: e.g. "1.0 0.0 0.0 0.2" 半透明红高亮)
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.highlightColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+      }
+
+      case 'menutexthighlightcolor': {
+        // 菜单项文本高亮颜色, 4 vendor; 0..1 → 0..255 RGBA (与 fontColor 同协议).
+        if (Array.isArray(value) && value.length >= 4) {
+          const [r, g, b, a] = value as number[];
+          frame.menuTextHighlightColor = [
+            Math.round(r * 255),
+            Math.round(g * 255),
+            Math.round(b * 255),
+            Math.round(a * 255),
+          ];
+        }
+        break;
+      }
+
+      // ===== 子 frame 名引用 (string 透传; 由组合控件指向其内部子 frame) =====
+      // 这些字段不直接驱动渲染 (子 frame 自己渲染),
+      // 但 BUTTON 文本切换/POPUPMENU 展开/EDITBOX 焦点等交互逻辑需要这些指针.
+      case 'buttontext':
+        if (typeof value === 'string') frame.buttonTextRef = value;
+        break;
+      case 'normaltext':
+        if (typeof value === 'string') frame.normalTextRef = value;
+        break;
+      case 'highlighttext':
+        if (typeof value === 'string') frame.highlightTextRef = value;
+        break;
+      case 'disabledtext':
+        if (typeof value === 'string') frame.disabledTextRef = value;
+        break;
+      case 'popupmenuframe':
+        if (typeof value === 'string') frame.popupMenuFrameRef = value;
+        break;
+      case 'popuparrowframe':
+        if (typeof value === 'string') frame.popupArrowFrameRef = value;
+        break;
+      case 'popuptitleframe':
+        if (typeof value === 'string') frame.popupTitleFrameRef = value;
+        break;
+      case 'edittextframe':
+        if (typeof value === 'string') frame.editTextFrameRef = value;
+        break;
+      case 'dialogbackdrop':
+        if (typeof value === 'string') frame.dialogBackdropRef = value;
+        break;
+      case 'menuborder':
+        if (typeof value === 'string') frame.menuBorderRef = value;
+        break;
+      case 'controlshortcutkey':
+        if (typeof value === 'string') frame.controlShortcutKey = value;
+        break;
+      case 'tabfocusnext':
+        if (typeof value === 'string') frame.tabFocusNext = value;
+        break;
+      case 'menuitem':
+        // MenuItem 在 POPUPMENU 中可重复出现, 每次声明一个项. 在 vendor 中常为
+        //   MenuItem "FULL_OBSERVERS", -2,
+        // value 此时是 ArrayLiteral [name, columnIndex] 或就一个 string.
+        // 暂只取首元素 (frame 名/StringList key) 累加.
+        {
+          let key: string | undefined;
+          if (typeof value === 'string') key = value;
+          else if (Array.isArray(value) && typeof value[0] === 'string') key = value[0];
+          if (key) {
+            if (!frame.menuItemRefs) frame.menuItemRefs = [];
+            frame.menuItemRefs.push(key);
+          }
+        }
+        break;
+
       case 'decoratefilenames':
         // FDF: `DecorateFileNames,` 是无值标志；parser 将其 value 置为
         // Identifier "unknown"。也兼容显式 `DecorateFileNames true`。
