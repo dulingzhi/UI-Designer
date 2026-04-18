@@ -930,6 +930,17 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
           {snapToGrid ? '🧲' : '📍'} 吸附
         </button>
         <select
+          value={buttonPreviewState}
+          onChange={(e) => useUIStore.getState().setButtonPreviewState(e.target.value as any)}
+          style={{ marginLeft: '10px' }}
+          title="按钮/复选框预览态 — 切换显示 Normal / Pushed / Disabled / Mouseover 的 Backdrop 与文字"
+        >
+          <option value="normal">🔘 Normal</option>
+          <option value="pushed">⏬ Pushed</option>
+          <option value="disabled">🚫 Disabled</option>
+          <option value="mouseover">🖱️ Hover</option>
+        </select>
+        <select
           value={gridSize}
           onChange={(e) => setGridSize(Number(e.target.value))}
           style={{ marginLeft: '5px' }}
