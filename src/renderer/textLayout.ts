@@ -42,6 +42,40 @@ export function getTextLineHeightPx(frame: FrameData, baseFontSizePx: number): n
   return Math.max(1, baseFontSizePx * 1.2);
 }
 
+export interface MeasuredGlyphMetrics {
+  actualBoundingBoxAscent?: number;
+  actualBoundingBoxDescent?: number;
+}
+
+export interface TextVerticalMetrics {
+  ascentPx: number;
+  descentPx: number;
+  lineHeightPx: number;
+}
+
+/**
+ * 默认文本垂直度量：优先使用 Canvas 实测字形盒子，缺失时回退到经验比例。
+ * 这让默认 baseline / lineHeight 更接近真实字形，而不是一律 top + 1.2。
+ */
+export function getDefaultTextVerticalMetricsPx(
+  baseFontSizePx: number,
+  measured?: MeasuredGlyphMetrics,
+): TextVerticalMetrics {
+  const ascentPx = measured?.actualBoundingBoxAscent && measured.actualBoundingBoxAscent > 0
+    ? measured.actualBoundingBoxAscent
+    : baseFontSizePx * 0.8;
+  const descentPx = typeof measured?.actualBoundingBoxDescent === 'number' && measured.actualBoundingBoxDescent >= 0
+    ? measured.actualBoundingBoxDescent
+    : baseFontSizePx * 0.2;
+  const naturalHeight = ascentPx + descentPx;
+  const extraGap = Math.max(1, baseFontSizePx * 0.05);
+  return {
+    ascentPx,
+    descentPx,
+    lineHeightPx: Math.max(baseFontSizePx, naturalHeight + extraGap),
+  };
+}
+
 /** 最大可见行数: 仅在 TextAreaMaxLines 设置时裁剪. */
 export function applyMaxLines(lines: string[], frame: FrameData): string[] {
   if (typeof frame.textAreaMaxLines !== 'number' || !Number.isFinite(frame.textAreaMaxLines)) {
@@ -170,6 +204,8 @@ export function renderTextTexture(
   const fontWeight = frame.fontFlags?.includes('BOLD') ? 'bold' : 'normal';
   const fontStyle = frame.fontFlags?.includes('ITALIC') ? 'italic' : 'normal';
   ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+  const measuredMetrics = ctx.measureText('Hg');
+  const defaultVerticalMetrics = getDefaultTextVerticalMetricsPx(baseFontSize, measuredMetrics);
 
   // 颜色
   let textColor = '#ffffff';
@@ -191,16 +227,25 @@ export function renderTextTexture(
   // 对齐
   const textAlign = getTextAlign(frame);
   ctx.textAlign = textAlign;
-  ctx.textBaseline = 'top';
+  ctx.textBaseline = 'alphabetic';
 
   // 换行处理
   const insetPx = getTextInsetPx(frame);
   const paddedWidth = Math.max(0, cw - insetPx * 2 * scale);
   const wrappedLines = wrapText(ctx, renderableText, paddedWidth);
   const lines = applyMaxLines(wrappedLines, frame);
-  const lineHeight = getTextLineHeightPx(frame, baseFontSize) * scale;
-  const totalTextH = lines.length * lineHeight;
-  const startY = getTextY(frame, ch, totalTextH);
+  const explicitLineHeightPx = getTextLineHeightPx(frame, baseFontSize);
+  const lineHeightPx = frame.chatDisplayLineHeight !== undefined || frame.textAreaLineHeight !== undefined
+    ? explicitLineHeightPx
+    : defaultVerticalMetrics.lineHeightPx;
+  const lineHeight = lineHeightPx * scale;
+  const ascent = defaultVerticalMetrics.ascentPx * scale;
+  const descent = defaultVerticalMetrics.descentPx * scale;
+  const totalTextH = lines.length > 0
+    ? ascent + descent + Math.max(0, lines.length - 1) * lineHeight
+    : 0;
+  const startTopY = getTextY(frame, ch, totalTextH);
+  const firstBaselineY = startTopY + ascent;
 
   // X 坐标
   let textX: number;
@@ -233,14 +278,14 @@ export function renderTextTexture(
     const sx = wc3ToPixelW(frame.fontShadowOffset[0] || 0) * scale;
     const sy = -wc3ToPixelH(frame.fontShadowOffset[1] || 0) * scale;
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], textX + jx + sx, startY + i * lineHeight + jy + sy);
+      ctx.fillText(lines[i], textX + jx + sx, firstBaselineY + i * lineHeight + jy + sy);
     }
   }
 
   // 主文字
   ctx.fillStyle = textColor;
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], textX + jx, startY + i * lineHeight + jy);
+    ctx.fillText(lines[i], textX + jx, firstBaselineY + i * lineHeight + jy);
   }
 
   // 创建纹理

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { FrameType, type FrameData } from '../../src/types';
-import { applyMaxLines, getTextInsetPx, getTextLineHeightPx } from '../../src/renderer/textLayout';
+import {
+  applyMaxLines,
+  getDefaultTextVerticalMetricsPx,
+  getTextInsetPx,
+  getTextLineHeightPx,
+} from '../../src/renderer/textLayout';
 
 function mkFrame(overrides: Partial<FrameData> = {}): FrameData {
   return {
@@ -30,6 +35,15 @@ describe('textLayout metrics helpers', () => {
 
   it('默认 lineHeight = baseFontSize * 1.2', () => {
     expect(getTextLineHeightPx(mkFrame(), 18)).toBeCloseTo(21.6, 4);
+  });
+
+  it('默认垂直度量优先用 Canvas 实测 ascent/descent', () => {
+    expect(getDefaultTextVerticalMetricsPx(18, { actualBoundingBoxAscent: 13, actualBoundingBoxDescent: 4 }))
+      .toEqual({ ascentPx: 13, descentPx: 4, lineHeightPx: 18 });
+  });
+
+  it('缺失实测 metrics 时回退到 0.8 / 0.2 比例', () => {
+    expect(getDefaultTextVerticalMetricsPx(20)).toEqual({ ascentPx: 16, descentPx: 4, lineHeightPx: 21 });
   });
 
   it('TextAreaLineHeight + TextAreaLineGap 覆盖默认行高', () => {
