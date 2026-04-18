@@ -31,6 +31,7 @@ function makeTextKey(frame: FrameData, pixelW: number, pixelH: number): string {
     ffl: frame.fontFlags,
     fso: frame.fontShadowOffset,
     fsc: frame.fontShadowColor,
+    fjo: frame.fontJustificationOffset,
     ha: frame.horAlign ?? frame.fontJustificationH,
     va: frame.verAlign ?? frame.fontJustificationV,
     w: pixelW,
@@ -126,6 +127,16 @@ export function renderTextTexture(
   else if (textAlign === 'right') textX = cw - 2 * scale;
   else textX = 2 * scale;
 
+  // FontJustificationOffset (WC3 单位, Y-up) — 整段文本基线再做一次微调
+  // vendor 真实值如 `0.0 -0.001` (向下微调 1.8 px @ 1800 px/wc3-unit).
+  // 对阴影与主文字一并应用 (它们都从同一基线绘制).
+  let jx = 0;
+  let jy = 0;
+  if (frame.fontJustificationOffset) {
+    jx = wc3ToPixelW(frame.fontJustificationOffset[0] || 0) * scale;
+    jy = -wc3ToPixelH(frame.fontJustificationOffset[1] || 0) * scale;
+  }
+
   // 阴影
   if (frame.fontShadowOffset && frame.fontShadowColor) {
     ctx.fillStyle = rgbaToCSS(frame.fontShadowColor);
@@ -134,14 +145,14 @@ export function renderTextTexture(
     const sx = wc3ToPixelW(frame.fontShadowOffset[0] || 0) * scale;
     const sy = -wc3ToPixelH(frame.fontShadowOffset[1] || 0) * scale;
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], textX + sx, startY + i * lineHeight + sy);
+      ctx.fillText(lines[i], textX + jx + sx, startY + i * lineHeight + jy + sy);
     }
   }
 
   // 主文字
   ctx.fillStyle = textColor;
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], textX, startY + i * lineHeight);
+    ctx.fillText(lines[i], textX + jx, startY + i * lineHeight + jy);
   }
 
   // 创建纹理
