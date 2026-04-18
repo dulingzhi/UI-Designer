@@ -493,6 +493,34 @@ export class FDFTransformer {
         }
         break;
 
+      case 'font':
+        // 旧版/简写: Font "MasterFont", 0.011, ""  (与 FrameFont 同形)
+        // 9 处官方 FDF 引用。复用 FrameFont 解析逻辑。
+        if (Array.isArray(value)) {
+          const arr = value as unknown[];
+          if (typeof arr[0] === 'string') frame.font = arr[0];
+          if (typeof arr[1] === 'number') frame.fontSize = arr[1];
+          if (typeof arr[2] === 'string' && arr[2]) {
+            frame.fontFlags = (arr[2] as string).split('|').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        break;
+
+      case 'textlength':
+        // EditBox 最大文本长度 (整数)
+        if (typeof value === 'number') frame.textLength = value;
+        break;
+
+      case 'buttonpushedtextoffset':
+        // FDF: ButtonPushedTextOffset x y   (WC3 单位, Y-up; 与 FontShadowOffset 同)
+        // 11 处官方 FDF; 渲染器需在按下态把文字按此偏移以模拟"按入"。
+        // 这里仅存 WC3 单位, 渲染器侧需 wc3ToPixelW/H + Y 翻转 (尚未实现)。
+        if (Array.isArray(value) && value.length >= 2) {
+          const [x, y] = value as number[];
+          frame.buttonPushedTextOffset = [x, y];
+        }
+        break;
+
       case 'fontflags':
         // FDF: FontFlags "FIXEDSIZE|PASSWORDFIELD"
         if (typeof value === 'string' && value) {
