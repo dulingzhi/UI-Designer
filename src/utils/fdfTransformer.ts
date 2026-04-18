@@ -115,7 +115,14 @@ export class FDFTransformer {
     
     // 第三步：根据锚点计算所有Frame的最终位置
     this.calculateFinalPositions(allFramesFlat);
-    
+
+    // 第四步：解析 Control*/Highlight* 模板名引用 → 实际贴图
+    // 官方 FDF 中 controlBackdrop "UserGameButtonBackdropTemplate" 是对
+    // 一个 BACKDROP 模板的命名引用，渲染器需要的是该模板的
+    // backdropBackground (一个贴图键名)。单 quad 渲染无法复原完整九宫，
+    // 但至少有主贴图，不再是空按钮。
+    this.resolveControlTextureRefs(allFramesFlat);
+
     // ⚠️ 重要: 必须返回 allFramesFlat 而不是 frames
     // frames 只包含顶层Frame,会导致嵌套Frame丢失
     // allFramesFlat 包含所有Frame(顶层 + 嵌套)
@@ -987,7 +994,45 @@ export class FDFTransformer {
     // FDF 也使用相对单位，所以直接返回
     return value;
   }
-  
+
+  /**
+   * 解析 Control 与 Highlight 字段中的模板名引用 → 实际贴图路径
+   *
+   * 官方 FDF 里 `ControlBackdrop "UserGameButtonBackdropTemplate"` 的值是
+   * 一个 **BACKDROP 模板的 Frame 名**，而不是一个贴图路径。
+   * 运行时 WC3 会查找该模板并用它的完整九宫背景来绘制按钮；
+   * 单 quad 渲染无法复原完整九宫，本函数退而求其次 —— 取模板的
+   * `backdropBackground` 作为主贴图，让按钮至少不再是空白色块。
+   *
+   * 仅处理看起来是模板名的值（不含路径分隔符），已经是路径的原样保留。
+   */
+  private resolveControlTextureRefs(frames: FrameData[]): void {
+    const fields: Array<
+      'controlBackdrop' | 'controlPushedBackdrop' | 'controlDisabledBackdrop' | 'controlMouseOverHighlight'
+    > = [
+      'controlBackdrop',
+      'controlPushedBackdrop',
+      'controlDisabledBackdrop',
+      'controlMouseOverHighlight',
+    ];
+    for (const frame of frames) {
+      for (const field of fields) {
+        const name = frame[field];
+        if (typeof name !== 'string' || !name) continue;
+        // 已是贴图路径（含斜杠或反斜杠）则跳过
+        if (name.includes('\\') || name.includes('/')) continue;
+        const template = this.templateRegistry.get(name);
+        if (!template) continue;
+        // 只有模板确实提供了背景贴图时才替换 (可能链式引用至其它模板,
+        // 但多数官方 FDF 模板在其定义内直接给出 BackdropBackground)
+        const bg = template.backdropBackground ?? template.texture ?? template.textureFile;
+        if (typeof bg === 'string' && bg) {
+          frame[field] = bg;
+        }
+      }
+    }
+  }
+
   /**
    * 解析锚点的 relativeTo 引用
    * 将 Frame 名称映射到 Frame ID
