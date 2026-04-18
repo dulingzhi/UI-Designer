@@ -31,7 +31,7 @@ import { renderTextTexture, disposeTextCache } from './textLayout';
 import { resolveButtonState, type ButtonState } from './buttonState';
 import { planSplitEdges } from './backdropSplitEdges';
 import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
-import { resolveHighlightTint } from './highlightColor';
+import { resolveHighlightAlphaMode, resolveHighlightTint } from './highlightColor';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -94,14 +94,16 @@ export class SceneGraphManager {
   };
 
   /**
-   * 异步创建 SceneGraphManager。优�?WebGPU，失败时降级�?WebGL2�?
-    // ??????: EditBorderSize ???????????
-    const geo = node.borderMesh.geometry;
-    const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-    const positions = buildEditBoxBorderPositions(width, height, frame.editBorderSize, 0.25);
-    for (let i = 0; i < 8; i++) {
-      pos.setXYZ(i, positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
-    }
+   * ???? SceneGraphManager??? WebGPU??????? WebGL2?
+   */
+  static async create(
+    canvas: HTMLCanvasElement,
+    options: SceneGraphManagerOptions = {},
+  ): Promise<SceneGraphManager> {
+    let renderer: WebGPURenderer | THREE.WebGLRenderer;
+    let backend: RenderBackend;
+
+    if ((navigator as any).gpu) {
       try {
         const gpu = new WebGPURenderer({
           canvas,
@@ -758,6 +760,10 @@ export class SceneGraphManager {
     const isCheckbox = frame.type === FrameType.CHECKBOX;
     const isHighlight = frame.type === FrameType.HIGHLIGHT;
     const isSprite = frame.type === FrameType.SPRITE;
+    const highlightAlphaMode = resolveHighlightAlphaMode(frame.highlightAlphaMode);
+    const effectiveFrame: FrameData = isHighlight && highlightAlphaMode
+      ? { ...frame, alphaMode: highlightAlphaMode }
+      : frame;
 
     let textureProp: string | undefined;
     let highlightTextureProp: string | undefined;
@@ -787,7 +793,7 @@ export class SceneGraphManager {
       this.disposeControlMesh(node);
     } else {
       if (!node.controlMesh) {
-        node.controlMesh = new THREE.Mesh(this.unitPlane, createMaterial(frame));
+        node.controlMesh = new THREE.Mesh(this.unitPlane, createMaterial(effectiveFrame));
         node.controlMesh.userData.frameId = id;
         node.group.add(node.controlMesh);
       }
@@ -796,14 +802,14 @@ export class SceneGraphManager {
       node.controlMesh.scale.set(width, height, 1);
       node.controlMesh.renderOrder = renderOrderBase + 0.15;
       node.controlMesh.visible = false;
-      updateMaterial(node.controlMesh.material as FrameMaterial, frame);
+      updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame);
       applyHighlightTint();
 
       void this.textureCache.loadTexture(texturePath)
         .then((texture) => {
           if (!this.isNodeCurrent(id, revision)) return;
           if (!node.controlMesh) return;
-          updateMaterial(node.controlMesh.material as FrameMaterial, frame, { texture });
+          updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame, { texture });
           applyHighlightTint();
           node.controlMesh.visible = true;
           this.markDirty();
@@ -811,7 +817,7 @@ export class SceneGraphManager {
         .catch(() => {
           if (!this.isNodeCurrent(id, revision)) return;
           if (!node.controlMesh) return;
-          updateMaterial(node.controlMesh.material as FrameMaterial, frame, {
+          updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame, {
             texture: this.textureCache.getFallback(),
           });
           applyHighlightTint();

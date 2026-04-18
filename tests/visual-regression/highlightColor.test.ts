@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveHighlightTint } from '../../src/renderer/highlightColor';
+import { resolveHighlightAlphaMode, resolveHighlightTint } from '../../src/renderer/highlightColor';
 
 describe('resolveHighlightTint', () => {
   it('兼容 FDF 导入的 0..255 RGBA', () => {
@@ -22,5 +22,13 @@ describe('resolveHighlightTint', () => {
 
   it('未提供 highlightColor 时返回 null', () => {
     expect(resolveHighlightTint(undefined, 200)).toBeNull();
+  });
+
+  it('HighlightAlphaMode 只接受 ALPHAKEY/BLEND/ADD', () => {
+    expect(resolveHighlightAlphaMode('add')).toBe('ADD');
+    expect(resolveHighlightAlphaMode('BLEND')).toBe('BLEND');
+    expect(resolveHighlightAlphaMode('AlphaKey')).toBe('ALPHAKEY');
+    expect(resolveHighlightAlphaMode('MODULATE')).toBeUndefined();
+    expect(resolveHighlightAlphaMode(undefined)).toBeUndefined();
   });
 });

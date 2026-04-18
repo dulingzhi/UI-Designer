@@ -5,6 +5,8 @@ export interface HighlightTint {
   opacity: number;
 }
 
+export type HighlightBlendMode = 'ALPHAKEY' | 'BLEND' | 'ADD';
+
 function normalizeUnit(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return value > 1 ? value / 255 : value;
@@ -32,4 +34,16 @@ export function resolveHighlightTint(
     b: Math.max(0, Math.min(1, normalizeUnit(b))),
     opacity: Math.max(0, Math.min(1, normalizeUnit(a) * normalizeAlpha(frameAlpha))),
   };
+}
+
+/**
+ * HighlightAlphaMode 规范化：仅接受 WC3 已知模式，其余保留为 undefined。
+ */
+export function resolveHighlightAlphaMode(mode?: string): HighlightBlendMode | undefined {
+  if (!mode) return undefined;
+  const normalized = mode.toUpperCase();
+  if (normalized === 'ALPHAKEY' || normalized === 'BLEND' || normalized === 'ADD') {
+    return normalized;
+  }
+  return undefined;
 }
