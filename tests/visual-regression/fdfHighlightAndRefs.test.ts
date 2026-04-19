@@ -69,6 +69,16 @@ describe('FDF 子 frame 引用 string passthrough', () => {
     expect(f.menuBorderRef).toBe('MB');
   });
 
+  it('numeric MenuBorder → frame.menuBorder (vendor form)', () => {
+    const src = `Frame "MENU" "M" {
+      Width 0.1, Height 0.05,
+      MenuBorder 0.009,
+    }`;
+    const f = parse(src)[0];
+    expect(f.menuBorder).toBeCloseTo(0.009);
+    expect(f.menuBorderRef).toBeUndefined();
+  });
+
   it('ControlShortcutKey / TabFocusNext (无视觉影响, 仍持久化)', () => {
     const src = `Frame "BUTTON" "B" {
       Width 0.1, Height 0.05,

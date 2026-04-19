@@ -26,6 +26,9 @@ export function getTextInsetPx(frame: FrameData): number {
   if (typeof frame.textAreaInset === 'number') {
     return Math.max(0, wc3ToPixelW(frame.textAreaInset));
   }
+  if ((frame.type === FrameType.MENU || frame.type === FrameType.POPUPMENU) && typeof frame.menuBorder === 'number') {
+    return Math.max(0, wc3ToPixelW(frame.menuBorder));
+  }
   return 2;
 }
 

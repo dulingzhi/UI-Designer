@@ -35,6 +35,11 @@ describe('textLayout metrics helpers', () => {
     expect(getTextInsetPx(mkFrame({ textAreaInset: 0.005 }))).toBeCloseTo(9, 4);
   });
 
+  it('MENU/POPUPMENU 使用 MenuBorder 作为文本 inset', () => {
+    expect(getTextInsetPx(mkFrame({ type: FrameType.MENU, menuBorder: 0.009 }))).toBeCloseTo(16.2, 4);
+    expect(getTextInsetPx(mkFrame({ type: FrameType.POPUPMENU, menuBorder: 0.01 }))).toBeCloseTo(18, 4);
+  });
+
   it('默认 lineHeight = baseFontSize * 1.2', () => {
     expect(getTextLineHeightPx(mkFrame(), 18)).toBeCloseTo(21.6, 4);
   });

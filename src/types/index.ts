@@ -192,6 +192,7 @@ export interface FrameData {
   // ========== MENU / POPUP 属性 ==========
   menuItemHeight?: number;             // 菜单项高度 (WC3 单位)
   popupButtonInset?: number;           // 弹出按钮内边距 (WC3 单位)
+  menuBorder?: number;                 // 菜单文本边距/边框宽 (WC3 单位)
   
   // ========== SLIDER 属性 ==========
   minValue?: number;                   // 最小值
@@ -233,7 +234,7 @@ export interface FrameData {
   popupTitleFrameRef?: string;         // POPUPMENU 标题子 frame 名
   editTextFrameRef?: string;           // EDITBOX 内嵌 TEXT 子 frame 名
   dialogBackdropRef?: string;          // DIALOG 背景 BACKDROP 子 frame 名
-  menuBorderRef?: string;              // MENU 边框 BACKDROP 子 frame 名
+  menuBorderRef?: string;              // MENU 边框 frame 名引用（少量旧格式）
   controlShortcutKey?: string;         // 控件快捷键 (键盘绑定; 无视觉影响)
   tabFocusNext?: string;               // Tab 顺序中下一个 frame 名 (无视觉影响)
   textAreaScrollBarRef?: string;       // TEXTAREA 嵌套的滚动条子 frame 名 (8 vendor)

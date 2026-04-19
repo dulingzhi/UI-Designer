@@ -860,7 +860,11 @@ export class FDFTransformer {
         if (typeof value === 'string') frame.dialogBackdropRef = value;
         break;
       case 'menuborder':
-        if (typeof value === 'string') frame.menuBorderRef = value;
+        // FDF MenuBorder 双协议：
+        //   1) 数值：MenuBorder 0.009,   表示 MENU 文本/内容边距（5 vendor）
+        //   2) 字符串：MenuBorder "MB", 旧测试/少量自定义工程中可作 frame 名引用
+        if (typeof value === 'number') frame.menuBorder = value;
+        else if (typeof value === 'string') frame.menuBorderRef = value;
         break;
       case 'controlshortcutkey':
         if (typeof value === 'string') frame.controlShortcutKey = value;
