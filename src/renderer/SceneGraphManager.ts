@@ -34,6 +34,7 @@ import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './edit
 import { resolveHighlightAlphaMode, resolveHighlightTint } from './highlightColor';
 import { resolveBackdropBgAlphaMode } from './backdropBlend';
 import { resolveHighlightRenderMode } from './highlightType';
+import { isCollapsedPopupMenuChild } from './popupMenuVisibility';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -206,18 +207,20 @@ export class SceneGraphManager {
     if (this.contextLost) return;
     const activeIds = new Set<string>();
 
-    const collectIds = (ids: string[], hiddenByParent: boolean = false) => {
+    const collectIds = (ids: string[], hiddenByParent: boolean = false, parentFrame?: FrameData) => {
       for (const id of ids) {
         const frame = frames[id];
         if (!frame) continue;
 
-        const hidden = hiddenByParent || frame.visible === false;
+        const hidden = hiddenByParent
+          || frame.visible === false
+          || isCollapsedPopupMenuChild(parentFrame, frame);
         if (!hidden) {
           activeIds.add(id);
         }
 
         if (frame.children && frame.children.length > 0) {
-          collectIds(frame.children, hidden);
+          collectIds(frame.children, hidden, frame);
         }
       }
     };
