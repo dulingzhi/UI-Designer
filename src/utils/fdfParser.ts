@@ -369,16 +369,24 @@ export class FDFParser {
         break;
       } else if (this.check(TokenType.IDENTIFIER)) {
         const identifierValue = this.currentToken().value;
-        // 首字母大写的标识符通常是属性名，不是值
-        // 例如：BackdropBackground, BackdropCornerFlags, SetPoint 等
-        // 小写标识符或特定关键字才是值，如：true, false, TOPLEFT, CENTER 等
-        const firstChar = identifierValue.charAt(0);
-        if (firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase()) {
-          // 首字母是大写字母，认为这是新属性名，停止读取
+        // 区分「FDF 枚举值」与「新属性名」：
+        //   - 全大写（或含数字/下划线）且无任何小写字母 → 枚举值（TOPLEFT、CENTER、
+        //     JUSTIFYCENTER、SHADE、NOSHADING 等），作为当前属性的值继续读取。
+        //   - 首字母大写但含小写 → PascalCase 属性名（BackdropBackground、
+        //     SetPoint 等），停止读取。
+        //   - 全小写 → 关键字值（true/false），作为值读取。
+        // 修复：此前仅凭「首字母是否大写」就判为属性名，会把 SetPoint 的
+        // relativePoint（如第二个 TOPLEFT）误判为新属性，导致 SetPoint 只读到
+        // 前两个值（point + relativeTo），relativePoint/x/y 全部丢失，
+        // 5-参 SetPoint 实际未产生任何锚点。vendor/UI/FrameDef/UI/MultiBoard.fdf
+        // 与大量引用 Multiboard 结构的用户工程因此布局异常。
+        const hasLower = identifierValue !== identifierValue.toUpperCase();
+        const hasUpper = identifierValue !== identifierValue.toLowerCase();
+        if (hasUpper && hasLower) {
+          // PascalCase/camelCase → 新属性名
           break;
         }
-        
-        // 否则，当作值处理（如枚举值、锚点等）
+        // 全大写枚举值或全小写关键字 → 当作值读取
         values.push(this.parsePropertyValue());
       } else if (this.check(TokenType.STRING) || this.check(TokenType.NUMBER)) {
         // 逗号后是 STRING/NUMBER，继续读取
