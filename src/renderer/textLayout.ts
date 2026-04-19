@@ -33,6 +33,17 @@ export function getTextInsetPx(frame: FrameData): number {
 }
 
 /**
+ * POPUPMENU 右侧下拉箭头按钮占位宽度 (PopupButtonInset).
+ * 其他 frame 类型返回 0 (右侧与左侧对称).
+ */
+export function getTextRightInsetPx(frame: FrameData): number {
+  if (frame.type === FrameType.POPUPMENU && typeof frame.popupButtonInset === 'number') {
+    return Math.max(0, wc3ToPixelW(frame.popupButtonInset));
+  }
+  return getTextInsetPx(frame);
+}
+
+/**
  * 行高: ChatDisplayLineHeight > TextAreaLineHeight > 历史默认(fontSize * 1.2 / scale).
  * 返回未乘 scale 的像素值; 调用方再乘当前 canvas scale.
  */
@@ -257,7 +268,8 @@ export function renderTextTexture(
 
   // 换行处理
   const insetPx = getTextInsetPx(frame);
-  const paddedWidth = Math.max(0, cw - insetPx * 2 * scale);
+  const rightInsetPx = getTextRightInsetPx(frame);
+  const paddedWidth = Math.max(0, cw - (insetPx + rightInsetPx) * scale);
   const wrappedLines = wrapText(ctx, renderableText, paddedWidth);
   const lines = applyMaxLines(wrappedLines, frame);
   const explicitLineHeightPx = getTextLineHeightPx(frame, baseFontSize);
@@ -276,7 +288,7 @@ export function renderTextTexture(
   // X 坐标
   let textX: number;
   if (textAlign === 'center') textX = cw / 2;
-  else if (textAlign === 'right') textX = cw - insetPx * scale;
+  else if (textAlign === 'right') textX = cw - rightInsetPx * scale;
   else textX = insetPx * scale;
 
   // FontJustificationOffset (WC3 单位, Y-up) — 整段文本基线再做一次微调

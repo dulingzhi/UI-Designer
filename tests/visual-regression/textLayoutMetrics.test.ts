@@ -5,6 +5,7 @@ import {
   getBaseFontSizePx,
   getDefaultTextVerticalMetricsPx,
   getTextInsetPx,
+  getTextRightInsetPx,
   getTextLineHeightPx,
   getTextOutlineWidthPx,
 } from '../../src/renderer/textLayout';
@@ -96,5 +97,29 @@ describe('textLayout metrics helpers', () => {
 
   it('无 frame.fontSize 且非 FIXEDSIZE 时，回退字号跟随 textScale', () => {
     expect(getBaseFontSizePx(mkFrame({ textScale: 2 }))).toBe(28);
+  });
+});
+
+describe('PopupButtonInset text right inset', () => {
+  it('非 POPUPMENU 帧右侧 inset 与左侧对称 (getTextInsetPx)', () => {
+    const frame = mkFrame({ type: FrameType.TEXT });
+    expect(getTextRightInsetPx(frame)).toBe(getTextInsetPx(frame));
+  });
+
+  it('POPUPMENU 有 PopupButtonInset 时右侧 inset = 该值(px)', () => {
+    // 典型值 0.01 → 18px (1800 px/WC3-unit)
+    const frame = mkFrame({ type: FrameType.POPUPMENU, popupButtonInset: 0.01 });
+    expect(getTextRightInsetPx(frame)).toBeCloseTo(18, 4);
+  });
+
+  it('POPUPMENU 无 PopupButtonInset 时右侧 inset 回退到 getTextInsetPx', () => {
+    const frame = mkFrame({ type: FrameType.POPUPMENU });
+    expect(getTextRightInsetPx(frame)).toBe(getTextInsetPx(frame));
+  });
+
+  it('POPUPMENU PopupButtonInset 独立于 MenuBorder 左侧 inset', () => {
+    const frame = mkFrame({ type: FrameType.POPUPMENU, menuBorder: 0.009, popupButtonInset: 0.01 });
+    expect(getTextInsetPx(frame)).toBeCloseTo(16.2, 4);   // 左侧
+    expect(getTextRightInsetPx(frame)).toBeCloseTo(18, 4); // 右侧
   });
 });
