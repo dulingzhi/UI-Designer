@@ -92,6 +92,30 @@ function exportFrame(
   if (frame.height !== undefined) {
     lines.push(`${ind}${indent}Height ${formatNumber(frame.height)},`);
   }
+
+  if (frame.type === FrameType.POPUPMENU && frame.popupButtonInset !== undefined) {
+    lines.push(`${ind}${indent}PopupButtonInset ${formatNumber(frame.popupButtonInset)},`);
+  }
+
+  if ((frame.type === FrameType.MENU || frame.type === FrameType.POPUPMENU) && frame.menuItemHeight !== undefined) {
+    lines.push(`${ind}${indent}MenuItemHeight ${formatNumber(frame.menuItemHeight)},`);
+  }
+
+  if ((frame.type === FrameType.MENU || frame.type === FrameType.POPUPMENU) && frame.menuBorder !== undefined) {
+    lines.push(`${ind}${indent}MenuBorder ${formatNumber(frame.menuBorder)},`);
+  } else if (frame.menuBorderRef) {
+    lines.push(`${ind}${indent}MenuBorder "${escapeString(frame.menuBorderRef)}",`);
+  }
+
+  if (frame.popupMenuFrameRef) {
+    lines.push(`${ind}${indent}PopupMenuFrame "${escapeString(frame.popupMenuFrameRef)}",`);
+  }
+  if (frame.popupArrowFrameRef) {
+    lines.push(`${ind}${indent}PopupArrowFrame "${escapeString(frame.popupArrowFrameRef)}",`);
+  }
+  if (frame.popupTitleFrameRef) {
+    lines.push(`${ind}${indent}PopupTitleFrame "${escapeString(frame.popupTitleFrameRef)}",`);
+  }
   
   // Text相关
   if (frame.text !== undefined) {

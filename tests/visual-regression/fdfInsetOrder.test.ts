@@ -29,6 +29,17 @@ const SAMPLE = `Frame "BACKDROP" "TestBackdrop" {
 }
 `;
 
+const POPUP_SAMPLE = `Frame "POPUPMENU" "Popup" {
+  Width 0.111875,
+  Height 0.01875,
+  PopupButtonInset 0.01,
+  MenuItemHeight 0.014,
+  PopupTitleFrame "PopupMenuTitle",
+  PopupArrowFrame "PopupMenuArrow",
+  PopupMenuFrame "PopupMenuMenu",
+}
+`;
+
 describe('FDF round-trip — BackdropBackgroundInsets order invariant', () => {
   it('parse + export preserves token order [0.001 0.002 0.003 0.004]', () => {
     const frames = parse(SAMPLE);
@@ -49,5 +60,16 @@ describe('FDF round-trip — BackdropBackgroundInsets order invariant', () => {
     const src = `Frame "BACKDROP" "T" { Width 0.1, Height 0.05, BackdropBackgroundInsets 0.005, }`;
     const frame = parse(src)[0];
     expect(frame.backdropBackgroundInsets).toEqual([0.005, 0.005, 0.005, 0.005]);
+  });
+
+  it('popup/menu structural refs and scalars survive parse + export', () => {
+    const frame = parse(POPUP_SAMPLE)[0];
+    const out = exportToFDF([frame]);
+
+    expect(out).toContain('PopupButtonInset 0.01,');
+    expect(out).toContain('MenuItemHeight 0.014,');
+    expect(out).toContain('PopupTitleFrame "PopupMenuTitle",');
+    expect(out).toContain('PopupArrowFrame "PopupMenuArrow",');
+    expect(out).toContain('PopupMenuFrame "PopupMenuMenu",');
   });
 });
