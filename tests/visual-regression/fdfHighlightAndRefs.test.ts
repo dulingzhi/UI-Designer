@@ -32,6 +32,22 @@ describe('FDF HighlightColor / MenuTextHighlightColor', () => {
     }`;
     expect(parse(src)[0].menuTextHighlightColor).toEqual([0, 0, 255, 128]);
   });
+
+  it('MenuTextHighlightColor 3 分量写法默认 alpha=255 (vendor: 1.0 0.0 0)', () => {
+    const src = `Frame "POPUPMENU" "M" {
+      Width 0.1, Height 0.05,
+      MenuTextHighlightColor 1.0 0.0 0,
+    }`;
+    expect(parse(src)[0].menuTextHighlightColor).toEqual([255, 0, 0, 255]);
+  });
+
+  it('HighlightColor 3 分量写法默认 alpha=255', () => {
+    const src = `Frame "HIGHLIGHT" "H" {
+      Width 0.1, Height 0.05,
+      HighlightColor 0.2 0.4 0.6,
+    }`;
+    expect(parse(src)[0].highlightColor).toEqual([51, 102, 153, 255]);
+  });
 });
 
 describe('FDF 子 frame 引用 string passthrough', () => {

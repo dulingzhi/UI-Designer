@@ -802,9 +802,10 @@ export class FDFTransformer {
         break;
 
       case 'highlightcolor': {
-        // HIGHLIGHT 帧填充颜色 (10 vendor: e.g. "1.0 0.0 0.0 0.2" 半透明红高亮)
-        if (Array.isArray(value) && value.length >= 4) {
-          const [r, g, b, a] = value as number[];
+        // HIGHLIGHT 帧填充颜色: HighlightColor r g b [a]
+        // 兼容 3/4 分量; alpha 省略时默认 1.0
+        if (Array.isArray(value) && value.length >= 3) {
+          const [r, g, b, a = 1.0] = value as number[];
           frame.highlightColor = [
             Math.round(r * 255),
             Math.round(g * 255),
@@ -816,9 +817,10 @@ export class FDFTransformer {
       }
 
       case 'menutexthighlightcolor': {
-        // 菜单项文本高亮颜色, 4 vendor; 0..1 → 0..255 RGBA (与 fontColor 同协议).
-        if (Array.isArray(value) && value.length >= 4) {
-          const [r, g, b, a] = value as number[];
+        // 菜单项文本高亮颜色: MenuTextHighlightColor r g b [a]
+        // vendor 同时存在 3 分量和 4 分量写法; alpha 省略时默认 1.0
+        if (Array.isArray(value) && value.length >= 3) {
+          const [r, g, b, a = 1.0] = value as number[];
           frame.menuTextHighlightColor = [
             Math.round(r * 255),
             Math.round(g * 255),
