@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import type { FrameData } from '../types';
-import { getFrameTypeColor, EGxMatAlphaOp, ALPHA_REF } from './constants';
+import { EGxMatAlphaOp, ALPHA_REF } from './constants';
+import { resolveMaterialBaseColor } from './layerStyle';
 
 export interface MaterialTextureOptions {
   texture?: THREE.Texture | null;
@@ -94,8 +95,8 @@ export function createMaterial(
   frame: FrameData,
   textureOptions?: MaterialTextureOptions,
 ): MeshBasicNodeMaterial {
-  const [r, g, b, a] = getFrameTypeColor(frame.type);
   const hasTexture = Boolean(textureOptions?.texture);
+  const [r, g, b, a] = resolveMaterialBaseColor(frame, hasTexture);
   const alphaMode = parseAlphaMode(frame.alphaMode);
 
   const material = new MeshBasicNodeMaterial({
@@ -129,11 +130,11 @@ export function updateMaterial(
   frame: FrameData,
   textureOptions?: MaterialTextureOptions,
 ): void {
-  const [r, g, b, a] = getFrameTypeColor(frame.type);
   const explicitTexture = textureOptions && 'texture' in textureOptions;
   const hasTexture = explicitTexture
     ? Boolean(textureOptions!.texture)
     : Boolean(material.map);
+  const [r, g, b, a] = resolveMaterialBaseColor(frame, hasTexture);
   const alphaMode = parseAlphaMode(frame.alphaMode);
 
   material.color.setRGB(r, g, b);
