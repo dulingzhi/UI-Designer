@@ -435,9 +435,17 @@ export class FDFTransformer {
         break;
         
       case 'setallpoints':
-        // SetAllPoints 表示填充整个父窗口
-        // 在嵌套 Frame 中，这意味着相对于父元素的 TOPLEFT 和 BOTTOMRIGHT
-        // 我们创建一个特殊标记，稍后会被处理
+        // SetAllPoints 表示填充整个父窗口。
+        // 边界情况：若此 Frame 已经通过 SetPoint 指定了具体锚点
+        // （例如 vendor/UI/FrameDef/UI/MultiBoard.fdf 的 MultiboardTitleBackdrop
+        // 同时写了两条 SetPoint + 一条 SetAllPoints），官方引擎表现为
+        // **显式 SetPoint 生效、SetAllPoints 被忽略**（否则 TitleBackdrop 会
+        // 缩退成 Multiboard 根 0.024×0.024 的填充，丢失 `Width 0.2f` 与
+        // 面向 MinimizeButton 的 sibling 锚点）。
+        // 仅当还没有任何锚点时，SetAllPoints 才注入 TOPLEFT+BOTTOMRIGHT。
+        if (frame.anchors && frame.anchors.length > 0) {
+          break;
+        }
         frame.fdfMetadata = {
           ...frame.fdfMetadata,
           setAllPoints: true,  // 标记这个 Frame 使用了 SetAllPoints
@@ -1567,6 +1575,29 @@ export class FDFTransformer {
             frame.height = Math.abs(trPos.y - blPos.y);
             frame.x = Math.min(trPos.x, blPos.x);
             frame.y = Math.min(trPos.y, blPos.y);
+          }
+        }
+        // TOPRIGHT + BOTTOMRIGHT（右侧边 = 高度约束；宽度保留 frame.width）
+        // vendor/UI/FrameDef/UI/MultiBoard.fdf 的 MultiboardTitleBackdrop 用
+        // 两个右侧锚点锁定高度，Width 0.2f 独立声明宽度。
+        else if (hasTopRight && hasBottomRight && topRight && bottomRight) {
+          const trPos = this.calculateAbsoluteAnchorPosition(topRight, idToFrame);
+          const brPos = this.calculateAbsoluteAnchorPosition(bottomRight, idToFrame);
+          if (trPos && brPos) {
+            frame.height = Math.abs(trPos.y - brPos.y);
+            // 右侧锚点 → 左上角 x = anchor.x - width
+            frame.x = trPos.x - frame.width;
+            frame.y = Math.min(trPos.y, brPos.y);
+          }
+        }
+        // BOTTOMLEFT + BOTTOMRIGHT（下侧边 = 宽度约束；高度保留 frame.height）
+        else if (hasBottomLeft && hasBottomRight && bottomLeft && bottomRight) {
+          const blPos = this.calculateAbsoluteAnchorPosition(bottomLeft, idToFrame);
+          const brPos = this.calculateAbsoluteAnchorPosition(bottomRight, idToFrame);
+          if (blPos && brPos) {
+            frame.width = Math.abs(brPos.x - blPos.x);
+            frame.x = Math.min(blPos.x, brPos.x);
+            frame.y = Math.min(blPos.y, brPos.y);
           }
         }
       }
