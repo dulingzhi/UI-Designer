@@ -59,6 +59,20 @@ describe('textLayout metrics helpers', () => {
       .toBeCloseTo(20.7, 4);
   });
 
+  it('MENU/POPUPMENU 使用 MenuItemHeight 作为行高', () => {
+    expect(getTextLineHeightPx(mkFrame({ type: FrameType.MENU, menuItemHeight: 0.014 }), 18))
+      .toBeCloseTo(25.2, 4);
+    expect(getTextLineHeightPx(mkFrame({ type: FrameType.POPUPMENU, menuItemHeight: 0.014 }), 18))
+      .toBeCloseTo(25.2, 4);
+  });
+
+  it('ChatDisplayLineHeight / TextAreaLineHeight 优先级高于 MenuItemHeight', () => {
+    expect(getTextLineHeightPx(
+      mkFrame({ type: FrameType.MENU, menuItemHeight: 0.014, textAreaLineHeight: 0.01, textAreaLineGap: 0.0015 }),
+      18,
+    )).toBeCloseTo(20.7, 4);
+  });
+
   it('ChatDisplayLineHeight 优先于 TextAreaLineHeight', () => {
     expect(getTextLineHeightPx(mkFrame({ chatDisplayLineHeight: 0.01, textAreaLineHeight: 0.02, textAreaLineGap: 0.0015 }), 18))
       .toBeCloseTo(20.7, 4);

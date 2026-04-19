@@ -48,7 +48,11 @@ export function getTextRightInsetPx(frame: FrameData): number {
  * 返回未乘 scale 的像素值; 调用方再乘当前 canvas scale.
  */
 export function getTextLineHeightPx(frame: FrameData, baseFontSizePx: number): number {
-  const explicit = frame.chatDisplayLineHeight ?? frame.textAreaLineHeight;
+  const explicit = frame.chatDisplayLineHeight
+    ?? frame.textAreaLineHeight
+    ?? ((frame.type === FrameType.MENU || frame.type === FrameType.POPUPMENU)
+      ? frame.menuItemHeight
+      : undefined);
   if (typeof explicit === 'number') {
     const lineGap = typeof frame.textAreaLineGap === 'number' ? wc3ToPixelH(frame.textAreaLineGap) : 0;
     return Math.max(1, wc3ToPixelH(explicit) + lineGap);
