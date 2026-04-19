@@ -22,6 +22,7 @@ import { pixelToWc3X, pixelToWc3Y, wc3ToPixelX, wc3ToPixelYBottom, wc3ToPixelW, 
 import { SceneGraphManager } from '../renderer/SceneGraphManager';
 import { ensureWar3FontLoaded, setFontResolverContext } from '../renderer/fontResolver';
 import { hitTest } from '../renderer/hitTest';
+import { hasLayerStyleFlag } from '../renderer/layerStyle';
 import './Canvas.css';
 
 // 保留旧名兼容: MARGIN -> CANVAS_MARGIN
@@ -402,7 +403,13 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       if (canvasBounds) {
         const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
         const mouseY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
-        frameId = hitTest(mouseX, mouseY, sceneGraphRef.current.scene, sceneGraphRef.current.camera);
+        frameId = hitTest(
+          mouseX,
+          mouseY,
+          sceneGraphRef.current.scene,
+          sceneGraphRef.current.camera,
+          (id) => hasLayerStyleFlag(project.frames[id]?.layerStyle, 'IGNORETRACKEVENTS'),
+        );
       }
     }
     // 回退：命中选中/锁定/MODEL 帧的 DOM 叠加层
@@ -766,7 +773,13 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               if (canvasBounds && sg) {
                 const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
                 const mouseY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
-                frameId = hitTest(mouseX, mouseY, sg.scene, sg.camera);
+                frameId = hitTest(
+                  mouseX,
+                  mouseY,
+                  sg.scene,
+                  sg.camera,
+                  (id) => hasLayerStyleFlag(project.frames[id]?.layerStyle, 'IGNORETRACKEVENTS'),
+                );
               }
 
               if (frameId) {

@@ -11,6 +11,37 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+function extractFrameIdFromObject(object: THREE.Object3D | null): string | null {
+  let obj: THREE.Object3D | null = object;
+  while (obj) {
+    if (obj.userData && typeof obj.userData.frameId === 'string') {
+      return obj.userData.frameId;
+    }
+    obj = obj.parent;
+  }
+  return null;
+}
+
+export function pickTopFrameIdFromIntersections(
+  intersects: THREE.Intersection<THREE.Object3D>[],
+  shouldIgnoreFrameId?: (frameId: string) => boolean,
+): string | null {
+  if (intersects.length === 0) return null;
+
+  const sorted = intersects.length > 1
+    ? [...intersects].sort((a, b) => b.object.position.z - a.object.position.z)
+    : intersects;
+
+  for (const hit of sorted) {
+    const frameId = extractFrameIdFromObject(hit.object);
+    if (!frameId) continue;
+    if (shouldIgnoreFrameId?.(frameId)) continue;
+    return frameId;
+  }
+
+  return null;
+}
+
 /**
  * 检测鼠标位置下的帧 ID
  *
@@ -30,6 +61,7 @@ export function hitTest(
   mouseY: number,
   scene: THREE.Scene,
   camera: THREE.OrthographicCamera,
+  shouldIgnoreFrameId?: (frameId: string) => boolean,
 ): string | null {
   // 转换为 NDC: Camera(0, 1920, 1080, 0)
   // X: 0→-1, 1920→+1
@@ -41,20 +73,5 @@ export function hitTest(
   raycaster.setFromCamera(mouse, camera);
 
   const intersects = raycaster.intersectObjects(scene.children, true);
-  if (intersects.length === 0) return null;
-
-  // 按 z-order (position.z) 降序排列，取最上层
-  if (intersects.length > 1) {
-    intersects.sort((a, b) => b.object.position.z - a.object.position.z);
-  }
-
-  // 从命中的 mesh 向上查找 frameId (可能在 parent group 上)
-  let obj: THREE.Object3D | null = intersects[0].object;
-  while (obj) {
-    if (obj.userData && typeof obj.userData.frameId === 'string') {
-      return obj.userData.frameId;
-    }
-    obj = obj.parent;
-  }
-  return null;
+  return pickTopFrameIdFromIntersections(intersects, shouldIgnoreFrameId);
 }
