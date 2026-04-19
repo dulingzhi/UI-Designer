@@ -32,6 +32,7 @@ import { resolveButtonState, type ButtonState } from './buttonState';
 import { planSplitEdges } from './backdropSplitEdges';
 import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
 import { resolveHighlightAlphaMode, resolveHighlightTint } from './highlightColor';
+import { resolveBackdropBgAlphaMode } from './backdropBlend';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -418,8 +419,13 @@ export class SceneGraphManager {
     const innerWidth = placement.innerWidth;
     const innerHeight = placement.innerHeight;
 
+    // BackdropBlendAll: WC3 ????? ALPHAKEY????????
+    // ?? BackdropBlendAll ??? BLEND??? alpha ??????????
+    const bgAlphaMode = resolveBackdropBgAlphaMode(frame);
+    const effectiveBgFrame: FrameData = frame.alphaMode ? frame : { ...frame, alphaMode: bgAlphaMode };
+
     if (!node.backgroundMesh) {
-      node.backgroundMesh = new THREE.Mesh(this.unitPlane, createMaterial(frame));
+      node.backgroundMesh = new THREE.Mesh(this.unitPlane, createMaterial(effectiveBgFrame));
       node.backgroundMesh.userData.frameId = id;
       node.group.add(node.backgroundMesh);
     }
@@ -429,7 +435,7 @@ export class SceneGraphManager {
     mesh.position.set(placement.centerX, placement.centerY, 0.1);
     mesh.scale.set(placement.scaleX, placement.scaleY, 1);
     mesh.renderOrder = renderOrderBase + 0.1;
-    updateMaterial(mesh.material as FrameMaterial, frame);
+    updateMaterial(mesh.material as FrameMaterial, effectiveBgFrame);
 
     void this.textureCache.loadTexture(backgroundPath)
       .then((texture) => {
@@ -447,7 +453,7 @@ export class SceneGraphManager {
         const repeatX = tileSizePx ? innerWidth / tileSizePx : 1;
         const repeatY = tileSizePx ? innerHeight / tileSizePx : 1;
 
-        updateMaterial(mesh.material as FrameMaterial, frame, {
+        updateMaterial(mesh.material as FrameMaterial, effectiveBgFrame, {
           texture,
           repeatX,
           repeatY,
@@ -459,7 +465,7 @@ export class SceneGraphManager {
       })
       .catch(() => {
         if (!this.isNodeCurrent(id, revision)) return;
-        updateMaterial(mesh.material as FrameMaterial, frame, {
+        updateMaterial(mesh.material as FrameMaterial, effectiveBgFrame, {
           texture: this.textureCache.getFallback(),
         });
         mesh.visible = true;
