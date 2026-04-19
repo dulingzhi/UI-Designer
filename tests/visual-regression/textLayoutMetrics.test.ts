@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FrameType, type FrameData } from '../../src/types';
 import {
   applyMaxLines,
+  getBaseFontSizePx,
   getDefaultTextVerticalMetricsPx,
   getTextInsetPx,
   getTextLineHeightPx,
@@ -76,5 +77,19 @@ describe('textLayout metrics helpers', () => {
   it('THICKOUTLINE 使用字号比例并保底 1px', () => {
     expect(getTextOutlineWidthPx(mkFrame({ fontFlags: ['THICKOUTLINE'] }), 20)).toBe(2);
     expect(getTextOutlineWidthPx(mkFrame({ fontFlags: ['THICKOUTLINE'] }), 6)).toBe(1);
+  });
+
+  it('有 frame.fontSize 时优先使用 WC3 单位字号', () => {
+    expect(getBaseFontSizePx(mkFrame({ fontSize: 0.01, textScale: 3, fontFlags: ['FIXEDSIZE'] })))
+      .toBeCloseTo(18, 4);
+  });
+
+  it('无 frame.fontSize 时，FIXEDSIZE 固定回退字号为 14', () => {
+    expect(getBaseFontSizePx(mkFrame({ textScale: 2, fontFlags: ['FIXEDSIZE'] }))).toBe(14);
+    expect(getBaseFontSizePx(mkFrame({ fontFlags: ['FIXEDSIZE'] }))).toBe(14);
+  });
+
+  it('无 frame.fontSize 且非 FIXEDSIZE 时，回退字号跟随 textScale', () => {
+    expect(getBaseFontSizePx(mkFrame({ textScale: 2 }))).toBe(28);
   });
 });

@@ -42,6 +42,22 @@ export function getTextLineHeightPx(frame: FrameData, baseFontSizePx: number): n
   return Math.max(1, baseFontSizePx * 1.2);
 }
 
+/**
+ * 基础字号（未乘 canvas scale）。
+ * - 有 FrameFont/Font 指定字号时，始终以该 WC3 单位字号为准。
+ * - 无字号时，历史回退为 textScale * 14。
+ * - FIXEDSIZE 在“无字号回退路径”中生效：固定为 14，不随 textScale 放大。
+ */
+export function getBaseFontSizePx(frame: FrameData): number {
+  if (typeof frame.fontSize === 'number') {
+    return wc3ToPixelH(frame.fontSize);
+  }
+  if (frame.fontFlags?.includes('FIXEDSIZE')) {
+    return 14;
+  }
+  return (frame.textScale || 1) * 14;
+}
+
 /** THICKOUTLINE 文本描边宽度（未乘 scale）. */
 export function getTextOutlineWidthPx(frame: FrameData, baseFontSizePx: number): number {
   if (!frame.fontFlags?.includes('THICKOUTLINE')) {
@@ -204,9 +220,7 @@ export function renderTextTexture(
   // FDF FrameFont 的高度参数是 WC3 单位 (e.g. 0.011)，与 frame.width / fontShadowOffset
   // 相同。必须经 wc3ToPixelH 转像素，否则 0.011 * 2x scale ≈ 0.022 px = 不可见。
   // 当 fontSize 缺失时，回退到 textScale * 14 px (历史默认，px 单位)。
-  const baseFontSize = frame.fontSize
-    ? wc3ToPixelH(frame.fontSize)
-    : (frame.textScale || 1) * 14;
+  const baseFontSize = getBaseFontSizePx(frame);
   const fontSize = baseFontSize * scale;
   const fontFamily = getResolvedFontFamily(frame.font) || frame.font || 'Arial, sans-serif';
   const fontWeight = frame.fontFlags?.includes('BOLD') ? 'bold' : 'normal';
