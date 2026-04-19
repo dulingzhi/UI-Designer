@@ -90,6 +90,12 @@ export interface FDFMetadata {
   setAllPoints?: boolean;               // 是否使用了 SetAllPoints
   isTemplate?: boolean;                 // 是否是模板定义（来自Include文件）
   inheritedChildrenIds?: string[];      // 从模板继承的子控件ID列表（只读）
+  /**
+   * inline 模板 Frame 名集合（Control*Backdrop/Highlight 等字段在被 resolveControlTextureRefs
+   * 替换为贴图前保留的原始模板名）。同名直接子 Frame 将在场景图构建阶段被摘除，
+   * 避免官方 FDF 常见的「按钮内部嵌套 BACKDROP 状态模板」被误当作可视子节点。
+   */
+  inlineTemplateNames?: string[];
 }
 
 // FDF 纹理数据
@@ -210,6 +216,7 @@ export interface FrameData {
   controlBackdrop?: string;            // 默认背景
   controlPushedBackdrop?: string;      // 按下背景
   controlDisabledBackdrop?: string;    // 禁用背景
+  controlDisabledPushedBackdrop?: string; // 禁用且按下的背景 (少量模板使用)
   controlMouseOverHighlight?: string;  // 鼠标悬停高亮
   buttonPushedTextOffset?: [number, number]; // 按下文本偏移
   

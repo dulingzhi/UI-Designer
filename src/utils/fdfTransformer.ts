@@ -121,12 +121,19 @@ export class FDFTransformer {
     // 一个 BACKDROP 模板的命名引用，渲染器需要的是该模板的
     // backdropBackground (一个贴图键名)。单 quad 渲染无法复原完整九宫，
     // 但至少有主贴图，不再是空按钮。
+    // 注意：必须在 detachInlineTemplateChildren 之前运行，因为后者会移除
+    // 被内联定义的模板 Frame，而此处需要它们的 backdropBackground。
     this.resolveControlTextureRefs(allFramesFlat);
 
-    // ⚠️ 重要: 必须返回 allFramesFlat 而不是 frames
-    // frames 只包含顶层Frame,会导致嵌套Frame丢失
-    // allFramesFlat 包含所有Frame(顶层 + 嵌套)
-    return allFramesFlat;
+    // 第五步：把「内联模板子 Frame」从场景图中摘除。
+    // 官方 FDF 常在 BUTTON 内部同时写 ControlBackdrop "X" + Frame "BACKDROP" "X" { ... }
+    // 此嵌套 Frame 是状态贴图模板定义，应由 Control*Backdrop 字段消费，
+    // 而非作为可视化子 Frame 渲染。此前会以默认 0.4×0.4 大小堆叠在按钮上，
+    // 把 MultiBoard.fdf 的最小化按钮变成了四个大方块。
+    const filtered = this.detachInlineTemplateChildren(allFramesFlat);
+
+    // ⚠️ 重要: 必须返回扁平列表
+    return filtered;
   }
   
   /**
@@ -667,18 +674,30 @@ export class FDFTransformer {
       // 由 SceneGraphManager.syncControlTexture 消费。
       case 'controlbackdrop':
         frame.controlBackdrop = value as string;
+        this.rememberInlineTemplateRef(frame, value as string);
         break;
 
       case 'controlpushedbackdrop':
         frame.controlPushedBackdrop = value as string;
+        this.rememberInlineTemplateRef(frame, value as string);
         break;
 
       case 'controldisabledbackdrop':
         frame.controlDisabledBackdrop = value as string;
+        this.rememberInlineTemplateRef(frame, value as string);
+        break;
+
+      case 'controldisabledpushedbackdrop':
+        // vendor: MultiBoard.fdf 的 ButtonDisabledPushedBackdropTemplate 等。
+        // 之前在 applyProperty 未覆盖，导致模板名既无处消费、又会把
+        // 同名嵌套 Frame 当作可视子节点渲染。
+        frame.controlDisabledPushedBackdrop = value as string;
+        this.rememberInlineTemplateRef(frame, value as string);
         break;
 
       case 'controlmouseoverhighlight':
         frame.controlMouseOverHighlight = value as string;
+        this.rememberInlineTemplateRef(frame, value as string);
         break;
 
       case 'controlstyle':
@@ -1297,6 +1316,21 @@ export class FDFTransformer {
   }
 
   /**
+   * 记录 Control*Backdrop / ControlMouseOverHighlight 字段引用的原始 Frame 名。
+   * 由 detachInlineTemplateChildren 使用：若直接子 Frame 的 name 与此集合匹配，
+   * 则该子 Frame 是「inline 模板定义」而非可视子控件，需从场景图中摘除。
+   *
+   * 仅记录看起来像 Frame 名的值（不含路径分隔符）。已经是贴图路径则跳过。
+   */
+  private rememberInlineTemplateRef(frame: FrameData, ref: unknown): void {
+    if (typeof ref !== 'string' || !ref) return;
+    if (ref.includes('\\') || ref.includes('/')) return;
+    const meta = frame.fdfMetadata ?? (frame.fdfMetadata = {});
+    const list = meta.inlineTemplateNames ?? (meta.inlineTemplateNames = []);
+    if (!list.includes(ref)) list.push(ref);
+  }
+
+  /**
    * 解析 Control 与 Highlight 字段中的模板名引用 → 实际贴图路径
    *
    * 官方 FDF 里 `ControlBackdrop "UserGameButtonBackdropTemplate"` 的值是
@@ -1332,6 +1366,62 @@ export class FDFTransformer {
         }
       }
     }
+  }
+
+  /**
+   * 把「内联模板子 Frame」从场景图中移除。
+   *
+   * 官方 FDF 中按钮常同时写：
+   *   ControlBackdrop "ButtonBackdropTemplate",
+   *   Frame "BACKDROP" "ButtonBackdropTemplate" { ... }
+   * 该嵌套 Frame 是按钮状态贴图模板的 **inline 定义**，运行时由 WC3 绑定到
+   * Control*Backdrop 字段上，而不是独立渲染的子控件。此前 collectNestedFrames
+   * 无条件把嵌套 Frame 加为可视子节点，结果每个按钮在预览里多出 1~4 个
+   * 以 0.4×0.4 默认尺寸堆叠的空 BACKDROP，把 MultiBoard.fdf 的最小化按钮
+   * 覆盖成一片大方块。
+   *
+   * 识别条件：某父 Frame 的直接子 Frame，其 `name` 与该父 Frame 的任一
+   * inline-template 字段值（controlBackdrop / controlPushedBackdrop /
+   * controlDisabledBackdrop / controlDisabledPushedBackdrop /
+   * controlMouseOverHighlight）**原始 FDF 写入的 Frame 名**相同。
+   * 为了兼容 resolveControlTextureRefs 已将字段替换为贴图键的情况，
+   * 这里以 `frame.fdfMetadata.inlineTemplateNames` 记录原始模板名。
+   */
+  private detachInlineTemplateChildren(frames: FrameData[]): FrameData[] {
+    const idToFrame = new Map<string, FrameData>();
+    for (const f of frames) idToFrame.set(f.id, f);
+
+    const toDetach = new Set<string>(); // child ids to remove from scene
+
+    for (const parent of frames) {
+      const names = parent.fdfMetadata?.inlineTemplateNames;
+      if (!names || names.length === 0) continue;
+      for (const childId of parent.children) {
+        const child = idToFrame.get(childId);
+        if (!child) continue;
+        if (names.includes(child.name)) {
+          toDetach.add(childId);
+        }
+      }
+      if (toDetach.size > 0) {
+        parent.children = parent.children.filter(cid => !toDetach.has(cid));
+      }
+    }
+
+    if (toDetach.size === 0) return frames;
+
+    // 将被摘除的 Frame 连同其整棵子树一起移除 (inline 模板自身可能再嵌 Texture 等)
+    const removed = new Set<string>();
+    const walk = (id: string) => {
+      if (removed.has(id)) return;
+      removed.add(id);
+      const f = idToFrame.get(id);
+      if (!f) return;
+      for (const c of f.children) walk(c);
+    };
+    for (const id of toDetach) walk(id);
+
+    return frames.filter(f => !removed.has(f.id));
   }
 
   /**
