@@ -70,3 +70,28 @@ describe('FDF Font alias / TextLength / ButtonPushedTextOffset', () => {
     expect(frame.buttonPushedTextOffset![1]).toBeCloseTo(-0.003);
   });
 });
+
+describe('UseActiveContext boolean flag', () => {
+  it('UseActiveContext, 设置 frame.useActiveContext = true', () => {
+    const src = `Frame "BACKDROP" "B" {
+      Width 0.18, Height 0.2,
+      UseActiveContext,
+    }`;
+    expect(parse(src)[0].useActiveContext).toBe(true);
+  });
+
+  it('无 UseActiveContext 时字段保持 undefined', () => {
+    const src = `Frame "BACKDROP" "B" {
+      Width 0.1, Height 0.1,
+    }`;
+    expect(parse(src)[0].useActiveContext).toBeUndefined();
+  });
+
+  it('UseActiveContext 可用于 SCROLLBAR 帧', () => {
+    const src = `Frame "SCROLLBAR" "S" {
+      Width 0.02, Height 0.2,
+      UseActiveContext,
+    }`;
+    expect(parse(src)[0].useActiveContext).toBe(true);
+  });
+});

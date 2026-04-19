@@ -110,6 +110,11 @@ function exportFrame(
     lines.push(`${ind}${indent}VerticalAlignment "${frame.verAlign.toUpperCase()}",`);
   }
   
+  // UseActiveContext 布尔标志
+  if (frame.useActiveContext) {
+    lines.push(`${ind}${indent}UseActiveContext,`);
+  }
+
   // 纹理和Backdrop属性
   if (frame.texture) {
     lines.push(`${ind}${indent}BackdropBackground "${frame.texture}",`);

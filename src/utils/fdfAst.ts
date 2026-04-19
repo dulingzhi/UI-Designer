@@ -208,6 +208,7 @@ export const FDF_PROPERTIES = {
   TextLength: 'number',
   
   // Backdrop 相关
+  UseActiveContext: 'boolean',
   BackdropTileBackground: 'boolean',
   BackdropBackground: 'string',
   BackdropCornerFlags: 'string', // "UL|UR|BL|BR|T|L|B|R"

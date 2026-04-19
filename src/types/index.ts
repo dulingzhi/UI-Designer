@@ -258,6 +258,7 @@ export interface FrameData {
   cameraDistance?: number;             // MODEL: 相机距离
   
   // ========== BACKDROP 背景属性 ==========
+  useActiveContext?: boolean;          // UseActiveContext 标志 (120 vendor)
   backdropBackground?: string;         // 背景纹理
   backdropTileBackground?: boolean;    // 平铺背景
   backdropBackgroundSize?: number;     // 背景尺寸

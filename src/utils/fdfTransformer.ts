@@ -649,6 +649,10 @@ export class FDFTransformer {
         }
         break;
       
+      case 'useactivecontext':
+        frame.useActiveContext = true;
+        break;
+
       case 'backdroptilebackground':
         frame.backdropTileBackground = true;
         break;
