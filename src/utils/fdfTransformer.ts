@@ -448,17 +448,19 @@ export class FDFTransformer {
         break;
         
       case 'fontcolor':
-        if (Array.isArray(value) && value.length >= 4) {
-          const [r, g, b, a] = value as number[];
+        // FDF: FontColor r g b [a]   (0..1 floats; alpha 可省略, 此时默认 1.0)
+        // vendor 中同时存在 3 分量 (RGB) 与 4 分量 (RGBA) 两种写法。
+        if (Array.isArray(value) && value.length >= 3) {
+          const [r, g, b, a = 1.0] = value as number[];
           frame.textColor = this.rgbaToHex(r, g, b, a);
         }
         break;
 
       case 'fontshadowcolor':
-        // FDF: FontShadowColor r g b a   (0..1 floats, 与 FontColor 同)
+        // FDF: FontShadowColor r g b [a]   (0..1 floats, 与 FontColor 同)
         // 渲染器 (textLayout.rgbaToCSS) 期望 0..255 RGB 与 0..255 alpha 元组
-        if (Array.isArray(value) && value.length >= 4) {
-          const [r, g, b, a] = value as number[];
+        if (Array.isArray(value) && value.length >= 3) {
+          const [r, g, b, a = 1.0] = value as number[];
           frame.fontShadowColor = [
             Math.round(r * 255),
             Math.round(g * 255),
@@ -529,9 +531,9 @@ export class FDFTransformer {
         break;
 
       case 'fonthighlightcolor':
-        // 与 FontShadowColor 同: 0..1 → 0..255 元组
-        if (Array.isArray(value) && value.length >= 4) {
-          const [r, g, b, a] = value as number[];
+        // FDF: FontHighlightColor r g b [a]   (0..1 floats; alpha 可省略)
+        if (Array.isArray(value) && value.length >= 3) {
+          const [r, g, b, a = 1.0] = value as number[];
           frame.fontHighlightColor = [
             Math.round(r * 255),
             Math.round(g * 255),
@@ -542,8 +544,9 @@ export class FDFTransformer {
         break;
 
       case 'fontdisabledcolor':
-        if (Array.isArray(value) && value.length >= 4) {
-          const [r, g, b, a] = value as number[];
+        // FDF: FontDisabledColor r g b [a]   (0..1 floats; alpha 可省略)
+        if (Array.isArray(value) && value.length >= 3) {
+          const [r, g, b, a = 1.0] = value as number[];
           frame.fontDisabledColor = [
             Math.round(r * 255),
             Math.round(g * 255),
