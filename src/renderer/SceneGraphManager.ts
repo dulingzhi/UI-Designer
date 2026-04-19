@@ -33,6 +33,7 @@ import { planSplitEdges } from './backdropSplitEdges';
 import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
 import { resolveHighlightAlphaMode, resolveHighlightTint } from './highlightColor';
 import { resolveBackdropBgAlphaMode } from './backdropBlend';
+import { resolveHighlightRenderMode } from './highlightType';
 
 export type RenderBackend = 'webgpu' | 'webgl2';
 
@@ -766,6 +767,7 @@ export class SceneGraphManager {
     const isCheckbox = frame.type === FrameType.CHECKBOX;
     const isHighlight = frame.type === FrameType.HIGHLIGHT;
     const isSprite = frame.type === FrameType.SPRITE;
+    const highlightRenderMode = resolveHighlightRenderMode(frame.highlightType);
     const highlightAlphaMode = resolveHighlightAlphaMode(frame.highlightAlphaMode);
     const effectiveFrame: FrameData = isHighlight && highlightAlphaMode
       ? { ...frame, alphaMode: highlightAlphaMode }
@@ -778,7 +780,7 @@ export class SceneGraphManager {
       const resolved = resolveButtonState(frame, this.buttonPreviewState);
       textureProp = resolved.backdropPath;
       highlightTextureProp = resolved.highlightPath;
-    } else if (isHighlight) {
+    } else if (isHighlight && highlightRenderMode === 'FILETEXTURE') {
       textureProp = frame.highlightAlphaFile;
     } else if (isSprite) {
       textureProp = frame.backgroundArt;
@@ -794,10 +796,7 @@ export class SceneGraphManager {
       mat.needsUpdate = true;
     };
 
-    const texturePath = this.resolveTexturePath(textureProp);
-    if (!texturePath) {
-      this.disposeControlMesh(node);
-    } else {
+    if (isHighlight && highlightRenderMode === 'SHADE') {
       if (!node.controlMesh) {
         node.controlMesh = new THREE.Mesh(this.unitPlane, createMaterial(effectiveFrame));
         node.controlMesh.userData.frameId = id;
@@ -807,29 +806,48 @@ export class SceneGraphManager {
       node.controlMesh.position.set(width / 2, height / 2, 0.15);
       node.controlMesh.scale.set(width, height, 1);
       node.controlMesh.renderOrder = renderOrderBase + 0.15;
-      node.controlMesh.visible = false;
+      node.controlMesh.visible = true;
       updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame);
       applyHighlightTint();
+      this.markDirty();
+    } else {
+      const texturePath = this.resolveTexturePath(textureProp);
+      if (!texturePath) {
+        this.disposeControlMesh(node);
+      } else {
+        if (!node.controlMesh) {
+          node.controlMesh = new THREE.Mesh(this.unitPlane, createMaterial(effectiveFrame));
+          node.controlMesh.userData.frameId = id;
+          node.group.add(node.controlMesh);
+        }
 
-      void this.textureCache.loadTexture(texturePath)
-        .then((texture) => {
-          if (!this.isNodeCurrent(id, revision)) return;
-          if (!node.controlMesh) return;
-          updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame, { texture });
-          applyHighlightTint();
-          node.controlMesh.visible = true;
-          this.markDirty();
-        })
-        .catch(() => {
-          if (!this.isNodeCurrent(id, revision)) return;
-          if (!node.controlMesh) return;
-          updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame, {
-            texture: this.textureCache.getFallback(),
+        node.controlMesh.position.set(width / 2, height / 2, 0.15);
+        node.controlMesh.scale.set(width, height, 1);
+        node.controlMesh.renderOrder = renderOrderBase + 0.15;
+        node.controlMesh.visible = false;
+        updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame);
+        applyHighlightTint();
+
+        void this.textureCache.loadTexture(texturePath)
+          .then((texture) => {
+            if (!this.isNodeCurrent(id, revision)) return;
+            if (!node.controlMesh) return;
+            updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame, { texture });
+            applyHighlightTint();
+            node.controlMesh.visible = true;
+            this.markDirty();
+          })
+          .catch(() => {
+            if (!this.isNodeCurrent(id, revision)) return;
+            if (!node.controlMesh) return;
+            updateMaterial(node.controlMesh.material as FrameMaterial, effectiveFrame, {
+              texture: this.textureCache.getFallback(),
+            });
+            applyHighlightTint();
+            node.controlMesh.visible = true;
+            this.markDirty();
           });
-          applyHighlightTint();
-          node.controlMesh.visible = true;
-          this.markDirty();
-        });
+      }
     }
 
     const highlightTexturePath = this.resolveTexturePath(highlightTextureProp);
