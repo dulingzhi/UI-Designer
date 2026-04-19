@@ -292,9 +292,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       const canvasBounds = canvasRef.current?.getBoundingClientRect();
       if (!canvasBounds) return;
       
-      // 存储相对于画布容器的坐标（考虑缩放和偏移）
-      const relativeX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-      const relativeY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
+      // 存储相对于画布容器的坐标（getBoundingClientRect 已包含 transform 位移，无需再减 offset）
+      const relativeX = (e.clientX - canvasBounds.left) / scale;
+      const relativeY = (e.clientY - canvasBounds.top) / scale;
       
       setIsBoxSelecting(true);
       setBoxSelectStart({ x: relativeX, y: relativeY });
@@ -307,8 +307,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     // 更新鼠标坐标（用于调试面板）
     const canvasBounds = canvasRef.current?.getBoundingClientRect();
     if (canvasBounds) {
-      const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-      const mouseY = (canvasBounds.bottom - e.clientY + offset.y * scale) / scale;
+      const mouseX = (e.clientX - canvasBounds.left) / scale;
+      const mouseY = (canvasBounds.bottom - e.clientY) / scale;
       const mouseWc3X = pixelToWc3X(mouseX);
       const mouseWc3Y = pixelToWc3Y(mouseY);
       
@@ -325,8 +325,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     } else if (isBoxSelecting) {
       const canvasBounds = canvasRef.current?.getBoundingClientRect();
       if (!canvasBounds) return;
-      const relativeX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-      const relativeY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
+      const relativeX = (e.clientX - canvasBounds.left) / scale;
+      const relativeY = (e.clientY - canvasBounds.top) / scale;
       setBoxSelectEnd({ x: relativeX, y: relativeY });
     } else if (isDraggingFrame) {
       updateDrag(e);
@@ -401,8 +401,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     if (isWebGLReady && sceneGraphRef.current) {
       const canvasBounds = canvasRef.current?.getBoundingClientRect();
       if (canvasBounds) {
-        const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-        const mouseY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
+        const mouseX = (e.clientX - canvasBounds.left) / scale;
+        const mouseY = (e.clientY - canvasBounds.top) / scale;
         frameId = hitTest(
           mouseX,
           mouseY,
@@ -771,8 +771,8 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
               const sg = sceneGraphRef.current;
               let frameId: string | null = null;
               if (canvasBounds && sg) {
-                const mouseX = (e.clientX - canvasBounds.left - offset.x * scale) / scale;
-                const mouseY = (e.clientY - canvasBounds.top - offset.y * scale) / scale;
+                const mouseX = (e.clientX - canvasBounds.left) / scale;
+                const mouseY = (e.clientY - canvasBounds.top) / scale;
                 frameId = hitTest(
                   mouseX,
                   mouseY,
