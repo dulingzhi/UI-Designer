@@ -54,8 +54,11 @@
   实测基线：`frames=1371  solver-null=202  overridden=1169  divergent=31`，一致率 **97.35%**（1138/1169）。
   31 帧分歧**全部是纯平移**（尺寸不变），按锚点形状：`[CENTER]=29,[LEFT]=1,[BOTTOMLEFT]=1`。
   **求解器已去递归**（见下条"去递归修正"），分歧由 61 帧降到 31 帧。
-  **根因（实证）**：剩余分歧不是 bug，而是**两种合法语义的差异**——同一条 `[CENTER]` 单锚点，
-  编辑器按 `center - w/2` 落位，内核按锚点解析落位。这 31 帧如实保留、以快照锁定（数字变化即失败）。
+  **根因（实证，已更正）**：这 31 帧**不是单锚点语义分歧**——实测求解器结果与 openwar3 单锚点通用公式
+  **完全一致**（`[CENTER]` 在两侧都是 `center - w/2, center - h/2`，因 `fx=fy=0.5`）。
+  真正的差异出现在**内核 overlay 侧**：`fdfKernelScene` 的 overlay 值与独立 `layout()` 的 byName 值不同
+  （同名模板帧在多父级下会被 byName 覆盖，实测出现 `kernel=(0.000,0.006)` 这类伪值）。属**待查**，
+  这 31 帧如实保留、以快照锁定，不得当作已解决。
   注意：早期一版探针（把纯结构帧喂给求解器、未走产品路径）得出"1112/1191 分歧"，那是**探针路线错误**的假象。
 - **去递归修正（方案 A 落地）**：`calculatePositionFromAnchors`（`anchorUtils.ts`）不再递归重解
   `relativeTo` 指向的帧，直接用其**已存 x/y/width/height** 作为锚点基准。
@@ -65,6 +68,15 @@
   该前提由 `anchorUtils.test.ts` 的「祖先先算」用例锁定（父帧存储几何更新后子帧跟随位移）。
   **取舍**：去掉递归后，若祖先锚点变化而祖先存储几何尚未更新，子帧会读到旧值一帧；因 sync 遍历顺序保证
   祖先先算，正常同步路径不触发。若未来引入异步/乱序同步，需重新评估。
+- **单锚点定位以 openwar3 为准（已固化）**：`tests/fdfKernel/singleanchor.openwar3.test.ts`。
+  权威实现是 openwar3 `ui/fdf/layout.js` 的通用单锚点解：
+  `lx = rel.x + fx(relPoint)*rel.w + dx`、`ly = rel.y + fy(relPoint)*rel.h + dy`，
+  `n.x = lx - fx(myPoint)*n.w`、`n.y = ly - fy(myPoint)*n.h`（`fx/fy` 把点名映射为 0/0.5/1，y 从底量）。
+  编辑器 `calculatePositionFromAnchors` 的逐点硬编码（CENTER 用 `-w/2,-h/2`、TOP 用 `-w/2,-h` …）
+  与之**代数等价**；守卫对**全部 9 个点** × 带/不带非零偏移逐点断言该等价，任一侧漂移即失败。
+  **注意**：守卫锁定的是"求解器 == openwar3 公式"，不是"真实数据 31 帧归零"。实测这 31 帧里
+  求解器结果**已与 openwar3 公式一致**，分歧发生在**内核 overlay 侧**（内部 frame 的实现差异
+  与独立 layout 之间），属另一待查问题，不得拿本守卫冒充已解决。
 
 ---
 
@@ -81,8 +93,8 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `92 passed | 2 skipped` 测试文件，`1708 passed | 5 skipped` 测试
-- 内核/对拍：`16 passed | 2 skipped` 文件，`421 passed | 5 skipped` 测试
+- `93 passed | 2 skipped` 测试文件，`1728 passed | 5 skipped` 测试
+- 内核/对拍：`17 passed | 2 skipped` 文件，`441 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
 > 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`
@@ -135,6 +147,23 @@ node node_modules/vitest/vitest.mjs run tests/fdfKernel/transformer.test.ts \
 - 内核测试：`tests/fdfKernel/`、`src/utils/*.test.ts`。
 - 与参考实现（openwar3，只读）保持契约一致：`Arg` 类型 `{ s, n, str }`、FrameData 结构、锚点语义与坐标映射都需与参考逐步对齐。
 - 干净的等价抓手（green guard）：`91/91` BLP 逐字节一致、世界矩形→像素矩形一致、render PSNR 收敛。改动内核/渲染/桥接时不得破坏这些对拍。
+
+### 4.1 语义仲裁优先级（**遇到不确定一律按此办理**）
+
+排序：**① WC3 引擎真机行为（IDA 反汇编）> ② openwar3 实现 > ③ 本仓库现有实现**。
+当三者冲突时以高优先级为准，并同步更新本文件与守卫测试。
+
+**凡遇到"某处语义不确定"的问题，必须做 IDA 取证，不得靠猜、不得靠"两种都合理"含糊过去。**
+
+- 反汇编数据库：`d:/tools/dump/war3/Game.dll.i64`（imagebase `0x6f000000`）。
+  用 IDA MCP 打开：`idb_open`（`mode=prefer_headless`），随后用
+  `decompile` / `disasm` / `xrefs_to` / `find_regex` / `get_bytes` 分析。
+- 取证步骤（按序）：
+  1. 先找字符串/常量定位（`find_regex` 搜点名如 `SetPoint`、`TOPRIGHT`、`CENTER`），再 `xrefs_to` 到代码。
+  2. 对定位到的函数 `decompile`，读真实控制流与浮点常量（如 `0.5`、`0.333`、`1.0`）。
+  3. 把结论落成**测试断言**（如 `singleanchor.openwar3.test.ts` 那样逐点锁定），而不是只写注释。
+  4. 若 IDA 结论与 openwar3 不同，以 IDA 为准，并在此处记录差异与地址。
+- 记录要求：每次 IDA 取证都要在提交信息与本节写下**函数地址/字符串地址 + 结论**，便于复核。
 
 ---
 
