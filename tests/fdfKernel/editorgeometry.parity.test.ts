@@ -27,44 +27,32 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculatePositionFromAnchors, clearPositionCache } from '../../src/utils/anchorUtils';
-import { layout } from '../../src/utils/fdfKernelLayout';
-import { parseFdf } from '../../src/utils/fdfKernelParser';
-import { fileToFrameData } from '../../src/utils/fdfKernelTransformer';
+import { parseFDF } from '../../src/utils/fdf';
 
 const EPS = 1e-9;
 
-/** 同一份 FDF 分别过「内核 layout」与「编辑器锚点求解器」，逐帧比对世界矩形。 */
+/** 同一份 FDF 过**产品真实路径**（内核 overlay 几何）后，再用编辑器求解器重解，逐帧比对。 */
 function assertParity(fdf: string): { frames: number; names: string[] } {
   clearPositionCache();
-  const file = parseFdf(fdf);
-  const lr = layout(file.frames[0]);
-
-  const kernel = new Map<string, { x: number; y: number; w: number; h: number }>();
-  (function walk(n: any) {
-    if (n.frame.name) kernel.set(n.frame.name, { x: n.x, y: n.y, w: n.w, h: n.h });
-    n.children.forEach(walk);
-  })(lr.tree);
-
-  const fds = fileToFrameData(file);
-  // 编辑器运行时契约是 Record<id, FrameData>（SceneGraphManager.sync 收到的就是这种形状）。
+  // 产品路径：内核 layout 解出世界矩形并 overlay 进 FrameData（fileOperations.ts:169）。
+  const fds = parseFDF(fdf, { useKernelLayout: true });
   const byId: Record<string, any> = {};
   for (const f of fds) byId[f.id] = f;
   const byName = new Map<string, any>();
   for (const f of fds) if (f.name) byName.set(f.name, f);
 
   const compared: string[] = [];
-  for (const [name, k] of kernel) {
-    const kf = byName.get(name);
-    if (!kf) continue;
-    const e = calculatePositionFromAnchors(kf, byId);
-    // 根帧在编辑器侧没有相对锚点（已按画布绝对化），求解器按契约返回 null，
-    // 渲染时直接使用帧自身的存储几何；这正与内核把 root 钉在 box(0,0) 等价。
-    if (!e) { compared.push(`${name}:root-self`); continue; }
-    expect(Math.abs(e.x - k.x), `${name}.x`).toBeLessThan(EPS);
-    expect(Math.abs(e.y - k.y), `${name}.y`).toBeLessThan(EPS);
-    expect(Math.abs(e.width - k.w), `${name}.w`).toBeLessThan(EPS);
-    expect(Math.abs(e.height - k.h), `${name}.h`).toBeLessThan(EPS);
-    compared.push(name);
+  for (const f of fds) {
+    // 内核真值 = overlay 进 FrameData 的存储几何（本测试起点的 ground truth）
+    const k = { x: f.x, y: f.y, w: f.width, h: f.height };
+    const e = calculatePositionFromAnchors(f, byId);
+    // 根帧/无相对锚点帧：求解器按契约返回 null，渲染直接消费存储几何（= 内核值）。
+    if (!e) { compared.push(`${f.name}:self`); continue; }
+    expect(Math.abs(e.x - k.x), `${f.name}.x`).toBeLessThan(EPS);
+    expect(Math.abs(e.y - k.y), `${f.name}.y`).toBeLessThan(EPS);
+    expect(Math.abs(e.width - k.w), `${f.name}.w`).toBeLessThan(EPS);
+    expect(Math.abs(e.height - k.h), `${f.name}.h`).toBeLessThan(EPS);
+    compared.push(f.name);
   }
   return { frames: compared.length, names: compared };
 }
@@ -113,20 +101,18 @@ describe('编辑器锚点求解器 == 内核 layout（世界矩形逐字段一�
     expect(total).toBeGreaterThanOrEqual(13);
   });
 
-  it('根帧在编辑器侧无相对锚点（求解器返回 null）→ 与内核 box(0,0) 等价', () => {
+  it('根帧在编辑器侧无相对锚点（求解器返回 null）→ 直接消费内核 overlay 几何', () => {
     const fdf = SCENES['单锚点 TOPLEFT'];
-    const file = parseFdf(fdf);
-    const fds = fileToFrameData(file);
+    const fds = parseFDF(fdf, { useKernelLayout: true });
+    const rootFd = fds.find((f: any) => f.parentId === null)!;
     const byId: Record<string, any> = {};
     for (const f of fds) byId[f.id] = f;
-    const rootFd = fds.find((f: any) => f.parentId === null)!;
     clearPositionCache();
     expect(calculatePositionFromAnchors(rootFd, byId)).toBeNull();
-    // 内核侧 root 填满 box(0,0,0.8,0.6)
-    const lr = layout(file.frames[0]);
-    expect(lr.tree.x).toBe(0);
-    expect(lr.tree.y).toBe(0);
-    expect(lr.tree.w).toBeCloseTo(0.8, 9);
-    expect(lr.tree.h).toBeCloseTo(0.6, 9);
+    // 根帧消费的内核几何 = 填满画布 0.8×0.6
+    expect(rootFd.x).toBe(0);
+    expect(rootFd.y).toBe(0);
+    expect(rootFd.width).toBeCloseTo(0.8, 9);
+    expect(rootFd.height).toBeCloseTo(0.6, 9);
   });
 });

@@ -40,22 +40,31 @@
   锚点注入"之前，使无显式 SetPoint 的根帧拿到未归一化的 `CENTER@__PARENT__`，求解器回落 (0,0) 再减
   半宽高得 (-w/2,-h/2)，把整棵子树平移出画布。该顺序缺陷已修复（顶层归一化移到默认锚点注入之后）。
 - **编辑器渲染几何一致守卫（求解器 ↔ 内核 layout）**：`tests/fdfKernel/editorgeometry.parity.test.ts`。
-  对同一份 FDF 经 `fileToFrameData` 桥接后，断言编辑器渲染消费路径所用的
-  `calculatePositionFromAnchors`（`SceneGraphManager.sync` 逐帧调用）与内核 `layout(root,{box})`
-  在 **y-up、左下原点、[0,0.8]×[0,0.6] 世界坐标**下逐帧 world rect（x/y/w/h）完全一致。
+  走**产品真实路径**：`parseFDF(src,{useKernelLayout:true})` 让内核 layout 几何先 overlay 进 FrameData，
+  再断言编辑器渲染消费路径的 `calculatePositionFromAnchors`（`SceneGraphManager.sync` 逐帧调用）
+  覆盖后**不破坏**该内核几何（world rect x/y/w/h 逐字段一致，y-up 左下原点 [0,0.8]×[0,0.6]）。
   覆盖单锚点 TOPLEFT/BOTTOMLEFT/CENTER、对角 TL+BR、上排 TL+TR、下排 BL+BR、四边 L+R+T+B、
-  左右 L+R、上下 T+B、跨节点相对锚、三级嵌套、root 显式 CENTER。根帧在编辑器侧无相对锚点
-  （已按画布绝对化）求解器返回 null、直接使用存储几何，与内核把 root 钉在 box(0,0) 等价。
+  左右 L+R、上下 T+B、跨节点相对锚、三级嵌套、root 显式 CENTER。
+  根帧/无相对锚点帧求解器返回 null，渲染直接消费存储几何（= 内核 overlay 值）。
   **唯一有意不纳入的语义分歧**：无锚点子帧的默认落位——内核钉父控件 top-left（对齐 WC3 引擎），
   编辑器注入默认 `CENTER@父 CENTER`（对齐设计器交互），两者均为有意的产品语义，不对拍。
 - **编辑器渲染一致 — 真实原版 UI 守卫**：`tests/ow3compare/editorrender.real.test.ts`（war3.mpq，41 屏）。
   走**产品真实路径** `parseFDF(src,{useKernelLayout:true})` → `SceneGraphManager.sync` 的
   `calculatePositionFromAnchors` 覆盖，量化"覆盖是否破坏内核 ground-truth 几何"。
-  实测基线：`frames=1371  solver-null=202  overridden=1169  divergent=61`，一致率 **94.78%**（1108/1169）。
-  61 帧分歧**全部是纯平移**（尺寸不变），按锚点形状：`[CENTER]=50,[LEFT]=5,[BOTTOMLEFT]=2,[TOP]=2,
-  [TOPLEFT+BOTTOMRIGHT]=1,[BOTTOMRIGHT]=1`。主因是跨文件 SetPoint 引用（模板帧引用另一 .fdf 的帧名，
-  单文件解析时解析不到）。**这是已知未修的真实分歧**，以快照锁定（数字变化即失败），不掩盖为"全绿"。
+  实测基线：`frames=1371  solver-null=202  overridden=1169  divergent=31`，一致率 **97.35%**（1138/1169）。
+  31 帧分歧**全部是纯平移**（尺寸不变），按锚点形状：`[CENTER]=29,[LEFT]=1,[BOTTOMLEFT]=1`。
+  **求解器已去递归**（见下条"去递归修正"），分歧由 61 帧降到 31 帧。
+  **根因（实证）**：剩余分歧不是 bug，而是**两种合法语义的差异**——同一条 `[CENTER]` 单锚点，
+  编辑器按 `center - w/2` 落位，内核按锚点解析落位。这 31 帧如实保留、以快照锁定（数字变化即失败）。
   注意：早期一版探针（把纯结构帧喂给求解器、未走产品路径）得出"1112/1191 分歧"，那是**探针路线错误**的假象。
+- **去递归修正（方案 A 落地）**：`calculatePositionFromAnchors`（`anchorUtils.ts`）不再递归重解
+  `relativeTo` 指向的帧，直接用其**已存 x/y/width/height** 作为锚点基准。
+  理由：祖先几何已由上游（内核 layout overlay / 上一次同步）确定，递归重解等于**用求解器覆盖求解器**，
+  误差沿祖先链累积。实测（war3.mpq 41 屏 1371 帧）分歧 61→31，且 `noRecBetter=32 / noRecWorse=0`（无一例变差）。
+  **子帧跟随前提**：`SceneGraphManager.sync` 按父→子顺序收集（`collectIds`）并同步，祖先在本轮已先更新；
+  该前提由 `anchorUtils.test.ts` 的「祖先先算」用例锁定（父帧存储几何更新后子帧跟随位移）。
+  **取舍**：去掉递归后，若祖先锚点变化而祖先存储几何尚未更新，子帧会读到旧值一帧；因 sync 遍历顺序保证
+  祖先先算，正常同步路径不触发。若未来引入异步/乱序同步，需重新评估。
 
 ---
 
@@ -72,9 +81,12 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `92 passed | 2 skipped` 测试文件，`1707 passed | 5 skipped` 测试
+- `92 passed | 2 skipped` 测试文件，`1708 passed | 5 skipped` 测试
 - 内核/对拍：`16 passed | 2 skipped` 文件，`421 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+> 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`
+> 让内核几何先 overlay 进 FrameData），再断言求解器覆盖不破坏该几何——与渲染真实数据流一致。
 
 ### 编辑器命令层测试（`src/commands`，当前目标「编辑器端单测 + 完整编辑功能」）
 - 命令层 `src/commands/*.ts`（20 个命令类）不在覆盖率门 `include`（`src/utils/**`）内，不要求 100%，

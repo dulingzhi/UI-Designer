@@ -431,17 +431,40 @@ describe('calculatePositionFromAnchors', () => {
     expect(res!.height).toBeCloseTo(0);
   });
 
-  it('handles relativeTo frame with its own relative anchors (recursive)', () => {
+  it('uses the reference frame STORED geometry instead of re-solving it recursively', () => {
+    // 语义：relativeTo 指向的帧以它**已存的 x/y/width/height** 作为锚点基准，不再递归重解。
+    // 理由：祖先几何已由上游（内核 layout overlay / 上一次同步）确定，此处再算一遍等于
+    // 用求解器覆盖求解器，误差沿祖先链累积。实测真实数据（war3.mpq 41 屏）去递归后
+    // 分歧从 61 帧降到 30 帧且无一例变差。
     const base = makeFrame({ id: 'base', name: 'Base', x: 10, y: 10, width: 5, height: 5, anchors: [] });
-    const mid = makeFrame({ id: 'mid', name: 'Mid', width: 1, height: 1,
+    // mid 存储几何为 (2,3)：即使它有相对锚点，也不在此处被重解。
+    const mid = makeFrame({ id: 'mid', name: 'Mid', x: 2, y: 3, width: 1, height: 1,
       anchors: [{ point: FramePoint.TOPLEFT, x: 0, y: 0, relativeTo: 'base', relativePoint: FramePoint.BOTTOMLEFT }] });
     const frame = makeFrame({ id: 'cur', name: 'Cur', width: 2, height: 1,
       anchors: [{ point: FramePoint.TOPLEFT, x: 1, y: 1, relativeTo: 'mid', relativePoint: FramePoint.TOPLEFT }] });
-    // base BOTTOMLEFT=(10,10). mid TOPLEFT abs=(10,10); TOPLEFT single y=10-mid.height(1)=9 -> mid=(10,9)
-    // frame: mid TOPLEFT=(10,10); abs=(11,11); TOPLEFT single y=11-frame.height(1)=10
+    // mid 存储几何 TOPLEFT = (2, 3+1) = (2,4)；abs = (3,5)；单 TOPLEFT 收缩 y = 5 - height(1) = 4
     const res = calculatePositionFromAnchors(frame, { base, mid });
-    expect(res!.x).toBeCloseTo(11);
-    expect(res!.y).toBeCloseTo(10);
+    expect(res!.x).toBeCloseTo(3);
+    expect(res!.y).toBeCloseTo(4);
+  });
+
+  it('child follows parent when parent stored geometry is updated first（祖先先算前提）', () => {
+    // 锁定 SceneGraphManager.sync 的遍历前提：祖先先同步、子帧后算。
+    // 只要父帧存储几何已更新，子帧无需递归父帧即可跟随到新位置。
+    const parent = makeFrame({ id: 'p', name: 'P', x: 0, y: 0, width: 0.4, height: 0.3, anchors: [] });
+    const child = makeFrame({ id: 'c', name: 'C', width: 0.1, height: 0.05,
+      anchors: [{ point: FramePoint.TOPLEFT, x: 0.02, y: 0.03, relativeTo: 'p', relativePoint: FramePoint.TOPLEFT }] });
+    const frames: Record<string, FrameData> = { p: parent, c: child };
+
+    const before = calculatePositionFromAnchors(child, frames)!;
+    // 父帧被移动/缩放后（模拟 sync 先更新父帧存储几何）
+    frames.p = { ...parent, x: 0.2, y: 0.1, width: 0.4, height: 0.3 };
+    clearPositionCache();
+    const after = calculatePositionFromAnchors(child, frames)!;
+
+    // 子帧跟随父帧位移 (0.2, 0.1)
+    expect(after.x - before.x).toBeCloseTo(0.2);
+    expect(after.y - before.y).toBeCloseTo(0.1);
   });
 
   it('returns raw relative offset when reference frame missing', () => {

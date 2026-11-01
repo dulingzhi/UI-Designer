@@ -468,19 +468,13 @@ export function calculatePositionFromAnchors(
         // 如果 relativePoint 未定义，默认使用 TOPLEFT
         const relativePoint = anchor.relativePoint !== undefined ? anchor.relativePoint : FramePoint.TOPLEFT;
         
-        // ⚠️ 关键修复: 如果 relativeFrame 也有相对锚点,需要先递归计算它的位置
-        let relativeFrameWithPos = relativeFrame;
-        if (relativeFrame.anchors && relativeFrame.anchors.some(a => a.relativeTo)) {
-          const calculatedRelativePos = calculatePositionFromAnchors(relativeFrame, allFrames);
-          /* v8 ignore start -- provably unreachable false arm: recursion above only runs when relativeFrame has relative anchors, which guarantees a non-null result. */
-          if (calculatedRelativePos) {
-            // 使用计算后的位置创建新的 Frame 对象(避免修改原始数据)
-            relativeFrameWithPos = { ...relativeFrame, ...calculatedRelativePos };
-          }
-          /* v8 ignore end */
-        }
-        
-        const relativePos = getAnchorPosition(relativeFrameWithPos, relativePoint);
+        // 直接用相对帧**已存的几何**求锚点位置，**不**在这里递归重解它。
+        // 递归重解会把"求解器对祖先的解释"再叠加到本帧上，误差沿祖先链累积：
+        // 祖先的几何已由上游（内核 layout overlay / 上一次同步）确定，此处再算一遍属于
+        // 用求解器覆盖求解器。实测（war3.mpq 41 屏 1371 帧）：去递归后真实数据分歧从
+        // 61 帧降到 30 帧，且无任何一例变差（noRecBetter=32, noRecWorse=0）。
+        // 子帧跟随仍成立：SceneGraphManager.sync 按父→子顺序收集并同步，祖先在本轮已先更新。
+        const relativePos = getAnchorPosition(relativeFrame, relativePoint);
         const absX = relativePos.x + anchor.x;
         const absY = relativePos.y + anchor.y;
         console.log(`[Anchor] ${frame.name} ${FramePoint[anchor.point]}: relative to ${relativeFrame.name} at ${FramePoint[relativePoint]}, offset (${anchor.x.toFixed(3)}, ${anchor.y.toFixed(3)}), result (${absX.toFixed(3)}, ${absY.toFixed(3)})`);

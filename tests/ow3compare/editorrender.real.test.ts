@@ -13,10 +13,14 @@
  * 故真正要守的是：**第 2 步的覆盖不得破坏第 1 步的内核几何**。内核 layout 是 ground truth
  * （AGENTS.md 双路径决策）。本测试在 41 屏、1371 帧上量化该覆盖的忠实度。
  *
- * 实测基线（2026-11，41 屏真实数据）：
- *   frames=1371  solver-null=202  overridden=1169  divergent=61  (一致率 94.78%)
+ * 求解器已改为**不再递归重解相对帧**（直接用相对帧已存几何）：递归重解会把"求解器对祖先的
+ * 解释"再叠加到本帧上，误差沿祖先链累积。去除后真实数据分歧 61→31 帧，无一例变差。
+ *
+ * 实测基线（2026-11，41 屏真实数据，去递归求解后）：
+ *   frames=1371  solver-null=202  overridden=1169  divergent=31  (一致率 97.35%)
  * 分歧全部是**纯平移**（尺寸不变），按锚点形状分布：
- *   [CENTER]=50, [LEFT]=5, [BOTTOMLEFT]=2, [TOP]=2, [TOPLEFT+BOTTOMRIGHT]=1, [BOTTOMRIGHT]=1
+ *   [CENTER]=29, [LEFT]=1, [BOTTOMLEFT]=1
+ * 去递归前为 61 帧（一致率 94.78%），且无一例变差（noRecBetter=32, noRecWorse=0）。
  * 主要机制：跨文件 SetPoint 引用（模板帧引用了另一 .fdf 里的帧名，单文件解析时解析不到）、
  * 以及模板继承帧在求解器里走了不同的相对链。
  *
@@ -40,14 +44,11 @@ const BASELINE = {
   totalFrames: 1371,
   solverNull: 202,
   overridden: 1169,
-  divergent: 61,
+  divergent: 31,
   byPointSet: {
-    '4': 50,
-    '3': 5,
-    '6': 2,
-    '1': 2,
-    '0,8': 1,
-    '7': 1,
+    '4': 29,
+    '3': 1,
+    '6': 1,
   },
 };
 
@@ -131,7 +132,7 @@ describe.skipIf(!usable)('编辑器渲染一致 — 真实原版 UI（41 屏 / w
     expect(st!.solverNull).toBe(BASELINE.solverNull);
   });
 
-  it('已知分歧集合被快照锁定（61 帧，全为纯平移）', () => {
+  it('已知分歧集合被快照锁定（31 帧，全为纯平移）', () => {
     expect(st!.divergent).toBe(BASELINE.divergent);
     // 分歧全部只是平移；若出现尺寸改动说明求解器动到了世界矩形大小，属新问题。
     expect(st!.sizeChanged).toBe(0);
@@ -141,9 +142,9 @@ describe.skipIf(!usable)('编辑器渲染一致 — 真实原版 UI（41 屏 / w
     expect(st!.byPointSet).toEqual(BASELINE.byPointSet);
   });
 
-  it('一致率 ≥ 94%（诚实基线：实测 94.78%）', () => {
+  it('一致率 ≥ 94%（诚实基线：实测 97.35%）', () => {
     const rate = (st!.overridden - st!.divergent) / st!.overridden;
-    // 诚实下限：实测 1108/1169 = 94.78%。低于 94% 说明求解器覆盖行为显著恶化。
+    // 诚实下限：实测 1138/1169 = 97.35%。低于 94% 说明求解器覆盖行为显著恶化。
     expect(rate).toBeGreaterThanOrEqual(0.94);
     // eslint-disable-next-line no-console
     console.log(`一致率 ${(rate * 100).toFixed(2)}%  (${st!.overridden - st!.divergent}/${st!.overridden})`);
