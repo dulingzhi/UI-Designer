@@ -48,6 +48,14 @@
   （已按画布绝对化）求解器返回 null、直接使用存储几何，与内核把 root 钉在 box(0,0) 等价。
   **唯一有意不纳入的语义分歧**：无锚点子帧的默认落位——内核钉父控件 top-left（对齐 WC3 引擎），
   编辑器注入默认 `CENTER@父 CENTER`（对齐设计器交互），两者均为有意的产品语义，不对拍。
+- **编辑器渲染一致 — 真实原版 UI 守卫**：`tests/ow3compare/editorrender.real.test.ts`（war3.mpq，41 屏）。
+  走**产品真实路径** `parseFDF(src,{useKernelLayout:true})` → `SceneGraphManager.sync` 的
+  `calculatePositionFromAnchors` 覆盖，量化"覆盖是否破坏内核 ground-truth 几何"。
+  实测基线：`frames=1371  solver-null=202  overridden=1169  divergent=61`，一致率 **94.78%**（1108/1169）。
+  61 帧分歧**全部是纯平移**（尺寸不变），按锚点形状：`[CENTER]=50,[LEFT]=5,[BOTTOMLEFT]=2,[TOP]=2,
+  [TOPLEFT+BOTTOMRIGHT]=1,[BOTTOMRIGHT]=1`。主因是跨文件 SetPoint 引用（模板帧引用另一 .fdf 的帧名，
+  单文件解析时解析不到）。**这是已知未修的真实分歧**，以快照锁定（数字变化即失败），不掩盖为"全绿"。
+  注意：早期一版探针（把纯结构帧喂给求解器、未走产品路径）得出"1112/1191 分歧"，那是**探针路线错误**的假象。
 
 ---
 
@@ -64,8 +72,8 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `91 passed | 2 skipped` 测试文件，`1702 passed | 5 skipped` 测试
-- 内核/对拍：`15 passed | 2 skipped` 文件，`416 passed | 5 skipped` 测试
+- `92 passed | 2 skipped` 测试文件，`1707 passed | 5 skipped` 测试
+- 内核/对拍：`16 passed | 2 skipped` 文件，`421 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
 ### 编辑器命令层测试（`src/commands`，当前目标「编辑器端单测 + 完整编辑功能」）
