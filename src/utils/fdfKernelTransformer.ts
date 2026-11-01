@@ -230,10 +230,15 @@ export function transformKernelFrames(frames: FdfFrame[], opts: KernelTransformO
       convert(child, fd);
     }
 
-    // 无锚点 → 默认 CENTER
+    // 无锚点 → 默认 TOPLEFT（与内核 layout 的"钉到父 top-left"兜底一致）。
+    // 依据（AGENTS.md §4.1）：引擎 CFramePointRelative::X/Y @ 0x6f0e7d20/0x6f0e7e20 在
+    // m_relative->GetRect() 失败时返回 CFramePoint::UNDEFINED，即引擎**没有**无锚点兜底；
+    // 但内核与编辑器都必须给未锚定帧一个可见位置，故按方案 2 统一为本仓库自造的
+    // "钉父 top-left"，让两条管线不再分裂（原先编辑器注入 CENTER@父 CENTER，内核钉 top-left，
+    // 实测在 war3.mpq 41 屏产生 31 帧纯平移分歧）。
     if (fd.anchors.length === 0) {
       if (fd.width === 0.1 && fd.height === 0.1) { fd.width = 0.4; fd.height = 0.4; }
-      fd.anchors = [{ point: 4, relativeTo: '__PARENT__', relativePoint: 4, x: 0, y: 0 }];
+      fd.anchors = [{ point: 0, relativeTo: '__PARENT__', relativePoint: 0, x: 0, y: 0 }];
     }
 
     // 顶层（parent===null）锚点相对画布。必须放在**默认锚点注入之后**：根帧自身没有显式

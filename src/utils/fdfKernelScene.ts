@@ -25,7 +25,7 @@ import { FdfFile, FdfFrame, Arg } from './fdfKernelTypes';
 import { parseFdf } from './fdfKernelParser';
 import { transformKernelFrames, projectFrame } from './fdfKernelTransformer';
 import { FdfLibrary } from './fdfKernelLibrary';
-import { layout, LaidOutFrame, UI_WIDTH, UI_HEIGHT } from './fdfKernelLayout';
+import { layout, applyWidgetDefaults, LaidOutFrame, UI_WIDTH, UI_HEIGHT } from './fdfKernelLayout';
 import { FrameData } from '../types';
 
 /** 与 fdfTransformer.getCanvasCoordinateForPoint 一致的 9 点画布绝对坐标（0.8×0.6 y-up）。 */
@@ -178,6 +178,12 @@ export function buildKernelLayoutFrameData(src: string): FrameData[] {
 
 /** 从内核 `FdfFile` 构建几何版 FrameData。 */
 export function fileToFrameData(file: FdfFile): FrameData[] {
+  // 0) 引擎级默认锚点（PopupArrowFrame → 贴右缘内缩 PopupButtonInset）。
+  //    必须在 transformKernelFrames **之前**执行：该函数原地改写 props，若放到布局阶段才注入，
+  //    结构层的 anchors 就会缺失这条锚点，导致编辑器求解器与内核 layout 对同一帧给出不同位置
+  //    （实测 war3.mpq 41 屏有 10 帧 PopupMenuArrow 因此分歧）。
+  for (const root of file.frames) applyWidgetDefaults(root);
+
   // 1) 结构：复用内核结构转换（anchors/继承/父子/裁剪），坐标暂为编辑器默认。
   const frames = transformKernelFrames(file.frames);
 

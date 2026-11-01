@@ -188,9 +188,20 @@ describe('fdfKernelTransformer: FrameData 结构契约（对标旧 transformer�
     const file = parseFdf(['Frame "FRAME" "R" { Width "", Height "", }'].join('\n'));
     const frames = fileToFrameData(file);
     const r = frames.find((f) => f.name === 'R')!;
-    // 无锚点 → L246 默认 CENTER + 0.4 尺寸覆盖
+    // 无锚点 → 默认 TOPLEFT + 0.4 尺寸覆盖（方案 2：与内核"钉父 top-left"统一）
     expect(r.width).toBe(0.4);
     expect(r.height).toBe(0.4);
+  });
+
+  it('无锚点帧 → 默认 TOPLEFT@父（与内核 layout 的钉父 top-left 一致）', () => {
+    const file = parseFdf(['Frame "FRAME" "Root" {', '  Frame "FRAME" "NoAnchor" { }', '}'].join('\n'));
+    const frames = fileToFrameData(file);
+    const na = frames.find((f) => f.name === 'NoAnchor')!;
+    expect(na.anchors.length).toBe(1);
+    expect(na.anchors[0].point).toBe(0); // TOPLEFT
+    expect(na.anchors[0].relativePoint).toBe(0); // TOPLEFT
+    expect(na.anchors[0].x).toBe(0);
+    expect(na.anchors[0].y).toBe(0);
   });
 
   it('容错：缺失/非法点名的 SetPoint 回落 TOPLEFT 原点', () => {

@@ -46,20 +46,29 @@
   覆盖单锚点 TOPLEFT/BOTTOMLEFT/CENTER、对角 TL+BR、上排 TL+TR、下排 BL+BR、四边 L+R+T+B、
   左右 L+R、上下 T+B、跨节点相对锚、三级嵌套、root 显式 CENTER。
   根帧/无相对锚点帧求解器返回 null，渲染直接消费存储几何（= 内核 overlay 值）。
-  **唯一有意不纳入的语义分歧**：无锚点子帧的默认落位——内核钉父控件 top-left（对齐 WC3 引擎），
-  编辑器注入默认 `CENTER@父 CENTER`（对齐设计器交互），两者均为有意的产品语义，不对拍。
+  **无锚点子帧兜底已统一**（见下方"无锚点帧兜底统一"）：两处都钉父 top-left，不再存在
+  "内核钉 top-left vs 编辑器注入 CENTER"的分歧。
 - **编辑器渲染一致 — 真实原版 UI 守卫**：`tests/ow3compare/editorrender.real.test.ts`（war3.mpq，41 屏）。
   走**产品真实路径** `parseFDF(src,{useKernelLayout:true})` → `SceneGraphManager.sync` 的
   `calculatePositionFromAnchors` 覆盖，量化"覆盖是否破坏内核 ground-truth 几何"。
-  实测基线：`frames=1371  solver-null=202  overridden=1169  divergent=31`，一致率 **97.35%**（1138/1169）。
-  31 帧分歧**全部是纯平移**（尺寸不变），按锚点形状：`[CENTER]=29,[LEFT]=1,[BOTTOMLEFT]=1`。
-  **求解器已去递归**（见下条"去递归修正"），分歧由 61 帧降到 31 帧。
-  **根因（实证，已更正）**：这 31 帧**不是单锚点语义分歧**——实测求解器结果与 openwar3 单锚点通用公式
-  **完全一致**（`[CENTER]` 在两侧都是 `center - w/2, center - h/2`，因 `fx=fy=0.5`）。
-  真正的差异出现在**内核 overlay 侧**：`fdfKernelScene` 的 overlay 值与独立 `layout()` 的 byName 值不同
-  （同名模板帧在多父级下会被 byName 覆盖，实测出现 `kernel=(0.000,0.006)` 这类伪值）。属**待查**，
-  这 31 帧如实保留、以快照锁定，不得当作已解决。
+  实测基线：`frames=1371  solver-null=202  overridden=1169  divergent=3`，一致率 **99.74%**（1166/1169）。
+  演进：61（递归）→ 31（去递归）→ **3**（方案 2 统一无锚点兜底 + 提前注入引擎默认锚点）。
+  剩余 3 帧**全部是顶层帧**（MainMenu:DebugButton/ReplayButton、ScoreScreen:SaveReplayPanel）：
+  其 `relativeTo` 指向同文件根帧，而根帧 box 在两管线语义不同——内核 `resolveRootBox` 对无锚点 root
+  做**居中** `((0.8-w)/2,(0.6-h)/2)`，solver 走 `transformKernelFrames` 注入的默认 TOPLEFT@画布
+  （得 `(0, 0.6-h)`）。这属**顶层帧 box 语义**的历史差异（编辑器里 root 居中是有意的设计器行为，
+  改动会破坏 5 条既有 scene 测试），如实保留、以快照锁定，不冒充已解决。
   注意：早期一版探针（把纯结构帧喂给求解器、未走产品路径）得出"1112/1191 分歧"，那是**探针路线错误**的假象。
+- **无锚点帧兜底统一（方案 2 落地）**：两处兜底统一为"钉父 **top-left**"。
+  - `transformKernelFrames`（`fdfKernelTransformer.ts`）的默认锚点由 `CENTER@父 CENTER` 改为
+    `TOPLEFT@父 TOPLEFT`；`fdfKernelLayout.layout` 的未放置分支本就是钉父 top-left，二者从此一致。
+  - **引擎默认锚点提前注入**：`applyWidgetDefaults`（`fdfKernelLayout.ts`，已 export）从"布局阶段"
+    提前到 `fileToFrameData` 的**第一步**。它原地改写 `FdfFrame.props`（PopupArrowFrame → 贴右缘内缩
+    `PopupButtonInset`）；若只在 layout 阶段注入，结构层 anchors 就拿不到这条锚点，编辑器求解器与
+    内核 layout 会对同一帧给出不同位置（实测 10 帧 PopupMenuArrow 因此分歧，占 31→13 的绝大部分）。
+  **注意这仍是偏离引擎的自造行为**：IDA 证实引擎对未锚定帧返回 `CFramePoint::UNDEFINED`
+  （§4.1 已记录），本仓库必须给未锚定帧一个可见位置，故选"统一 top-left"而非"UNDEFINED"。
+  该取舍是产品决策（用户选定方案 2），不是引擎原义。
 - **去递归修正（方案 A 落地）**：`calculatePositionFromAnchors`（`anchorUtils.ts`）不再递归重解
   `relativeTo` 指向的帧，直接用其**已存 x/y/width/height** 作为锚点基准。
   理由：祖先几何已由上游（内核 layout overlay / 上一次同步）确定，递归重解等于**用求解器覆盖求解器**，
@@ -82,10 +91,9 @@
   - 由上述可推出 `x = (rect.l + fx*p(rect.r-rect.l)) + offset.x`，与 openwar3
     `rel.x + fx(relPoint)*rel.w + dx` 代数等价。守卫对**全部 9 个点** × 带/不带非零偏移逐点断言，
     并额外用 **CRect 显式形式**（边/中点 + offset）交叉验算一遍。
-  **仍未解决**：真实数据 31 帧分歧**不是**单锚点语义问题——实测求解器结果与 openwar3 公式一致；
-  差异源于 `transformKernelFrames` 对**无锚点子帧注入 `CENTER@父 CENTER`**，而内核 `layout` 走
-  "无锚点 → 钉父 top-left"兜底，两者语义本就不同（且引擎实际是 UNDEFINED）。
-  这两处兜底都是本仓库自造的、引擎里**不存在**的行为，属待决问题，须按 §4.1 决定取舍。
+  **后续进展**：曾经指认的"31 帧分歧"根因已按方案 2 修掉（无锚点兜底统一 + 引擎默认锚点提前注入），
+  现降至 **3 帧**，且剩余 3 帧是**顶层帧 box 语义**（见上条"真实原版 UI 守卫"），与单锚点求值无关。
+  单锚点求值本身与引擎/openwar3 一致，无遗留问题。
 
 ---
 
@@ -102,8 +110,8 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `93 passed | 2 skipped` 测试文件，`1729 passed | 5 skipped` 测试
-- 内核/对拍：`17 passed | 2 skipped` 文件，`442 passed | 5 skipped` 测试
+- `93 passed | 2 skipped` 测试文件，`1730 passed | 5 skipped` 测试
+- 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
 > 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`

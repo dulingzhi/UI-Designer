@@ -117,8 +117,11 @@ function buildTree(frame: FdfFrame, parent: LaidOutFrame | null): LaidOutFrame {
 }
 
 /** 引擎提供、而非文件声明的锚点。POPUPMENU 的下拉箭头（PopupArrowFrame）带尺寸但无
- *  SetPoint：引擎把它贴到控件右缘、内缩 PopupButtonInset。否则未锚点帧回退父 top-left。 */
-function applyWidgetDefaults(root: FdfFrame): void {
+ *  SetPoint：引擎把它贴到控件右缘、内缩 PopupButtonInset。否则未锚点帧回退父 top-left。
+ *
+ *  注意：本函数**原地改写**传入的 FdfFrame.props（注入 SetPoint）。桥接层需在
+ *  `transformKernelFrames` 之前调用一次，使结构层与布局层看到同一份锚点。 */
+export function applyWidgetDefaults(root: FdfFrame): void {
   (function walk(f: FdfFrame): void {
     const arrowName = firstProp(f, 'PopupArrowFrame')?.args[0]?.s;
     const arrow = arrowName ? f.children.find((c) => c.name === arrowName) : undefined;

@@ -16,11 +16,14 @@
  * 求解器已改为**不再递归重解相对帧**（直接用相对帧已存几何）：递归重解会把"求解器对祖先的
  * 解释"再叠加到本帧上，误差沿祖先链累积。去除后真实数据分歧 61→31 帧，无一例变差。
  *
- * 实测基线（2026-11，41 屏真实数据，去递归求解后）：
- *   frames=1371  solver-null=202  overridden=1169  divergent=31  (一致率 97.35%)
- * 分歧全部是**纯平移**（尺寸不变），按锚点形状分布：
- *   [CENTER]=29, [LEFT]=1, [BOTTOMLEFT]=1
- * 去递归前为 61 帧（一致率 94.78%），且无一例变差（noRecBetter=32, noRecWorse=0）。
+ * 实测基线（2026-11，41 屏真实数据，方案 2 统一兜底后）：
+ *   frames=1371  solver-null=202  overridden=1169  divergent=3  (一致率 99.74%)
+ * 剩余 3 帧全部是**顶层帧**（MainMenu.fdf:DebugButton / ReplayButton、ScoreScreen.fdf:SaveReplayPanel），
+ * 其 relativeTo 指向同文件的根帧，而根帧 box 在两管线语义不同：内核 `resolveRootBox` 对无锚点 root
+ * 做**居中** `((0.8-w)/2,(0.6-h)/2)`，solver 走 transformKernelFrames 注入的默认 TOPLEFT@画布
+ * （得 `(0, 0.6-h)`）。这不是锚点求值问题，属顶层帧 box 语义的历史差异（编辑器里 root 居中是有意的
+ * 设计器行为，改动会破坏 5 条既有 scene 测试），如实保留。
+ * 演进：61（递归）→ 31（去递归）→ 3（统一无锚点兜底 + 提前注入引擎默认锚点）。
  * 主要机制：跨文件 SetPoint 引用（模板帧引用了另一 .fdf 里的帧名，单文件解析时解析不到）、
  * 以及模板继承帧在求解器里走了不同的相对链。
  *
@@ -44,10 +47,10 @@ const BASELINE = {
   totalFrames: 1371,
   solverNull: 202,
   overridden: 1169,
-  divergent: 31,
+  divergent: 3,
   byPointSet: {
-    '4': 29,
     '3': 1,
+    '4': 1,
     '6': 1,
   },
 };
@@ -132,7 +135,7 @@ describe.skipIf(!usable)('编辑器渲染一致 — 真实原版 UI（41 屏 / w
     expect(st!.solverNull).toBe(BASELINE.solverNull);
   });
 
-  it('已知分歧集合被快照锁定（31 帧，全为纯平移）', () => {
+  it('已知分歧集合被快照锁定（3 帧，全为顶层帧 box 语义差异）', () => {
     expect(st!.divergent).toBe(BASELINE.divergent);
     // 分歧全部只是平移；若出现尺寸改动说明求解器动到了世界矩形大小，属新问题。
     expect(st!.sizeChanged).toBe(0);
@@ -142,9 +145,9 @@ describe.skipIf(!usable)('编辑器渲染一致 — 真实原版 UI（41 屏 / w
     expect(st!.byPointSet).toEqual(BASELINE.byPointSet);
   });
 
-  it('一致率 ≥ 94%（诚实基线：实测 97.35%）', () => {
+  it('一致率 ≥ 94%（诚实基线：实测 99.74%）', () => {
     const rate = (st!.overridden - st!.divergent) / st!.overridden;
-    // 诚实下限：实测 1138/1169 = 97.35%。低于 94% 说明求解器覆盖行为显著恶化。
+    // 诚实下限：实测 1166/1169 = 99.74%。低于 94% 说明求解器覆盖行为显著恶化。
     expect(rate).toBeGreaterThanOrEqual(0.94);
     // eslint-disable-next-line no-console
     console.log(`一致率 ${(rate * 100).toFixed(2)}%  (${st!.overridden - st!.divergent}/${st!.overridden})`);
