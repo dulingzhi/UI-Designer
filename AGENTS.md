@@ -41,9 +41,21 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `85 passed | 2 skipped` 测试文件，`1619 passed | 5 skipped` 测试
+- `89 passed | 2 skipped` 测试文件，`1685 passed | 5 skipped` 测试
 - 内核/对拍：`13 passed | 2 skipped` 文件，`399 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+### 编辑器命令层测试（`src/commands`，当前目标「编辑器端单测 + 完整编辑功能」）
+- 命令层 `src/commands/*.ts`（20 个命令类）不在覆盖率门 `include`（`src/utils/**`）内，不要求 100%，
+  但作为编辑器真实编辑操作（对齐/统一尺寸/z 序/复制/帧 CRUD 的 undo-redo）需行为级覆盖。
+- 已新增 4 个测试文件 + 1 个共享构造：
+  - `src/commands/FrameCommands.test.ts`（17 测）、`src/commands/AlignCommands.test.ts`（23 测）、
+    `src/commands/DuplicateZIndexSize.test.ts`（17 测）、`src/commands/ArrayCommands.test.ts`（9 测）；
+  - `src/commands/__test_helpers__.ts`：`makeTestFrame/makeTestFrameFixed/makeTestProject` 复用构造。
+- 每个测试文件必须沿用 `uiStore.test.ts` 头部：`vi.mock('../utils/hotReloadExporter')` +
+  `vi.mock('../utils/war3ProcessManager')` + `vi.stubGlobal('localStorage', ...)`（projectStore 底部 subscribe
+  在 setTimeout 里访问 localStorage/进程管理器）。
+- `beforeEach` 顺序须为「先 reset UI 状态，再 seed project」，否则 seed 的 project 会被 reset 覆盖（已踩坑修正）。
 
 ---
 
