@@ -746,11 +746,15 @@ export class FDFTransformer {
         break;
 
       case 'alphamode':
-        // FDF: AlphaMode "ALPHAKEY" | "BLEND" | "ADD"
+        // FDF: AlphaMode "DISABLE" | "ALPHAKEY" | "BLEND" | "ADD"
         // ShaderLib.parseAlphaMode 消费 frame.alphaMode; 之前完全丢弃。
+        // DISABLE 的依据：IDA 反编译 Game.dll `ReaderTextureKeyword` @ 0x6f09b8a0 显式比较
+        // 四个字符串 "DISABLE"(0x6fa8600c) / "BLEND"(0x6fa86014) / "ALPHAKEY"(0x6fa8601c) /
+        // "ADD"(0x6fa86028)，并分别赋 GxMatAlpha_Disable / _Blend / _AlphaKey / _Add。
+        // 即 DISABLE 是引擎合法取值，早先三值白名单会把它静默丢弃。
         if (typeof value === 'string') {
           const m = value.toUpperCase();
-          if (m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
+          if (m === 'DISABLE' || m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
             frame.alphaMode = m;
           }
         }
@@ -1003,7 +1007,8 @@ export class FDFTransformer {
             frame.texture = value as string;
           } else if (name === 'alphamode' && typeof value === 'string') {
             const m = value.toUpperCase();
-            if (m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
+            // 同 L748：DISABLE 亦为引擎合法取值（IDA ReaderTextureKeyword @ 0x6f09b8a0）。
+            if (m === 'DISABLE' || m === 'ALPHAKEY' || m === 'BLEND' || m === 'ADD') {
               frame.alphaMode = m;
             }
           } else if (name === 'texcoord' && Array.isArray(value) && value.length >= 4) {

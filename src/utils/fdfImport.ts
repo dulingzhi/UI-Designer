@@ -183,8 +183,9 @@ function extractTextureData(properties: FDFProperty[]): FDFTextureData | undefin
   }
   
   const alphaModeStr = alphaMode ? String(alphaMode).toUpperCase() : undefined;
-  const validAlphaMode = alphaModeStr === 'ALPHAKEY' || alphaModeStr === 'BLEND' || alphaModeStr === 'ADD' 
-    ? alphaModeStr 
+  // DISABLE 亦为引擎合法取值（IDA ReaderTextureKeyword @ 0x6f09b8a0 显式比较四值）。
+  const validAlphaMode = alphaModeStr === 'DISABLE' || alphaModeStr === 'ALPHAKEY' || alphaModeStr === 'BLEND' || alphaModeStr === 'ADD'
+    ? alphaModeStr
     : undefined;
   
   return {

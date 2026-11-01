@@ -165,23 +165,36 @@ describe('ShaderLib.updateMaterial — 原地更新与纹理释放', () => {
 });
 
 /**
+ * DISABLE 语义 —— 依 IDA 取证修正（Game.dll `ReaderTextureKeyword` @ 0x6f09b8a0
+ * 显式比较 "DISABLE"(0x6fa8600c) / "BLEND"(0x6fa86014) / "ALPHAKEY"(0x6fa8601c) /
+ * "ADD"(0x6fa86028) 并分别赋 GxMatAlpha_Disable/_Blend/_AlphaKey/_Add，
+ * 即 DISABLE 是引擎合法取值，早先三值白名单会把它静默丢弃）。
+ */
+describe('ShaderLib DISABLE 语义（已修正）', () => {
+  it('DISABLE 走 NoBlending，且 depthWrite 复为 true（不透明层需要深度）', () => {
+    const m = createMaterial(mkFrame({ alphaMode: 'DISABLE' }));
+    expect(m.blending).toBe(THREE.NoBlending);
+    expect(m.depthWrite).toBe(true);
+  });
+
+  it('DISABLE 不设裁切阈值（alphaTest = 0）', () => {
+    expect(createMaterial(mkFrame({ alphaMode: 'DISABLE' })).alphaTest).toBe(0);
+  });
+
+  it('updateMaterial 切到 DISABLE 时复位 alphaTest、复开 depthWrite', () => {
+    const m = createMaterial(mkFrame({ alphaMode: 'ALPHAKEY' }));
+    expect(m.alphaTest).toBeCloseTo(192 / 255, 9);
+    updateMaterial(m as any, mkFrame({ alphaMode: 'DISABLE' }));
+    expect(m.alphaTest).toBe(0);
+    expect(m.depthWrite).toBe(true);
+  });
+});
+
+/**
  * 已知问题（本用例把当前**实际行为**固定下来，不是为了掩盖：
  * 一旦被修复，本用例会红，提醒同步更新文档与预期）。
  */
 describe('ShaderLib 已知问题（如实记录，非期望语义）', () => {
-  it('DISABLE 的 alphaTest 未被跳过，实际等于 4/255 阈值（预期应为 0）', () => {
-    const m = createMaterial(mkFrame({ alphaMode: 'DISABLE' } as any));
-    // 源码：`if (alphaMode !== DISABLE) material.alphaTest = ALPHA_REF[alphaMode]`
-    // 但 DISABLE 时 parseAlphaMode 实际返回 BLEND（字符串 'DISABLE' 不在 switch 里），
-    // 故该判断恒成立、alphaTest 被设为 BLEND 阈值。
-    expect(m.alphaTest).toBeCloseTo(4 / 255, 9);
-  });
-
-  it('DISABLE 的 depthWrite 仍为 false（预期应为 true）', () => {
-    const m = createMaterial(mkFrame({ alphaMode: 'DISABLE' } as any));
-    expect(m.blending).toBe(THREE.CustomBlending); // 未走 NoBlending 分支
-    expect(m.depthWrite).toBe(false);
-  });
 
   it('首帧带纹理的旧纹理不会被释放（createMaterial 未标记 managedTexture）', () => {
     const oldTex = TEX();

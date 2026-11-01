@@ -102,7 +102,7 @@ export interface FDFMetadata {
 export interface FDFTextureData {
   file: string;
   texCoord?: [number, number, number, number]; // [left, right, top, bottom]
-  alphaMode?: 'ALPHAKEY' | 'BLEND' | 'ADD';
+  alphaMode?: 'DISABLE' | 'ALPHAKEY' | 'BLEND' | 'ADD';
   decorateFileNames?: boolean;
 }
 
@@ -283,7 +283,7 @@ export interface FrameData {
   // ========== TEXTURE 属性 ==========
   textureFile?: string;                // 纹理文件路径
   texCoord?: [number, number, number, number]; // 纹理坐标 [left, right, top, bottom]
-  alphaMode?: 'ALPHAKEY' | 'BLEND' | 'ADD';    // Alpha混合模式
+  alphaMode?: 'DISABLE' | 'ALPHAKEY' | 'BLEND' | 'ADD';    // Alpha混合模式
   decorateFileNames?: boolean;         // 装饰文件名
   
   // ========== 功能属性 ==========

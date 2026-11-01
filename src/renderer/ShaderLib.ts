@@ -34,6 +34,7 @@ function normalizeFrameAlpha(alpha: number | undefined): number {
 /** 将 FrameData.alphaMode 字符串映射为 EGxMatAlphaOp 枚举值 */
 function parseAlphaMode(alphaMode: FrameData['alphaMode']): EGxMatAlphaOp {
   switch (alphaMode) {
+    case 'DISABLE':  return EGxMatAlphaOp.DISABLE;
     case 'ALPHAKEY': return EGxMatAlphaOp.ALPHAKEY;
     case 'ADD':      return EGxMatAlphaOp.ADD;
     case 'BLEND':    return EGxMatAlphaOp.BLEND;

@@ -510,6 +510,17 @@ describe('applyProperty - numeric icon props, texcoord, alphamode', () => {
     expect(g.alphaMode).toBeUndefined();
   });
 
+  it('accepts AlphaMode DISABLE（引擎合法取值，IDA ReaderTextureKeyword @ 0x6f09b8a0）', () => {
+    const t = new Testable();
+    const f = mkFrame('f', 'F');
+    (t as any).applyProperty(f, prop('AlphaMode', identValue('DISABLE')));
+    expect(f.alphaMode).toBe('DISABLE');
+    // 大小写不敏感
+    const g = mkFrame('g', 'G');
+    (t as any).applyProperty(g, prop('AlphaMode', stringValue('disable')));
+    expect(g.alphaMode).toBe('DISABLE');
+  });
+
   it('handles slider numeric props', () => {
     const t = new Testable();
     const f = mkFrame('f', 'F');

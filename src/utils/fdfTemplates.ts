@@ -269,7 +269,8 @@ function extractTemplateTexture(properties: FDFProperty[]): FDFTextureData | und
     file: file ? String(file) : '',
     texCoord: Array.isArray(texCoord) && texCoord.length === 4
       ? texCoord.map(Number) as [number, number, number, number] : undefined,
-    alphaMode: (am === 'ALPHAKEY' || am === 'BLEND' || am === 'ADD') ? am : undefined,
+    // DISABLE 亦为引擎合法取值（IDA ReaderTextureKeyword @ 0x6f09b8a0 显式比较四值）。
+    alphaMode: (am === 'DISABLE' || am === 'ALPHAKEY' || am === 'BLEND' || am === 'ADD') ? am : undefined,
   };
 }
 

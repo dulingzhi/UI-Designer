@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `95 passed | 2 skipped` 测试文件，`1758 passed | 5 skipped` 测试
+- `95 passed | 2 skipped` 测试文件，`1760 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -130,12 +130,27 @@ pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `Shade
   故**可确定性断言的部分已覆盖**；GPU 光栅结果只在 `psnr.real.test.ts` 的 t1/t2/t4 三个公平基元上验证。
 
 **ShaderLib 已知问题（已在测试中以"已知问题"用例固定，非期望语义）**：
-1. `alphaMode: 'DISABLE'` 实际走不到 `NoBlending` 分支——`parseAlphaMode` 的 switch 只识别
-   `ALPHAKEY/ADD/BLEND`，`'DISABLE'` 回落为 `BLEND`，故 `alphaTest` 被设为 `4/255`、`depthWrite` 仍为 `false`。
-2. `createMaterial` 不设置 `userData.managedTexture`（仅 `updateMaterial` 设置），
+1. `createMaterial` 不设置 `userData.managedTexture`（仅 `updateMaterial` 设置），
    故首帧带纹理时旧纹理在首次换图时不会被 `dispose`（泄漏一次）。
-3. `material.needsUpdate = true` 在 NodeMaterial 上读回为 `undefined`（写入不产生可断言读回值）。
-这三项**未修**，测试锁定现状；修复时对应用例会变红，需同步更新本文档。
+2. `material.needsUpdate = true` 在 NodeMaterial 上读回为 `undefined`（写入不产生可断言读回值）。
+这两项**未修**，测试锁定现状；修复时对应用例会变红，需同步更新本文档。
+
+**已修：AlphaMode `DISABLE` 被静默丢弃（IDA 取证驱动）**
+- 症状：`parseAlphaMode` 的 switch 只识别 `ALPHAKEY/ADD/BLEND`，`'DISABLE'` 回落为 `BLEND`，
+  导致不透明层仍设 `alphaTest=4/255`、`depthWrite=false`；同时三个解析点
+  （`fdfTransformer.ts` 两处、`fdfImport.ts`、`fdfTemplates.ts`）的三值白名单会把 FDF 里的
+  `AlphaMode "DISABLE"` 静默丢掉，`ShaderLib` 里那条正确的 DISABLE 处理逻辑成了死代码。
+- **IDA 取证**（Game.dll，imagebase `0x6f000000`）：`ReaderTextureKeyword` @ `0x6f09b8a0`
+  显式比较四个字符串并分别赋值——
+  `"DISABLE"`(`0x6fa8600c`)→`GxMatAlpha_Disable`、`"BLEND"`(`0x6fa86014`)→`GxMatAlpha_Blend`、
+  `"ALPHAKEY"`(`0x6fa8601c`)→`GxMatAlpha_AlphaKey`、`"ADD"`(`0x6fa86028`)→`GxMatAlpha_Add`。
+  即 **DISABLE 是引擎合法取值**，不是本仓库自造的。
+- 修复：`FrameData.alphaMode` / `FDFTextureData.alphaMode` 类型扩为
+  `'DISABLE' | 'ALPHAKEY' | 'BLEND' | 'ADD'`；三个解析点白名单加入 `DISABLE`；
+  `parseAlphaMode` 增加 `case 'DISABLE'`。
+- 验证：`shaderLib.test.ts` 新增「DISABLE 语义（已修正）」3 测（NoBlending / depthWrite=true /
+  alphaTest=0 / updateMaterial 切回）；`fdfTransformer.test.ts` 新增解析器接受 DISABLE（含小写）。
+  既有 PSNR 守卫（t1/t2/t4）与全部对拍仍绿，未受影响。
 
 > 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`
 > 让内核几何先 overlay 进 FrameData），再断言求解器覆盖不破坏该几何——与渲染真实数据流一致。
