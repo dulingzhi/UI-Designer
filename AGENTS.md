@@ -68,15 +68,24 @@
   该前提由 `anchorUtils.test.ts` 的「祖先先算」用例锁定（父帧存储几何更新后子帧跟随位移）。
   **取舍**：去掉递归后，若祖先锚点变化而祖先存储几何尚未更新，子帧会读到旧值一帧；因 sync 遍历顺序保证
   祖先先算，正常同步路径不触发。若未来引入异步/乱序同步，需重新评估。
-- **单锚点定位以 openwar3 为准（已固化）**：`tests/fdfKernel/singleanchor.openwar3.test.ts`。
-  权威实现是 openwar3 `ui/fdf/layout.js` 的通用单锚点解：
-  `lx = rel.x + fx(relPoint)*rel.w + dx`、`ly = rel.y + fy(relPoint)*rel.h + dy`，
-  `n.x = lx - fx(myPoint)*n.w`、`n.y = ly - fy(myPoint)*n.h`（`fx/fy` 把点名映射为 0/0.5/1，y 从底量）。
-  编辑器 `calculatePositionFromAnchors` 的逐点硬编码（CENTER 用 `-w/2,-h/2`、TOP 用 `-w/2,-h` …）
-  与之**代数等价**；守卫对**全部 9 个点** × 带/不带非零偏移逐点断言该等价，任一侧漂移即失败。
-  **注意**：守卫锁定的是"求解器 == openwar3 公式"，不是"真实数据 31 帧归零"。实测这 31 帧里
-  求解器结果**已与 openwar3 公式一致**，分歧发生在**内核 overlay 侧**（内部 frame 的实现差异
-  与独立 layout 之间），属另一待查问题，不得拿本守卫冒充已解决。
+- **单锚点定位以 WC3 引擎 + openwar3 为准（已固化）**：`tests/fdfKernel/singleanchor.openwar3.test.ts`。
+  **IDA 取证（Game.dll，imagebase 0x6f000000，本轮已反编译确认）**：
+  - `CFramePointRelative::X` @ `0x6f0e7d20`：按 `CRect` 三分支取值——
+    LEFT 族 `m_offset.x*scale + rect.l`；CENTER 族 `(r+l)*0.5 + m_offset.x*scale`；
+    RIGHT 族 `m_offset.x*scale + rect.r`。`::Y` @ `0x6f0e7e20` 结构对称
+    （TOP 族用 `rect.b`、中部 `(b+t)*0.5`、BOTTOM 族 `rect.t`；WC3 rect 以底为基）。
+  - `CFramePointRelative::New` @ `0x6f0e7cc0` 只存 `relative / framePoint / offsetX / offsetY`
+    → 锚点恒为**相对**解算。
+  - `CFramePointRelative::X/Y` 在 `m_relative->GetRect()` 失败时返回 `CFramePoint::UNDEFINED`
+    （`0x6fd3d6a0`）→ **引擎没有"无锚点帧钉父 top-left"的兜底**，未锚定帧坐标是 UNDEFINED。
+  - `CLayoutFrame::SetPoint`（相对重载 @ `0x6f0daf00`）构造的就是 `CFramePointRelative`。
+  - 由上述可推出 `x = (rect.l + fx*p(rect.r-rect.l)) + offset.x`，与 openwar3
+    `rel.x + fx(relPoint)*rel.w + dx` 代数等价。守卫对**全部 9 个点** × 带/不带非零偏移逐点断言，
+    并额外用 **CRect 显式形式**（边/中点 + offset）交叉验算一遍。
+  **仍未解决**：真实数据 31 帧分歧**不是**单锚点语义问题——实测求解器结果与 openwar3 公式一致；
+  差异源于 `transformKernelFrames` 对**无锚点子帧注入 `CENTER@父 CENTER`**，而内核 `layout` 走
+  "无锚点 → 钉父 top-left"兜底，两者语义本就不同（且引擎实际是 UNDEFINED）。
+  这两处兜底都是本仓库自造的、引擎里**不存在**的行为，属待决问题，须按 §4.1 决定取舍。
 
 ---
 
@@ -93,8 +102,8 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `93 passed | 2 skipped` 测试文件，`1728 passed | 5 skipped` 测试
-- 内核/对拍：`17 passed | 2 skipped` 文件，`441 passed | 5 skipped` 测试
+- `93 passed | 2 skipped` 测试文件，`1729 passed | 5 skipped` 测试
+- 内核/对拍：`17 passed | 2 skipped` 文件，`442 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
 > 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`

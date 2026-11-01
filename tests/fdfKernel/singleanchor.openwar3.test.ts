@@ -1,7 +1,28 @@
 /**
- * 单锚点定位语义守卫 —— 以 **openwar3 实现为准**。
+ * 单锚点定位语义守卫 —— 以 **WC3 引擎真机行为 + openwar3 实现为准**。
  *
- * 依据（openwar3 `ui/fdf/layout.js` 的通用单锚点解，权威实现）：
+ * ## IDA 取证结论（Game.dll，imagebase 0x6f000000）
+ * 引擎的锚点求值实现（本轮已反编译确认，见 AGENTS.md §4.1 记录）：
+ *
+ * 1. `CFramePointRelative::X` @ 0x6f0e7d20 —— 三分支取相对矩形（CRect）的边/中点：
+ *      LEFT 族   → `m_offset.x * scale + rect.l`
+ *      CENTER 族 → `(r + l) * 0.5 + m_offset.x * scale`
+ *      RIGHT 族  → `m_offset.x * scale + rect.r`
+ *    `CFramePointRelative::Y` @ 0x6f0e7e20 结构对称（TOP 族用 `rect.b`，中部用 `(b+t)*0.5`，
+ *    BOTTOM 族用 `rect.t`）。注意 y 方向 TOP 取 `rect.b`（bottom）——WC3 的 rect 以底为基，
+ *    TOP 边即较大的 y。
+ * 2. `CFramePointRelative::New` @ 0x6f0e7cc0 只存 `relative / framePoint / offsetX / offsetY`，
+ *    即锚点恒为**相对**解算（与 openwar3 公式同构）。
+ * 3. **无锚点帧不走任何"钉父 top-left"兜底**：`X()`/`Y()` 在 `m_relative->GetRect()` 返回 false
+ *    时直接返回 `CFramePoint::UNDEFINED` @ 0x6fd3d6a0。因此引擎里未锚定帧的坐标是 UNDEFINED，
+ *    而不是被钉到父控件角落。
+ *
+ * 由 1、2 可推出：`x = (rect.l + fx(point)*(rect.r - rect.l)) + offset.x`，
+ * `y = (rect.b + fy(point)*(rect.t - rect.b)) + offset.y`——与 openwar3 的
+ * `rel.x + fx(relPoint)*rel.w + dx` 代数等价（`fx=0.5` 时 `l+0.5(r-l)=(l+r)/2`）。
+ *
+ * ## 本守卫断言什么
+ * openwar3 `ui/fdf/layout.js` 的通用单锚点解：
  *
  *     const pt = points[0];
  *     const rel = relOf(n, pt.relName);
@@ -13,11 +34,11 @@
  * 即：锚点绝对位置 = 相对帧的 relPoint 位置 + 偏移；本帧左下角 = 锚点绝对位置 − 自己
  * 该点在矩形内的偏移。`fx`/`fy` 把点名映射为 0/0.5/1 的分数位置（y 从底部量起）。
  *
- * 本守卫断言编辑器 `calculatePositionFromAnchors` 的单锚点分支对**全部 9 个点**都等价于
- * 上式，从而把"单锚点以 openwar3 为准"这条约定固化为可执行测试，而非口头约定。
+ * 对**全部 9 个点**逐点断言编辑器 `calculatePositionFromAnchors` 的单锚点分支等价于上式
+ * （并等价于上面 IDA 推出的引擎公式），任一侧漂移即失败。
  *
  * 说明：编辑器现有实现是逐点硬编码（CENTER 用 `-w/2,-h/2`、TOP 用 `-w/2,-h` 等），
- * 与通用公式在代数上等价；本测试的作用是**锁定这份等价关系**，任何一侧漂移都会失败。
+ * 与通用公式在代数上等价；本测试的作用是**锁定这份等价关系**。
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FramePoint, FrameData, FrameType } from '../../src/types';
@@ -121,8 +142,36 @@ describe('单锚点定位以 openwar3 为准（全部 9 点）', () => {
     const center = pointPos({ x: 0.2, y: 0.3, w: 0.4, h: 0.2 }, FramePoint.CENTER);
     expect(got.x).toBeCloseTo(center.x - 0.1 / 2, 12);
     expect(got.y).toBeCloseTo(center.y - 0.05 / 2, 12);
-    expect(Math.abs(got.x - want0x())).toBeLessThan(1e-12 + 1e-12);
-    function want0x() { return center.x - 0.1 / 2; }
+  });
+
+  it('等价于 IDA 推出的引擎公式（边/中点 + offset 的 CRect 形式）', () => {
+    // 引擎 CFramePointRelative::X/Y（0x6f0e7d20 / 0x6f0e7e20）直接对 CRect 的 l/r/t/b 取值：
+    //   LEFT 族 l、CENTER 族 (l+r)/2、RIGHT 族 r（y 对称，TOP 族取 b、BOTTOM 族取 t）
+    // 本用例用**CRect 显式形式**（而非 fx 分数形式）重算一遍，证明两条写法给出同一结果。
+    const relRect = { l: 0.13, b: 0.27, r: 0.13 + 0.44, t: 0.27 + 0.19 };
+    const pickX = (p: FramePoint): number => {
+      if (p === FramePoint.LEFT || p === FramePoint.TOPLEFT || p === FramePoint.BOTTOMLEFT) return relRect.l;
+      if (p === FramePoint.RIGHT || p === FramePoint.TOPRIGHT || p === FramePoint.BOTTOMRIGHT) return relRect.r;
+      return (relRect.l + relRect.r) * 0.5;
+    };
+    const pickY = (p: FramePoint): number => {
+      if (p === FramePoint.BOTTOM || p === FramePoint.BOTTOMLEFT || p === FramePoint.BOTTOMRIGHT) return relRect.b;
+      if (p === FramePoint.TOP || p === FramePoint.TOPLEFT || p === FramePoint.TOPRIGHT) return relRect.t;
+      return (relRect.b + relRect.t) * 0.5;
+    };
+    const rel = makeFrame({ id: 'rel', name: 'Rel', x: relRect.l, y: relRect.b,
+      width: relRect.r - relRect.l, height: relRect.t - relRect.b });
+
+    for (const [label, myPoint] of ALL_POINTS) {
+      const cur = makeFrame({ id: 'cur', name: 'Cur', width: 0.2, height: 0.1,
+        anchors: [{ point: myPoint, x: 0, y: 0, relativeTo: 'rel', relativePoint: myPoint }] });
+      const got = calculatePositionFromAnchors(cur, { rel })!;
+      // 引擎：本帧左下角 = 相对帧该点位置 − 自己该点的内部偏移
+      const wantX = pickX(myPoint) - fx(myPoint) * cur.width;
+      const wantY = pickY(myPoint) - fy(myPoint) * cur.height;
+      expect(got.x, `${label}.x`).toBeCloseTo(wantX, 12);
+      expect(got.y, `${label}.y`).toBeCloseTo(wantY, 12);
+    }
   });
 
   it('全部 9 点的 fx/fy 覆盖 0/0.5/1 各档', () => {
