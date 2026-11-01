@@ -219,7 +219,8 @@ describe('codeExport', () => {
       const lua = generateLUACode(project);
       expect(lua).toContain('FrameSetPoint(child, FRAMEPOINT_LEFT, parent, FRAMEPOINT_RIGHT, 1.50000, 2.50000)');
       const ts = generateTypeScriptCode(project);
-      expect(ts).toContain('FrameSetPoint(this.child, FRAMEPOINT_LEFT, parent, FRAMEPOINT_RIGHT, 1.50000, 2.50000)');
+      // TS 生成的是 class 内部代码，相对引用必须是 this.parent（旧断言写成裸 parent，IDE 会报未定义）
+      expect(ts).toContain('FrameSetPoint(this.child, FRAMEPOINT_LEFT, this.parent, FRAMEPOINT_RIGHT, 1.50000, 2.50000)');
     });
 
     it('treats relativeTo with undefined relativePoint as absolute in all generators', () => {

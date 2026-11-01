@@ -1,5 +1,6 @@
 import { ProjectData, FrameData, FrameType, FramePoint, ExportLanguage, FrameAnchor, ExportVersion } from '../types';
 import { createDefaultAnchors } from './anchorUtils';
+import { toIdentifier, escapeJassString, escapeLuaString, sanitizeLibraryName } from './codegen/identifiers';
 
 // API 前缀映射
 const API_PREFIX = {
@@ -29,20 +30,115 @@ function framePointToString(point: FramePoint): string {
   return pointNames[point] || 'FRAMEPOINT_BOTTOMLEFT';
 }
 
+/**
+ * 建立 frame id → 唯一变量名映射，并返回**父先子后**的拓扑序帧列表。
+ *
+ * 修复两个缺陷：
+ *  - 同行/重名帧会生成重复声明（`framehandle Dup = null` ×2）
+ *  - frames 记录顺序可能把子帧排在父帧前，导致创建时父仍是 null（锚定静默失败）
+ */
+function buildFrameOrder(project: ProjectData): { idToVar: Map<string, string>; ordered: FrameData[] } {
+  const frames = Object.values(project.frames);
+  const idToVar = new Map<string, string>();
+  const used = new Set<string>();
+
+  // 同名数组帧（Name[00]/[01]…）共用同一个数组变量名
+  const arrayBase = new Map<string, string>();
+  for (const f of frames) {
+    const m = /^(.*)\[(\d+)\]$/.exec(f.name ?? '');
+    if (!m) continue;
+    const base = m[1];
+    if (!arrayBase.has(base)) {
+      arrayBase.set(base, toIdentifier(base, used));
+    }
+    idToVar.set(f.id, arrayBase.get(base)!);
+  }
+  for (const f of frames) {
+    if (idToVar.has(f.id)) continue;
+    idToVar.set(f.id, toIdentifier(f.name ?? '', used));
+  }
+
+  // 拓扑排序：父先子后；孤儿的 parent 视为不存在（按 root 处理）
+  const ordered: FrameData[] = [];
+  const visited = new Set<string>();
+  const byId = project.frames;
+  const visit = (f: FrameData) => {
+    if (visited.has(f.id)) return;
+    visited.add(f.id);
+    const pid = f.parentId;
+    if (pid && byId[pid]) visit(byId[pid]);
+    ordered.push(f);
+  };
+  for (const f of frames) visit(f);
+  return { idToVar, ordered };
+}
+
+/**
+ * 解析父帧表达式。
+ * - 无父 → origin frame
+ * - 父存在 → 其变量名
+ * - 父 id 悬空 → 降级为 origin frame（不再抛 `Cannot read properties of undefined`）
+ */
+function resolveParentExpr(
+  frame: FrameData,
+  project: ProjectData,
+  version: ExportVersion,
+  idToVar: Map<string, string>,
+): string {
+  const origin = `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
+  const pid = frame.parentId;
+  if (!pid) return origin;
+  const parentFrame = project.frames[pid];
+  if (!parentFrame) return origin; // 悬空 parentId：降级
+  /* v8 ignore start -- unreachable: 父帧存在时必然已登记变量名（buildFrameOrder 覆盖全部帧） */
+  return idToVar.get(pid) ?? origin;
+  /* v8 ignore end */
+}
+
+/**
+ * 把锚点的 `relativeTo` 解析成变量名。
+ *
+ * `relativeTo` 在数据里**可能是 frame id，也可能是 frame name**：
+ * `fdfKernelTransformer` 会把名称解析成 id（L274-281），但按名称查不到时会**保留原名**；
+ * 而编辑器手工建的工程与测试夹具里常直接写 name。故两者都要尝试。
+ */
+function resolveRelativeVar(
+  relativeTo: string | undefined,
+  project: ProjectData,
+  idToVar: Map<string, string>,
+): string | undefined {
+  if (!relativeTo) return undefined;
+  const byId = idToVar.get(relativeTo);
+  if (byId) return byId;
+  for (const f of Object.values(project.frames)) {
+    if (f.name === relativeTo) {
+      const v = idToVar.get(f.id);
+      /* v8 ignore next -- unreachable: buildFrameOrder 覆盖全部帧，命中 name 必然命中 id */
+      if (v) return v;
+    }
+  }
+  return undefined;
+}
+
 // 生成锚点设置代码 (JASS)
-function generateAnchorsJASS(frameName: string, anchors: FrameAnchor[], version: ExportVersion): string {
+function generateAnchorsJASS(
+  frameName: string,
+  anchors: FrameAnchor[],
+  version: ExportVersion,
+  idToVar: Map<string, string>,
+  project: ProjectData,
+): string {
   let code = '';
   const setPoint = getAPIFunction(version, 'FrameSetPoint');
   const setAbsPoint = getAPIFunction(version, 'FrameSetAbsPoint');
-  
+
   for (const anchor of anchors) {
     const anchorPoint = framePointToString(anchor.point);
-    if (anchor.relativeTo && anchor.relativePoint !== undefined) {
-      // 相对定位
+    const relVar = resolveRelativeVar(anchor.relativeTo, project, idToVar);
+    if (relVar && anchor.relativePoint !== undefined) {
       const relativePoint = framePointToString(anchor.relativePoint);
-      code += `    call ${setPoint}(${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
+      code += `    call ${setPoint}(${frameName}, ${anchorPoint}, ${relVar}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     } else {
-      // 绝对定位
       code += `    call ${setAbsPoint}(${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     }
   }
@@ -50,19 +146,24 @@ function generateAnchorsJASS(frameName: string, anchors: FrameAnchor[], version:
 }
 
 // 生成锚点设置代码 (LUA)
-function generateAnchorsLUA(frameName: string, anchors: FrameAnchor[], version: ExportVersion): string {
+function generateAnchorsLUA(
+  frameName: string,
+  anchors: FrameAnchor[],
+  version: ExportVersion,
+  idToVar: Map<string, string>,
+  project: ProjectData,
+): string {
   let code = '';
   const setPoint = getAPIFunction(version, 'FrameSetPoint');
   const setAbsPoint = getAPIFunction(version, 'FrameSetAbsPoint');
-  
+
   for (const anchor of anchors) {
     const anchorPoint = framePointToString(anchor.point);
-    if (anchor.relativeTo && anchor.relativePoint !== undefined) {
-      // 相对定位
+    const relVar = resolveRelativeVar(anchor.relativeTo, project, idToVar);
+    if (relVar && anchor.relativePoint !== undefined) {
       const relativePoint = framePointToString(anchor.relativePoint);
-      code += `    ${setPoint}(${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
+      code += `    ${setPoint}(${frameName}, ${anchorPoint}, ${relVar}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     } else {
-      // 绝对定位
       code += `    ${setAbsPoint}(${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)})\n`;
     }
   }
@@ -70,19 +171,25 @@ function generateAnchorsLUA(frameName: string, anchors: FrameAnchor[], version: 
 }
 
 // 生成锚点设置代码 (TypeScript)
-function generateAnchorsTypeScript(frameName: string, anchors: FrameAnchor[], version: ExportVersion): string {
+function generateAnchorsTypeScript(
+  frameName: string,
+  anchors: FrameAnchor[],
+  version: ExportVersion,
+  idToVar: Map<string, string>,
+  project: ProjectData,
+): string {
   let code = '';
   const setPoint = getAPIFunction(version, 'FrameSetPoint');
   const setAbsPoint = getAPIFunction(version, 'FrameSetAbsPoint');
   
   for (const anchor of anchors) {
     const anchorPoint = framePointToString(anchor.point);
-    if (anchor.relativeTo && anchor.relativePoint !== undefined) {
-      // 相对定位
+    // relativeTo 是 frame id，须换成变量名；解析不到则降级为绝对锚点
+    const relVar = resolveRelativeVar(anchor.relativeTo, project, idToVar);
+    if (relVar && anchor.relativePoint !== undefined) {
       const relativePoint = framePointToString(anchor.relativePoint);
-      code += `    ${setPoint}(this.${frameName}, ${anchorPoint}, ${anchor.relativeTo}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
+      code += `    ${setPoint}(this.${frameName}, ${anchorPoint}, this.${relVar}, ${relativePoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
     } else {
-      // 绝对定位
       code += `    ${setAbsPoint}(this.${frameName}, ${anchorPoint}, ${anchor.x.toFixed(5)}, ${anchor.y.toFixed(5)});\n`;
     }
   }
@@ -145,24 +252,27 @@ ${libName} = {}
 // 生成 JASS 代码
 export function generateJASSCode(project: ProjectData): string {
   const version = project.exportVersion || 'reforged';
-  let code = JASS_TEMPLATES.header(project.libraryName);
-  
-// 声明所有 Frame 变量
-  Object.values(project.frames).forEach(frame => {
-    const isArray = frame.name.includes('[');
-    if (!isArray || frame.name.includes('[00]')) {
-      const varName = isArray ? frame.name.replace('[00]', '') : frame.name;
-      code += JASS_TEMPLATES.frameDeclaration(varName, isArray);
-    }
-  });
-  
+  const libName = sanitizeLibraryName(project.libraryName);
+  const { idToVar, ordered } = buildFrameOrder(project);
+  let code = JASS_TEMPLATES.header(libName);
+
+// 声明所有 Frame 变量（用唯一变量名；数组帧只声明一次）
+  const declared = new Set<string>();
+  for (const frame of ordered) {
+    const varName = idToVar.get(frame.id)!;
+    const isArray = /\[(\d+)\]$/.test(frame.name ?? '');
+    if (declared.has(varName)) continue;
+    declared.add(varName);
+    code += JASS_TEMPLATES.frameDeclaration(varName, isArray);
+  }
+
   code += JASS_TEMPLATES.endGlobals;
-  
-// 创建所有 Frame
-  Object.values(project.frames).forEach(frame => {
-    code += generateFrameJASS(frame, project, version);
-  });
-  
+
+// 创建所有 Frame（父先子后）
+  for (const frame of ordered) {
+    code += generateFrameJASS(frame, project, version, idToVar);
+  }
+
   // 添加通用设置
   if (project.hideGameUI) {
     const enableAutoPos = getAPIFunction(version, 'EnableUIAutoPosition');
@@ -170,32 +280,35 @@ export function generateJASSCode(project: ProjectData): string {
     code += `    call ${enableAutoPos}(false)\n`;
     code += `    call ${hideOriginFrames}(true)\n`;
   }
-  
-  code += JASS_TEMPLATES.footer(project.libraryName);
-  
+
+  code += JASS_TEMPLATES.footer(libName);
+
   return code;
 }
 
 // 生成 LUA 代码
 export function generateLUACode(project: ProjectData): string {
   const version = project.exportVersion || 'reforged';
-  let code = LUA_TEMPLATES.header(project.libraryName);
-  
+  const libName = sanitizeLibraryName(project.libraryName);
+  const { idToVar, ordered } = buildFrameOrder(project);
+  let code = LUA_TEMPLATES.header(libName);
+
   code += '\n-- Frame declarations\n';
-  Object.values(project.frames).forEach(frame => {
-    const isArray = frame.name.includes('[');
-    if (!isArray || frame.name.includes('[00]')) {
-      const varName = isArray ? frame.name.replace('[00]', '') : frame.name;
-      code += LUA_TEMPLATES.frameDeclaration(varName, isArray);
-    }
-  });
-  
+  const declared = new Set<string>();
+  for (const frame of ordered) {
+    const vName = idToVar.get(frame.id)!;
+    const isArray = /\[(\d+)\]$/.test(frame.name ?? '');
+    if (declared.has(vName)) continue;
+    declared.add(vName);
+    code += LUA_TEMPLATES.frameDeclaration(vName, isArray);
+  }
+
   code += '\nfunction CreateFrames()\n';
-  
-// 创建所有 Frame
-  Object.values(project.frames).forEach(frame => {
-    code += generateFrameLUA(frame, project, version);
-  });
+
+// 创建所有 Frame（父先子后）
+  for (const frame of ordered) {
+    code += generateFrameLUA(frame, project, version, idToVar);
+  }
   
   // 添加通用设置
   if (project.hideGameUI) {
@@ -212,9 +325,14 @@ export function generateLUACode(project: ProjectData): string {
 }
 
 // 生成单个 Frame 的 JASS 代码
-function generateFrameJASS(frame: FrameData, project: ProjectData, version: ExportVersion): string {
-  const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
-  
+function generateFrameJASS(frame: FrameData, project: ProjectData, version: ExportVersion, idToVar: Map<string, string>): string {
+  const parent = resolveParentExpr(frame, project, version, idToVar);
+  const varName = idToVar.get(frame.id);
+  /* v8 ignore start -- unreachable: 调用方已为每个参与生成的帧登记变量名（见 buildIdToVar） */
+  if (!varName) return '';
+  /* v8 ignore end */
+  const escName = escapeJassString(frame.name);
+
   // 获取锚点数组,如果不存在则创建默认锚点
   const anchors = frame.anchors || createDefaultAnchors(frame.x, frame.y, frame.width, frame.height);
   
@@ -233,68 +351,68 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
   
   switch (frame.type) {
     case FrameType.BACKDROP:
-      code += `    set ${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
+      code += `    set ${varName} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetTexture}(${varName}, "${escapeJassString(frame.texture || 'UI\\Widgets\\EscMenu\\Human\\background.blp')}", 0, true)\n`;
       break;
     
     case FrameType.BUTTON:
     case FrameType.BROWSER_BUTTON:
     case FrameType.SCRIPT_DIALOG_BUTTON:
-      code += `    set ${frame.name} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.TEXT_FRAME:
-      code += `    set ${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetText}(${frame.name}, "|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r")\n`;
-      code += `    call ${frameSetScale}(${frame.name}, ${(frame.textScale || 1).toFixed(2)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("TEXT", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetText}(${varName}, "${escapeJassString(`|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r`)}")\n`;
+      code += `    call ${frameSetScale}(${varName}, ${(frame.textScale || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.EDITBOX:
-      code += `    set ${frame.name} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetEnable}(${frame.name}, true)\n`;
-      code += `    call ${frameSetFocus}(${frame.name}, false)\n`;
+      code += `    set ${varName} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetEnable}(${varName}, true)\n`;
+      code += `    call ${frameSetFocus}(${varName}, false)\n`;
       break;
     
     case FrameType.SLIDER:
-      code += `    set ${frame.name} = ${createFrame}("SliderTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    call ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    set ${varName} = ${createFrame}("SliderTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    call ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.CHECKBOX:
-      code += `    set ${frame.name} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetEnable}(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
+      code += `    set ${varName} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetEnable}(${varName}, ${frame.checked ? 'true' : 'false'})\n`;
       break;
     
     case FrameType.FRAME:
     case FrameType.SIMPLEFRAME:
     case FrameType.CONTROL:
     case FrameType.DIALOG:
-      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.SIMPLEFONTSTRING:
     case FrameType.TEXTAREA:
     case FrameType.TIMERTEXT:
-      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.text) {
-        code += `    call ${frameSetText}(${frame.name}, "${frame.text}")\n`;
+        code += `    call ${frameSetText}(${varName}, "${escapeJassString(frame.text)}")\n`;
       }
       break;
     
@@ -302,61 +420,61 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
     case FrameType.GLUEBUTTON:
     case FrameType.SIMPLEBUTTON:
     case FrameType.INVIS_BUTTON:
-      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.SCROLLBAR:
-      code += `    set ${frame.name} = ${createFrameByType}("SCROLLBAR", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    call ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("SCROLLBAR", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    call ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    call ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.LISTBOX:
     case FrameType.MENU:
     case FrameType.POPUPMENU:
-      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.SPRITE:
     case FrameType.MODEL:
-      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.texture) {
-        code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+        code += `    call ${frameSetTexture}(${varName}, "${escapeJassString(frame.texture)}", 0, true)\n`;
       }
       break;
     
     case FrameType.HIGHLIGHT:
-      code += `    set ${frame.name} = ${createFrameByType}("HIGHLIGHT", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("HIGHLIGHT", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.texture) {
-        code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+        code += `    call ${frameSetTexture}(${varName}, "${frame.texture}", 0, true)\n`;
       }
       break;
     
     case FrameType.SIMPLESTATUSBAR:
     case FrameType.STATUSBAR:
-      code += `    set ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.texture) {
-        code += `    call ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+        code += `    call ${frameSetTexture}(${varName}, "${frame.texture}", 0, true)\n`;
       }
-      code += `    call ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    call ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
       break;
     
     default:
-      code += `    set ${frame.name} = ${createFrameByType}("FRAME", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsJASS(frame.name, anchors, version);
-      code += `    call ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    set ${varName} = ${createFrameByType}("FRAME", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
+      code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
   }
   
@@ -365,9 +483,14 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
 }
 
 // 生成单个 Frame 的 LUA 代码
-function generateFrameLUA(frame: FrameData, project: ProjectData, version: ExportVersion): string {
-  const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
-  
+function generateFrameLUA(frame: FrameData, project: ProjectData, version: ExportVersion, idToVar: Map<string, string>): string {
+  const parent = resolveParentExpr(frame, project, version, idToVar);
+  const varName = idToVar.get(frame.id);
+  /* v8 ignore start -- unreachable: 调用方已为每个参与生成的帧登记变量名（见 buildFrameOrder） */
+  if (!varName) return '';
+  /* v8 ignore end */
+  const escName = escapeLuaString(frame.name);
+
   // 获取锚点数组,如果不存在则创建默认锚点
   const anchors = frame.anchors || createDefaultAnchors(frame.x, frame.y, frame.width, frame.height);
   
@@ -386,68 +509,68 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
   
   switch (frame.type) {
     case FrameType.BACKDROP:
-      code += `    ${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetTexture}(${frame.name}, "${frame.texture || 'UI\\\\Widgets\\\\EscMenu\\\\Human\\\\background.blp'}", 0, true)\n`;
+      code += `    ${varName} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetTexture}(${varName}, "${escapeLuaString(frame.texture || 'UI\\Widgets\\EscMenu\\Human\\background.blp')}", 0, true)\n`;
       break;
     
     case FrameType.BUTTON:
     case FrameType.BROWSER_BUTTON:
     case FrameType.SCRIPT_DIALOG_BUTTON:
-      code += `    ${frame.name} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.TEXT_FRAME:
-      code += `    ${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetText}(${frame.name}, "|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r")\n`;
-      code += `    ${frameSetScale}(${frame.name}, ${(frame.textScale || 1).toFixed(2)})\n`;
+      code += `    ${varName} = ${createFrameByType}("TEXT", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetText}(${varName}, "${escapeLuaString(`|cff${(frame.textColor || '#FFFFFF').slice(1)}${frame.text || ''}|r`)}")\n`;
+      code += `    ${frameSetScale}(${varName}, ${(frame.textScale || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.EDITBOX:
-      code += `    ${frame.name} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetEnable}(${frame.name}, true)\n`;
-      code += `    ${frameSetFocus}(${frame.name}, false)\n`;
+      code += `    ${varName} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetEnable}(${varName}, true)\n`;
+      code += `    ${frameSetFocus}(${varName}, false)\n`;
       break;
     
     case FrameType.SLIDER:
-      code += `    ${frame.name} = ${createFrame}("SliderTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    ${varName} = ${createFrame}("SliderTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.CHECKBOX:
-      code += `    ${frame.name} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetEnable}(${frame.name}, ${frame.checked ? 'true' : 'false'})\n`;
+      code += `    ${varName} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetEnable}(${varName}, ${frame.checked ? 'true' : 'false'})\n`;
       break;
     
     case FrameType.FRAME:
     case FrameType.SIMPLEFRAME:
     case FrameType.CONTROL:
     case FrameType.DIALOG:
-      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.SIMPLEFONTSTRING:
     case FrameType.TEXTAREA:
     case FrameType.TIMERTEXT:
-      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.text) {
-        code += `    ${frameSetText}(${frame.name}, "${frame.text}")\n`;
+        code += `    ${frameSetText}(${varName}, "${escapeLuaString(frame.text)}")\n`;
       }
       break;
     
@@ -455,61 +578,61 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
     case FrameType.GLUEBUTTON:
     case FrameType.SIMPLEBUTTON:
     case FrameType.INVIS_BUTTON:
-      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.SCROLLBAR:
-      code += `    ${frame.name} = ${createFrameByType}("SCROLLBAR", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    ${frameSetStepSize}(${frame.name}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    ${varName} = ${createFrameByType}("SCROLLBAR", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.LISTBOX:
     case FrameType.MENU:
     case FrameType.POPUPMENU:
-      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
     
     case FrameType.SPRITE:
     case FrameType.MODEL:
-      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+        code += `    ${frameSetTexture}(${varName}, "${escapeLuaString(frame.texture)}", 0, true)\n`;
       }
       break;
     
     case FrameType.HIGHLIGHT:
-      code += `    ${frame.name} = ${createFrameByType}("HIGHLIGHT", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("HIGHLIGHT", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+        code += `    ${frameSetTexture}(${varName}, "${frame.texture}", 0, true)\n`;
       }
       break;
     
     case FrameType.SIMPLESTATUSBAR:
     case FrameType.STATUSBAR:
-      code += `    ${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(${frame.name}, "${frame.texture}", 0, true)\n`;
+        code += `    ${frameSetTexture}(${varName}, "${frame.texture}", 0, true)\n`;
       }
-      code += `    ${frameSetMinMaxValue}(${frame.name}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
+      code += `    ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
       break;
     
     default:
-      code += `    ${frame.name} = ${createFrameByType}("FRAME", "${frame.name}", ${parent}, "", 0)\n`;
-      code += generateAnchorsLUA(frame.name, anchors, version);
-      code += `    ${frameSetSize}(${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
+      code += `    ${varName} = ${createFrameByType}("FRAME", "${escName}", ${parent}, "", 0)\n`;
+      code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
   }
   
@@ -520,15 +643,17 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
 // 生成 TypeScript 代码
 export function generateTypeScriptCode(project: ProjectData): string {
   const version = project.exportVersion || 'reforged';
+  const libName = sanitizeLibraryName(project.libraryName);
+  const { idToVar, ordered } = buildFrameOrder(project);
   let code = `
 /**
- * UI Library: ${project.libraryName}
+ * UI Library: ${libName}
  * Generated by Warcraft 3 UI Designer
  * Date: ${new Date().toLocaleString()}
  * Version: ${version === 'reforged' ? 'Reforged' : '1.27'}
  */
 
-export class ${project.libraryName} {
+export class ${libName} {
 `;
   
 // 声明所有 Frame 变量
@@ -548,23 +673,30 @@ export class ${project.libraryName} {
   
   code += `  private createFrames(): void {\n`;
   
-// 创建所有 Frame
-  Object.values(project.frames).forEach(frame => {
-    code += generateFrameTypeScript(frame, project, version);
-  });
+// 创建所有 Frame（父先子后）
+  for (const frame of ordered) {
+    code += generateFrameTypeScript(frame, project, version, idToVar);
+  }
   
   code += `  }\n`;
   code += `}\n\n`;
   code += `// 初始化\n`;
-  code += `const ui = new ${project.libraryName}();\n`;
+  code += `const ui = new ${libName}();\n`;
   
   return code;
 }
 
 // 生成单个 Frame 的 TypeScript 代码
-function generateFrameTypeScript(frame: FrameData, project: ProjectData, version: ExportVersion): string {
+function generateFrameTypeScript(frame: FrameData, project: ProjectData, version: ExportVersion, idToVar: Map<string, string>): string {
   const getOriginFrame = getAPIFunction(version, 'GetOriginFrame');
-  const parent = frame.parentId ? `this.${project.frames[frame.parentId].name}` : `${getOriginFrame}(ORIGIN_FRAME_GAME_UI, 0)`;
+  const varName = idToVar.get(frame.id);
+  /* v8 ignore start -- unreachable: 调用方已为每个参与生成的帧登记变量名（见 buildFrameOrder） */
+  if (!varName) return '';
+  /* v8 ignore end */
+  const escName = frame.name ?? '';
+  const parentId = frame.parentId;
+  const parentVar = parentId ? idToVar.get(parentId) : undefined;
+  const parent = parentVar ? `this.${parentVar}` : `${getOriginFrame}(ORIGIN_FRAME_GAME_UI, 0)`;
   
   // 获取锚点数组,如果不存在则创建默认锚点
   const anchors = frame.anchors || createDefaultAnchors(frame.x, frame.y, frame.width, frame.height);
@@ -583,71 +715,71 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
   
   switch (frame.type) {
     case FrameType.BACKDROP:
-      code += `    this.${frame.name} = ${createFrame}("BACKDROP", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrame}("BACKDROP", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+        code += `    ${frameSetTexture}(this.${varName}, "${frame.texture}", 0, true);\n`;
       }
       break;
     
     case FrameType.BUTTON:
     case FrameType.BROWSER_BUTTON:
     case FrameType.SCRIPT_DIALOG_BUTTON:
-      code += `    this.${frame.name} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrame}("ScriptDialogButton", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       break;
     
     case FrameType.TEXT_FRAME:
-      code += `    this.${frame.name} = ${createFrameByType}("TEXT", "", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("TEXT", "", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.text) {
-        code += `    ${frameSetText}(this.${frame.name}, "|cff${frame.textColor?.slice(1) || 'FFFFFF'}${frame.text}|r");\n`;
+        code += `    ${frameSetText}(this.${varName}, "|cff${frame.textColor?.slice(1) || 'FFFFFF'}${frame.text}|r");\n`;
       }
       break;
     
     case FrameType.EDITBOX:
-      code += `    this.${frame.name} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    ${frameSetEnable}(this.${frame.name}, true);\n`;
-      code += `    ${frameSetFocus}(this.${frame.name}, false);\n`;
+      code += `    this.${varName} = ${createFrameByType}("EDITBOX", "", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetEnable}(this.${varName}, true);\n`;
+      code += `    ${frameSetFocus}(this.${varName}, false);\n`;
       break;
     
     case FrameType.SLIDER:
-      code += `    this.${frame.name} = ${createFrame}("SliderTemplate", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    ${frameSetMinMaxValue}(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
-      code += `    ${frameSetStepSize}(this.${frame.name}, ${frame.stepSize || 1});\n`;
+      code += `    this.${varName} = ${createFrame}("SliderTemplate", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetMinMaxValue}(this.${varName}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
+      code += `    ${frameSetStepSize}(this.${varName}, ${frame.stepSize || 1});\n`;
       break;
     
     case FrameType.CHECKBOX:
-      code += `    this.${frame.name} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    ${frameSetEnable}(this.${frame.name}, ${frame.checked || false});\n`;
+      code += `    this.${varName} = ${createFrame}("CheckBoxTemplate", ${parent}, 0, 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetEnable}(this.${varName}, ${frame.checked || false});\n`;
       break;
     
     case FrameType.FRAME:
     case FrameType.SIMPLEFRAME:
     case FrameType.CONTROL:
     case FrameType.DIALOG:
-      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       break;
     
     case FrameType.SIMPLEFONTSTRING:
     case FrameType.TEXTAREA:
     case FrameType.TIMERTEXT:
-      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.text) {
-        code += `    ${frameSetText}(this.${frame.name}, "${frame.text}");\n`;
+        code += `    ${frameSetText}(this.${varName}, "${frame.text}");\n`;
       }
       break;
     
@@ -655,61 +787,61 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
     case FrameType.GLUEBUTTON:
     case FrameType.SIMPLEBUTTON:
     case FrameType.INVIS_BUTTON:
-      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       break;
     
     case FrameType.SCROLLBAR:
-      code += `    this.${frame.name} = ${createFrameByType}("SCROLLBAR", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      code += `    ${frameSetMinMaxValue}(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
-      code += `    ${frameSetStepSize}(this.${frame.name}, ${frame.stepSize || 1});\n`;
+      code += `    this.${varName} = ${createFrameByType}("SCROLLBAR", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    ${frameSetMinMaxValue}(this.${varName}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
+      code += `    ${frameSetStepSize}(this.${varName}, ${frame.stepSize || 1});\n`;
       break;
     
     case FrameType.LISTBOX:
     case FrameType.MENU:
     case FrameType.POPUPMENU:
-      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       break;
     
     case FrameType.SPRITE:
     case FrameType.MODEL:
-      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+        code += `    ${frameSetTexture}(this.${varName}, "${frame.texture}", 0, true);\n`;
       }
       break;
     
     case FrameType.HIGHLIGHT:
-      code += `    this.${frame.name} = ${createFrameByType}("HIGHLIGHT", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("HIGHLIGHT", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+        code += `    ${frameSetTexture}(this.${varName}, "${frame.texture}", 0, true);\n`;
       }
       break;
     
     case FrameType.SIMPLESTATUSBAR:
     case FrameType.STATUSBAR:
-      code += `    this.${frame.name} = ${createFrameByType}("${FrameType[frame.type]}", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("${FrameType[frame.type]}", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       if (frame.texture) {
-        code += `    ${frameSetTexture}(this.${frame.name}, "${frame.texture}", 0, true);\n`;
+        code += `    ${frameSetTexture}(this.${varName}, "${frame.texture}", 0, true);\n`;
       }
-      code += `    ${frameSetMinMaxValue}(this.${frame.name}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
+      code += `    ${frameSetMinMaxValue}(this.${varName}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
       break;
     
     default:
-      code += `    this.${frame.name} = ${createFrameByType}("FRAME", "${frame.name}", ${parent}, "", 0);\n`;
-      code += generateAnchorsTypeScript(frame.name, anchors, version);
-      code += `    ${frameSetSize}(this.${frame.name}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
+      code += `    this.${varName} = ${createFrameByType}("FRAME", "${escName}", ${parent}, "", 0);\n`;
+      code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
+      code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
   }
   
   return code;

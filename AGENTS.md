@@ -110,9 +110,35 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `96 passed | 2 skipped` 测试文件，`1763 passed | 5 skipped` 测试
+- `98 passed | 2 skipped` 测试文件，`1809 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+### JASS/LUA/TS 代码导出完善（本轮）
+
+`src/utils/codeExport.ts` 的三语言导出长期只用 `toContain('子串')` 断言，**从未验证产物是否合法**，
+因此 9 个缺陷长期漏网（全部经探针实测确认）。新增 `src/utils/codegen/`：
+- `identifiers.ts`：`toIdentifier`（净化 + 保字规避 + 重名去重）、`escapeJassString`（`"`→`""`、`\`→`\\`、换行→`\n`）、
+  `escapeLuaString`（`"`→`\"`）、`sanitizeLibraryName`。
+- `identifiers.test.ts`（29 测）从"转换规则"侧验证；`jassExport.parity.test.ts`（17 测）从"产物合法性"侧验证。
+
+**已修 9 项缺陷**（P0 编译失败 / P1 语法错误 / P2 语义错误）：
+1. 锚点 `relativeTo` 原样输出 **frame id**（JASS 无此变量）→ 改为解析成变量名；
+   注意 `relativeTo` 可能是 **id 或 name**（`fdfKernelTransformer` L274-281 会转 id，但按名查不到时保留原名，
+   编辑器手工工程/测试夹具常写 name），故两者都尝试（`resolveRelativeVar`）。解析不到则**降级为绝对锚点**。
+2. 文本未转义双引号 → `escapeJassString` / `escapeLuaString`
+3. 纹理反斜杠未转义（`\W` 被当转义序列）→ 同上
+4/5. 帧名含空格/连字符/数字开头 → `toIdentifier` 净化
+6. 重复帧名重复声明 → 声明去重
+7. `libraryName` 未净化 → `sanitizeLibraryName`
+8. **子帧先于父帧创建**（父仍 `null`，锚定静默失败）→ `buildFrameOrder` **拓扑排序**（父先子后）
+9. `parentId` 悬空直接抛 `Cannot read properties of undefined` → `resolveParentExpr` 降级为 origin frame
+
+**端到端验证**：真实 war3.mpq 抽查 4 个 Glue 屏幕（含 104 帧的 `CampaignMenu`），
+产物通过合法性体检（声明名合法 / 引号成对 / 括号成对），无问题。
+
+**注意（行为变更）**：修正了 `codeExport.test.ts` 两处过时断言——LUA 默认纹理现为转义后的
+`UI\\Widgets\\...`；TS 相对锚点现为 `this.parent`（原为裸 `parent`，IDE 会报未定义）。
 
 ### 渲染器单测缺口补齐（本轮）
 
