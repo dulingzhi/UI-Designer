@@ -11,10 +11,11 @@
 里程碑（matching, 档）：
 - 档3a Solver 内核与参考求解器对拍 —— DONE
 - 档3b 独立真实数据桥接（不再复用参考求解器）—— DONE
-- 档2 渲染像素对拍 PSNR —— DONE
+- 档2 渲染像素对拍 PSNR —— DONE（验收：t1 不透明 / t2 半透明 精确 0 diff，t4 平滑 ≥45dB 实测 71.6；t2 曾因 psnr.html 材质漏 `transparent:true` 实测 10.46dB，修复 harness 后 0 diff——真实产品路径 ShaderLib 本就 `transparent:true`）
 - 最终交付目标：**浏览器栅格 PSNR ≥ 45**（对复杂/全屏场景若无法达成，须如实上报，不得硬凑或掩盖）
+  - **已知诚实上限（不进入验收门）**：t3 高频 checker 采样滤波器差异，实测 PSNR≈27dB（canvas2D high vs WebGL LinearFilter），非布局缺陷，文档化保留。
 
-像素矩形对拍（`tests/ow3compare/pixelrect.real.test.ts`）是绿色守护线（guarded-green），不可破坏。
+像素矩形对拍（`tests/ow3compare/pixelrect.real.test.ts`）是绿色守护线（guarded-green），不可破坏；`tests/ow3compare/psnr.real.test.ts` 现覆盖 t1/t2/t4。
 
 ---
 
@@ -31,8 +32,8 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `85 passed | 2 skipped` 测试文件，`1618 passed | 5 skipped` 测试
-- 内核/对拍：`13 passed | 2 skipped` 文件，`398 passed | 5 skipped` 测试
+- `85 passed | 2 skipped` 测试文件，`1619 passed | 5 skipped` 测试
+- 内核/对拍：`13 passed | 2 skipped` 文件，`399 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
 ---

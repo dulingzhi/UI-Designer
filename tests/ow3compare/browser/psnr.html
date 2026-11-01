@@ -59,7 +59,9 @@ const refG = refCv.getContext('2d');
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.needsUpdate = true;
-    const mat = new THREE.MeshBasicMaterial({ map: tex });
+    // transparent:true 必需的——半透明纹理会按 alpha 正确合成到透明清屏背景，
+    // 否则被当不透明渲染(alpha 被忽略)。t2 正是因此实测 10.46dB -> 修复后 0 diff。
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
     // plane covering rect in clip coords. Camera ortho(-1..1) maps to full canvas [0..W].
     // clipX for pixel cx: cx/W*2-1 ; clipY for pixel (bottom-origin) cy: cy/H*2-1
     // Our rect in canvas top-origin: x, y(top), w, h. Convert to bottom-origin cy_b = H-(y+h).

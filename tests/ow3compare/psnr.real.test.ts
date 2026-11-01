@@ -9,9 +9,11 @@
  *
  * 纹理集:
  *  - t1 真实 GlueScreen-Button1-BackdropBackground (32x32, 全不透明) -> 预期精确匹配
+ *  - t2 真实 bnet-inputbox-back (64x64, 半透明)     -> 预期精确匹配
+ *     (修复: 产品 WebGL 材质需 transparent:true; 此前 10.46dB, 修复后 0 diff)
  *  - t4 程序化平滑渐变 (256x256, 全不透明)            -> 预期 <1/255 (通过验收)
  *  - t3 程序化高频 checker (256x256, 全不透明)        -> 已知采样滤波器差异, 非布局缺陷;
- *    作为"诚实报告"保留, 不进入验收门 (文档化已知上限)。
+ *    作为"诚实报告"保留, 不进入验收门 (文档化已知上限, 实测 PSNR≈27dB)。
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -55,5 +57,13 @@ describe('档2 公平基元 浏览器栅格 PSNR (openwar3 canvas2D vs product W
     expect(psnrDb(r.psnr)).toBeGreaterThanOrEqual(45);
     expect(r.maxChannelDiff).toBeLessThanOrEqual(1);
     expect(r.diffRatio).toBeLessThanOrEqual(0.001);
+  }, 90_000);
+
+  it('t2 真实半透明输入框背景 精确匹配 (diff=0, maxChDiff=0)', () => {
+    // 实证：产品路径材质需 transparent:true（psnr.html 已修复），否则半透明撤 tint 被当不透明渲染，
+    // 此前 PSNR=10.46dB。修复后 RGBA 正确合成，精确匹配参考 canvas composite。
+    const r = runPsnr('2');
+    expect(r.diffPixels).toBe(0);
+    expect(r.maxChannelDiff).toBe(0);
   }, 90_000);
 });
