@@ -110,9 +110,32 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `93 passed | 2 skipped` 测试文件，`1730 passed | 5 skipped` 测试
+- `95 passed | 2 skipped` 测试文件，`1758 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+### 渲染器单测缺口补齐（本轮）
+
+审计 `src/renderer` 全部模块后发现：`backdropLayout / buttonState / highlightColor / highlightType /
+editBoxBorder / hitTest / layerStyle / fontResolver / textLayout / backdropBlend / backdropSplitEdges /
+pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `ShaderLib` 与 `TextureCache` 没有
+（此前 `psnr.real.test.ts` 只是间接用了 `TextureCache` 实例，未对其行为断言）。已补：
+- `tests/visual-regression/shaderLib.test.ts`（21 测）：材质映射（基色/NOSHADING/alpha 归一化/钳制）、
+  alphaMode → alphaTest 与混合（BLEND vs ADD 的差异在 `blendDst`）、纹理 UV（repeat/offset/wrap 默认与覆盖）、
+  `updateMaterial` 原地更新与受管纹理。
+- `tests/visual-regression/textureCache.test.ts`（7 测）：路径归一化、1×1 品红 fallback 及其 sRGB/LinearFilter
+  参数、失败后从缓存移除允许重试、LRU 上限不崩、`dispose` 幂等。
+- **`SceneGraphManager` 仍无直接单测**：其构造需要真实 GPU（private ctor + `create()` 走 WebGPU/WebGL 回退），
+  无法在纯单测中实例化。它消费的几何由 `pixelSnap`（已测）给出、材质由 `ShaderLib`（本文件已测）给出，
+  故**可确定性断言的部分已覆盖**；GPU 光栅结果只在 `psnr.real.test.ts` 的 t1/t2/t4 三个公平基元上验证。
+
+**ShaderLib 已知问题（已在测试中以"已知问题"用例固定，非期望语义）**：
+1. `alphaMode: 'DISABLE'` 实际走不到 `NoBlending` 分支——`parseAlphaMode` 的 switch 只识别
+   `ALPHAKEY/ADD/BLEND`，`'DISABLE'` 回落为 `BLEND`，故 `alphaTest` 被设为 `4/255`、`depthWrite` 仍为 `false`。
+2. `createMaterial` 不设置 `userData.managedTexture`（仅 `updateMaterial` 设置），
+   故首帧带纹理时旧纹理在首次换图时不会被 `dispose`（泄漏一次）。
+3. `material.needsUpdate = true` 在 NodeMaterial 上读回为 `undefined`（写入不产生可断言读回值）。
+这三项**未修**，测试锁定现状；修复时对应用例会变红，需同步更新本文档。
 
 > 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`
 > 让内核几何先 overlay 进 FrameData），再断言求解器覆盖不破坏该几何——与渲染真实数据流一致。
