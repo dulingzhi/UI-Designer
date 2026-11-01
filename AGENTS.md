@@ -25,6 +25,17 @@
     可比的诚实像素面只有"公平基元"（单纹理双端拉伸），即 t1/t2/t4。故不建整屏 PSNR 守卫，避免空对空。
 
 像素矩形对拍（`tests/ow3compare/pixelrect.real.test.ts`）是绿色守护线（guarded-green），不可破坏；`tests/ow3compare/psnr.real.test.ts` 现覆盖 t1/t2/t4。
+- **编辑器渲染像素映射一致守卫（几何一致守卫，实证落点）**：`tests/ow3compare/editorrender.pixelrect.test.ts`。
+  在 1920×1080、margin=240 下，对世界矩形网格**穷举**（10×9×8×8=5760 组）断言
+  `SceneGraphManager.computePixelRect` 所用的 `coordinateService + snapRectToPixels`
+  （编辑器渲染路径）与内核/参考 `fdfKernelLayout.toPixels`（openwar3 路径）落到**完全相同的整数像素矩形**。
+  两者代数同构（uniform scale 1800=1080/0.6；编辑器加 240px X margin，内核无 margin，统一约定后抵消），
+  故可全量成立、无 root/子帧特殊化。此守卫覆盖「编辑器渲染路径的世界→像素映射」与内核/参考一致的硬门槛。
+  **实证边界**：编辑器锚点求解器 `calculatePositionFromAnchors`（`anchorUtils.ts`）是**有状态 UI 辅助**
+  （依赖存储 x/y/width/height，`relativeTo` 递归），与内核声明式 `fdfKernelLayout.layout` 语义不同，
+  在真实 scene 上大量 global 分歧（产品数据中根/无锚点帧、动态尺寸多锚点均不一致），不把它们对拍为守卫。
+  锚点求解器不做反汇编 floor 等价（`subtreeparity.test.ts` 的 SKIP 理由仍成立），编辑器几何一致性的诚实
+  可验证层 = 像素映射，而非求解器本身。
 
 ---
 
