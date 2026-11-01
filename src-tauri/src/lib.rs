@@ -1,8 +1,6 @@
-use std::sync::Mutex;
-use std::collections::HashMap;
-
 mod mdx_parser;
 mod blp_handler;
+mod mpq_io;
 pub mod tcp_server;
 
 use mdx_parser::MdxParser;
@@ -13,103 +11,35 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-#[derive(serde::Serialize, Clone)]
-struct MpqFileInfo {
-    name: String,
-    size: u64,
-}
-
-// MPQ 档案缓存
-struct MpqCache {
-    archives: HashMap<String, Vec<MpqFileInfo>>,
-}
-
-impl MpqCache {
-    fn new() -> Self {
-        MpqCache {
-            archives: HashMap::new(),
-        }
-    }
-}
-
-static MPQ_CACHE: Mutex<Option<MpqCache>> = Mutex::new(None);
-
-fn init_cache() {
-    let mut cache = MPQ_CACHE.lock().unwrap();
-    if cache.is_none() {
-        *cache = Some(MpqCache::new());
-    }
-}
+// --------------------------------------------------------------------------
+// MPQ：统一委托给 mpq_io::ArchivePool（开档句柄缓存 + has_file 快速查询）。
+// 详见 src/mpq_io.rs。保留旧命令名（load_mpq_archive / read_mpq_file /
+// clear_mpq_cache）以维持前端契约不破坏。
+// --------------------------------------------------------------------------
 
 #[tauri::command]
-fn load_mpq_archive(path: String) -> Result<Vec<MpqFileInfo>, String> {
-    init_cache();
-    
-    // 检查缓存
-    {
-        let cache = MPQ_CACHE.lock().unwrap();
-        if let Some(ref cache) = *cache {
-            if let Some(files) = cache.archives.get(&path) {
-                return Ok(files.clone());
-            }
-        }
-    }
-    
-    // 打开 MPQ 档案（wow-mpq 使用路径而不是 File）
-    let mut archive = wow_mpq::Archive::open(&path)
-        .map_err(|e| format!("无法打开 MPQ 档案: {:?}", e))?;
-    
-    // 获取文件列表
-    let mut files = Vec::new();
-    
-    // 尝试读取 listfile
-    match archive.read_file("(listfile)") {
-        Ok(listfile_data) => {
-            let listfile_str = String::from_utf8_lossy(&listfile_data);
-            for line in listfile_str.lines() {
-                let filename = line.trim();
-                if !filename.is_empty() {
-                    files.push(MpqFileInfo {
-                        name: filename.to_string(),
-                        size: 0,
-                    });
-                }
-            }
-        }
-        Err(_) => {
-            // listfile 不存在，忽略
-        }
-    }
-    
-    // 缓存结果
-    let mut cache = MPQ_CACHE.lock().unwrap();
-    if let Some(ref mut cache) = *cache {
-        cache.archives.insert(path, files.clone());
-    }
-    
-    Ok(files)
+fn load_mpq_archive(path: String) -> Result<Vec<mpq_io::MpqFileInfo>, String> {
+    let mut pool = mpq_io::pool().lock().map_err(|e| e.to_string())?;
+    pool.list_files(&path)
 }
 
 #[tauri::command]
 fn read_mpq_file(archive_path: String, file_name: String) -> Result<Vec<u8>, String> {
-    // 打开 MPQ 档案
-    let mut archive = wow_mpq::Archive::open(&archive_path)
-        .map_err(|e| format!("无法打开 MPQ 档案: {:?}", e))?;
-    
-    // 读取指定文件
-    let file_data = archive
-        .read_file(&file_name)
-        .map_err(|e| format!("无法读取文件 {}: {:?}", file_name, e))?;
-    
-    Ok(file_data)
+    let mut pool = mpq_io::pool().lock().map_err(|e| e.to_string())?;
+    pool.read_file(&archive_path, &file_name)
+}
+
+/// 判断档案中是否存在指定文件（精度 listfile；供前端 DataSource::exists 使用）。
+#[tauri::command]
+fn has_mpq_file(archive_path: String, file_name: String) -> Result<bool, String> {
+    let mut pool = mpq_io::pool().lock().map_err(|e| e.to_string())?;
+    pool.has_file(&archive_path, &file_name)
 }
 
 #[tauri::command]
 fn clear_mpq_cache() -> Result<(), String> {
-    let mut cache = MPQ_CACHE.lock().unwrap();
-    if let Some(ref mut cache) = *cache {
-        cache.archives.clear();
-    }
+    let mut pool = mpq_io::pool().lock().map_err(|e| e.to_string())?;
+    pool.clear();
     Ok(())
 }
 
@@ -386,6 +316,7 @@ pub fn run() {
             greet,
             load_mpq_archive,
             read_mpq_file,
+            has_mpq_file,
             clear_mpq_cache,
             decode_blp_to_png,
             decode_blp_to_rgba,

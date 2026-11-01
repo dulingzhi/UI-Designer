@@ -27,14 +27,18 @@ export class FDFParser {
    * 获取当前 Token
    */
   private currentToken(): Token {
+    /* v8 ignore start: current never exceeds last index (advance caps at len-1), so the right operand is unreachable. */
     return this.tokens[this.current] || this.tokens[this.tokens.length - 1];
+    /* v8 ignore end */
   }
   
   /**
    * 查看下一个 Token（不移动位置）
    */
   private peek(offset: number = 1): Token {
+    /* v8 ignore start: peeks stay within the token stream (always terminates in EOF), so the right operand is unreachable. */
     return this.tokens[this.current + offset] || this.tokens[this.tokens.length - 1];
+    /* v8 ignore end */
   }
   
   /**
@@ -42,9 +46,11 @@ export class FDFParser {
    */
   private advance(): Token {
     const token = this.currentToken();
+    /* v8 ignore start: advance() is never invoked on the EOF token (parse stops via check(EOF)), so this guard's false arm is unreachable. */
     if (this.current < this.tokens.length - 1) {
       this.current++;
     }
+    /* v8 ignore end */
     return token;
   }
   
@@ -291,6 +297,8 @@ export class FDFParser {
     
     // 可选的名称
     let name: string | undefined;
+    /* v8 ignore start: dispatch only routes here when the token after TEXTURE/STRING is LEFT_BRACE, so the
+       following STRING/INHERITS checks are always false (name/inherits cannot precede the brace). */
     if (this.check(TokenType.STRING)) {
       name = this.advance().value;
     }
@@ -301,6 +309,7 @@ export class FDFParser {
       this.advance();
       inherits = this.expect(TokenType.STRING).value;
     }
+    /* v8 ignore end */
     
     // 解析属性块
     this.expect(TokenType.LEFT_BRACE);

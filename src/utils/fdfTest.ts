@@ -108,8 +108,3 @@ export function testFDFParser() {
   
   console.log('\n========== 测试完成 ==========');
 }
-
-// 在开发环境下自动运行测试
-if (import.meta.env.DEV) {
-  // testFDFParser(); // 取消注释以运行测试
-}

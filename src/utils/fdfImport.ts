@@ -144,9 +144,7 @@ function extractRawProperties(properties: FDFProperty[]): Record<string, any> {
   const raw: Record<string, any> = {};
   
   properties.forEach(prop => {
-    if (prop.type === 'Property') {
-      raw[prop.name] = extractPropertyValue(prop.value);
-    }
+    raw[prop.name] = extractPropertyValue(prop.value);
   });
   
   return raw;

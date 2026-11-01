@@ -1,0 +1,89 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<canvas id="ref" width="1920" height="1080"></canvas>
+<canvas id="mine" width="1920" height="1080"></canvas>
+<div id="out" style="font:12px monospace;white-space:pre">PENDING</div>
+<script>window.addEventListener('error', (e) => {
+  const o = document.getElementById('out');
+  if (o) o.textContent += 'PAGE_ERR: ' + e.message + '\n';
+});</script>
+<script type="module">
+// 档2 公平基元 PSNR harness:
+//   ref  = openwar3 single-stretch path: canvas-2D g.imageSmoothingEnabled=true; g.drawImage(sprite, ix,iy,iw,ih)
+//   mine = 产品路径: THREE WebGLRenderer + DataTexture(LinearFilter, flipY, SRGBColorSpace) 覆盖同一内矩形
+import * as THREE from '/threebuild/three.module.js';
+
+// --- config injected by driver ---
+const CFG = window.__PSNR || {};
+  const colorSpace = CFG.colorSpace !== 'raw';
+const RECT = { x: CFG.rectX, y: CFG.rectY, w: CFG.rectW, h: CFG.rectH };
+const W = 1920, H = 1080;
+const out = document.getElementById('out');
+const log = (s) => { out.textContent += s + '\n'; };
+const refCv = document.getElementById('ref');
+const refG = refCv.getContext('2d');
+
+(async () => {
+  log('renderer target: ' + CFG.target);
+  // 解码 RGBA 到 ImageData
+  const { data: base64, w: texW, h: texH } = CFG;
+  const bin = atob(base64);
+  const rgba = new Uint8ClampedArray(bin.length);
+  for (let i = 0; i < bin.length; i++) rgba[i] = bin.charCodeAt(i);
+
+  // ---- reference: openwar3 canvas-2D drawImage ----
+  const refImg = new ImageData(rgba, texW, texH);
+  const refSprite = refCv; // use a temp canvas as the drawable source
+  const src = document.createElement('canvas');
+  src.width = texW; src.height = texH;
+  src.getContext('2d').putImageData(refImg, 0, 0);
+  refG.imageSmoothingEnabled = true;
+  refG.imageSmoothingQuality = CFG.refQuality || 'high';
+  refG.clearRect(0, 0, W, H);
+  refG.drawImage(src, RECT.x, RECT.y, RECT.w, RECT.h);
+  log('ref drawn to [' + RECT.x + ',' + RECT.y + ' ' + RECT.w + 'x' + RECT.h + ']');
+
+  // ---- mine: THREE WebGL (product texture path) ----
+  try {
+    const glCv = document.getElementById('mine');
+    const renderer = new THREE.WebGLRenderer({ canvas: glCv, antialias: false, preserveDrawingBuffer: true });
+    renderer.setSize(W, H, false);
+    renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    // offscreen: canvas y up; use ortho with y-up matching canvas
+    const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+    const tex = new THREE.DataTexture(rgba, texW, texH);
+    tex.format = THREE.RGBAFormat;
+    if (CFG.colorSpace !== 'raw') tex.colorSpace = THREE.SRGBColorSpace;
+    tex.flipY = true;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    const mat = new THREE.MeshBasicMaterial({ map: tex });
+    // plane covering rect in clip coords. Camera ortho(-1..1) maps to full canvas [0..W].
+    // clipX for pixel cx: cx/W*2-1 ; clipY for pixel (bottom-origin) cy: cy/H*2-1
+    // Our rect in canvas top-origin: x, y(top), w, h. Convert to bottom-origin cy_b = H-(y+h).
+    const cyB = H - (RECT.y + RECT.h); // bottom edge y (bottom-origin)
+    const clipX0 = (RECT.x / W) * 2 - 1;
+    const clipX1 = ((RECT.x + RECT.w) / W) * 2 - 1;
+    const clipY0 = (cyB / H) * 2 - 1;
+    const clipY1 = ((cyB + RECT.h) / H) * 2 - 1;
+    const cxm = (clipX0 + clipX1) / 2;
+    const cym = (clipY0 + clipY1) / 2;
+    const sx = (clipX1 - clipX0) / 2;
+    const sy = (clipY1 - clipY0) / 2;
+    const plane = new THREE.PlaneGeometry(1, 1);
+    plane.scale(sx * 2, sy * 2, 1);
+    const mesh = new THREE.Mesh(plane, mat);
+    mesh.position.set(cxm, cym, 0);
+    scene.add(mesh);
+    renderer.render(scene, cam);
+    log('three drawn with LinearFilter+SRGBColorSpace, canvas ' + glCv.width + 'x' + glCv.height);
+    log('READY');
+  } catch (e) {
+    log('THREE_ERR: ' + e.message);
+    log('READY');
+  }
+})();
+</script>
+</body></html>

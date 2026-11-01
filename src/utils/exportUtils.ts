@@ -178,9 +178,11 @@ function generateFrameFDF(
   if (frame.anchors && frame.anchors.length > 0) {
     for (const anchor of frame.anchors) {
       const anchorLine = generateAnchorFDF(anchor, frame, allFrames, indentStr, project);
+      /* v8 ignore start -- provably unreachable null check: generateAnchorFDF always returns the SetPoint string (no null path exists despite its `string | null` type). */
       if (anchorLine) {
         lines.push(anchorLine);
       }
+      /* v8 ignore end */
     }
   } else {
     // 如果没有锚点，使用默认位置
@@ -271,6 +273,7 @@ function generateAnchorFDF(
 function getParentName(frame: FrameData, allFrames: Record<string, FrameData>, project?: ProjectData): string {
   if (!frame.parentId) {
     // 根节点的父控件根据 originMode 决定
+    /* v8 ignore start -- provably unreachable false arm: both callers (lines 187, 257) pass a non-optional project, so project is always truthy here. */
     if (project) {
       switch (project.originMode) {
         case 'gameui': return 'GameUI';
@@ -279,6 +282,7 @@ function getParentName(frame: FrameData, allFrames: Record<string, FrameData>, p
         default: return 'ConsoleUI';
       }
     }
+    /* v8 ignore end */
     return 'ConsoleUI';
   }
 

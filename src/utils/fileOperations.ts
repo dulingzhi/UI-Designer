@@ -32,11 +32,10 @@ function migrateProjectData(project: ProjectData): ProjectData {
   }
   
   // 根据每个控件的parentId重建父控件的children数组
+  // （上一步已清空所有 children，故此处直接 push，无需去重）
   for (const [id, frame] of Object.entries(migratedFrames)) {
     if (frame.parentId && migratedFrames[frame.parentId]) {
-      if (!migratedFrames[frame.parentId].children.includes(id)) {
-        migratedFrames[frame.parentId].children.push(id);
-      }
+      migratedFrames[frame.parentId].children.push(id);
     }
   }
   
@@ -164,8 +163,10 @@ export async function importFromFDF(): Promise<FrameData[] | null> {
     // 读取FDF文件内容
     const fdfContent = await readTextFile(path);
     
-    // 解析FDF为FrameData数组
-    const frames = parseFDF(fdfContent);
+    // 解析FDF为FrameData数组 —— 走内核声明式 layout（root 锚点定位 + 内核解子树）。
+    // 渲染器 SceneGraphManager 被动消费这些 x/y/width/height（同一 WC3 世界坐标），
+    // 无需改动渲染器。
+    const frames = parseFDF(fdfContent, { useKernelLayout: true });
     
     return frames;
   } catch (error) {

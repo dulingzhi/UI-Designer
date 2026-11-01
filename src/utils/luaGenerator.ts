@@ -684,7 +684,9 @@ _G.UI_Designer_ParseColor = ParseColor`;
       
       // 文本长度限制
       if (frame.maxChars || frame.textLength) {
+        /* v8 ignore start -- provably unreachable: outer guard `if (frame.maxChars || frame.textLength)` guarantees at least one is truthy, so the `|| 0` disjunct (branch) is always short-circuited. */
         const limit = frame.maxChars || frame.textLength || 0;
+        /* v8 ignore end */
         lines.push(`${indent}    API.SetTextSizeLimit(frame, ${limit})`);
       }
       

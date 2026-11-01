@@ -24,3 +24,24 @@ dist-ssr
 *.sw?
 target/*
 package-lock.json
+pnpm-lock.yaml
+
+# Coverage / temp analysis artifacts (never commit)
+coverage/
+cov-export/
+covlay2/
+covlib/
+covparse/
+covscene/
+covtmp2/
+.covtmp/
+.covtmp2/
+.coverage-arm-finder.mjs
+_covinspect.cjs
+_g.txt
+
+# Browser-raster probe outputs (transient, not fixtures)
+tests/ow3compare/browser/_psnr_*.png
+tests/ow3compare/browser/_t*.rgba
+tests/ow3compare/browser/_t*.meta.json
+tests/ow3compare/browser/_t*.png

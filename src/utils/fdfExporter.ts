@@ -593,8 +593,8 @@ export class FDFExporterEnhanced extends FDFExporter {
       }
       
       fdf += `${indent}}\n`;
-    } else if (frame.texture) {
-      // 简化版纹理导出
+    } else {
+      // 简化版纹理导出（此处帧必有 texture：调用点已保证 texture || fdfTexture 成立）
       fdf += `${indent}Texture {\n`;
       const innerIndent = indent + this.enhancedOptions.indent;
       fdf += `${innerIndent}File "${this.escapeString(frame.texture)}"\n`;

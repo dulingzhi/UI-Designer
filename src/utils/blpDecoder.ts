@@ -311,6 +311,10 @@ export class BLPDecoder {
     const mipHeight = Math.max(1, height >> mipLevel);
     
     // 读取调色板 (256色 * 4字节BGRA)
+    // BLP1 未压缩(paletted)文件的调色板第4字节(charIndex)并不是 alpha —— 真实 alpha 只来自
+    // 独立的额外 alpha 通道 (alphaDepth>0 时)。当 alphaDepth===0 时该图应视为完全不透明(255)，
+    // 与 WC3 / mdx-m3-viewer(openwar3 所用) 语义一致；否则调色板里那个闲置的第4字节(常为0)
+    // 会把整张图误判成全透明。这是与参考解码器逐字节对齐所必需的(P2R 档2 BLP 解码对拍)。
     const paletteOffset = this.header.version === 1 ? 156 : 148;
     const palette = new Uint8Array(256 * 4);
     
@@ -318,12 +322,11 @@ export class BLPDecoder {
       const b = this.view.getUint8(paletteOffset + i * 4 + 0);
       const g = this.view.getUint8(paletteOffset + i * 4 + 1);
       const r = this.view.getUint8(paletteOffset + i * 4 + 2);
-      const a = this.view.getUint8(paletteOffset + i * 4 + 3);
       
       palette[i * 4 + 0] = r;
       palette[i * 4 + 1] = g;
       palette[i * 4 + 2] = b;
-      palette[i * 4 + 3] = a;
+      palette[i * 4 + 3] = 255; // 默认不透明；有额外 alpha 通道时由 applyAlphaChannel 覆盖
     }
     
     // 读取索引数据

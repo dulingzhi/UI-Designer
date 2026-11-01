@@ -1,0 +1,11 @@
+{
+  "name": "ow3-browser-probe",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.48.0"
+  }
+}

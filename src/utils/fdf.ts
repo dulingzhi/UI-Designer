@@ -10,6 +10,7 @@ import { FDFTransformer, TransformOptions } from './fdfTransformer';
 import { FDFExporter, ExportOptions } from './fdfExporter';
 import { FrameData } from '../types';
 import { FDFProgram } from './fdfAst';
+import { buildKernelLayoutFrameData } from './fdfKernelScene';
 
 /**
  * 解析 FDF 文本为 FrameData 数组
@@ -18,7 +19,12 @@ import { FDFProgram } from './fdfAst';
  * @param options 转换选项
  * @returns FrameData 数组
  */
-export function parseFDF(fdfText: string, options?: TransformOptions): FrameData[] {
+export function parseFDF(fdfText: string, options?: TransformOptions & { useKernelLayout?: boolean }): FrameData[] {
+  // 按需切链：useKernelLayout 走内核声明式 layout（root 锚点定位 + 内核解子树）。
+  // 默认（未开启）仍走旧 transformer solver，保证现状与既有回归不变。
+  if (options?.useKernelLayout) {
+    return buildKernelLayoutFrameData(fdfText);
+  }
   try {
     // 1. 词法分析
     const lexer = new FDFLexer(fdfText);

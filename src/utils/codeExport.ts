@@ -7,13 +7,13 @@ const API_PREFIX = {
   '1.27': 'Dz',
 } as const;
 
-// 获取 API 函数�?
+// 获取 API 函数名称
 function getAPIFunction(version: ExportVersion, funcName: string): string {
   const prefix = API_PREFIX[version];
   return `${prefix}${funcName}`;
 }
 
-// �?FramePoint 枚举转换�?WC3 常量名称
+// 将 FramePoint 枚举转换为 WC3 常量名称
 function framePointToString(point: FramePoint): string {
   const pointNames = [
     'FRAMEPOINT_TOPLEFT',
@@ -113,50 +113,6 @@ globals
 function CreateFrames takes nothing returns nothing
 `,
   
-  createBackdrop: (name: string, _parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, texture: string) => `
-    set ${name} = BlzCreateFrame("BACKDROP", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
-    call BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-    call BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-    call BlzFrameSetTexture(${name}, "${texture}", 0, true)
-`,
-  
-  createButton: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number) => `
-    set ${name} = BlzCreateFrame("ScriptDialogButton", ${parent}, 0, 0)
-    call BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-    call BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-`,
-  
-  createText: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, text: string, scale: number, color: string) => `
-    set ${name} = BlzCreateFrameByType("TEXT", "", ${parent}, "", 0)
-    call BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-    call BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-    call BlzFrameSetText(${name}, "|cff${color.slice(1)}${text}|r")
-    call BlzFrameSetScale(${name}, ${scale.toFixed(2)})
-`,
-
-  createEditBox: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, _multiline: boolean) => `
-    set ${name} = BlzCreateFrameByType("EDITBOX", "", ${parent}, "", 0)
-    call BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-    call BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-    call BlzFrameSetEnable(${name}, true)
-    call BlzFrameSetFocus(${name}, false)
-`,
-
-  createSlider: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, minValue: number, maxValue: number, stepSize: number) => `
-    set ${name} = BlzCreateFrame("SliderTemplate", ${parent}, 0, 0)
-    call BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-    call BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-    call BlzFrameSetMinMaxValue(${name}, ${minValue.toFixed(2)}, ${maxValue.toFixed(2)})
-    call BlzFrameSetStepSize(${name}, ${stepSize.toFixed(2)})
-`,
-
-  createCheckBox: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, checked: boolean) => `
-    set ${name} = BlzCreateFrame("CheckBoxTemplate", ${parent}, 0, 0)
-    call BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-    call BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-    call BlzFrameSetEnable(${name}, ${checked ? 'true' : 'false'})
-`,
-  
   footer: (_libName: string) => `
 endfunction
 
@@ -184,52 +140,6 @@ ${libName} = {}
     isArray 
       ? `${name} = {}\n`
       : `${name} = nil\n`,
-  
-  createBackdrop: (name: string, _parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, texture: string) => `
-${name} = BlzCreateFrame("BACKDROP", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), 0, 0)
-BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-BlzFrameSetTexture(${name}, "${texture}", 0, true)
-`,
-  
-  createButton: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number) => `
-${name} = BlzCreateFrame("ScriptDialogButton", ${parent}, 0, 0)
-BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-`,
-  
-  createText: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, text: string, scale: number, color: string) => `
-${name} = BlzCreateFrameByType("TEXT", "", ${parent}, "", 0)
-BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-BlzFrameSetText(${name}, "|cff${color.slice(1)}${text}|r")
-BlzFrameSetScale(${name}, ${scale.toFixed(2)})
-`,
-
-  createEditBox: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, _multiline: boolean) => `
-${name} = BlzCreateFrameByType("EDITBOX", "", ${parent}, "", 0)
-BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-BlzFrameSetEnable(${name}, true)
-BlzFrameSetFocus(${name}, false)
-`,
-
-  createSlider: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, minValue: number, maxValue: number, stepSize: number) => `
-${name} = BlzCreateFrame("SliderTemplate", ${parent}, 0, 0)
-BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-BlzFrameSetMinMaxValue(${name}, ${minValue.toFixed(2)}, ${maxValue.toFixed(2)})
-BlzFrameSetStepSize(${name}, ${stepSize.toFixed(2)})
-`,
-
-  createCheckBox: (name: string, parent: string, anchorPoint: string, x: number, y: number, width: number, height: number, checked: boolean) => `
-${name} = BlzCreateFrame("CheckBoxTemplate", ${parent}, 0, 0)
-BlzFrameSetAbsPoint(${name}, ${anchorPoint}, ${x.toFixed(5)}, ${y.toFixed(5)})
-BlzFrameSetSize(${name}, ${width.toFixed(5)}, ${height.toFixed(5)})
-BlzFrameSetEnable(${name}, ${checked ? 'true' : 'false'})
-`,
-  
-  footer: () => ``
 };
 
 // 生成 JASS 代码
@@ -237,7 +147,7 @@ export function generateJASSCode(project: ProjectData): string {
   const version = project.exportVersion || 'reforged';
   let code = JASS_TEMPLATES.header(project.libraryName);
   
-  // 声明所�?Frame 变量
+// 声明所有 Frame 变量
   Object.values(project.frames).forEach(frame => {
     const isArray = frame.name.includes('[');
     if (!isArray || frame.name.includes('[00]')) {
@@ -248,7 +158,7 @@ export function generateJASSCode(project: ProjectData): string {
   
   code += JASS_TEMPLATES.endGlobals;
   
-  // 创建所�?Frame
+// 创建所有 Frame
   Object.values(project.frames).forEach(frame => {
     code += generateFrameJASS(frame, project, version);
   });
@@ -282,7 +192,7 @@ export function generateLUACode(project: ProjectData): string {
   
   code += '\nfunction CreateFrames()\n';
   
-  // 创建所�?Frame
+// 创建所有 Frame
   Object.values(project.frames).forEach(frame => {
     code += generateFrameLUA(frame, project, version);
   });
@@ -301,7 +211,7 @@ export function generateLUACode(project: ProjectData): string {
   return code;
 }
 
-// 生成单个 Frame �?JASS 代码
+// 生成单个 Frame 的 JASS 代码
 function generateFrameJASS(frame: FrameData, project: ProjectData, version: ExportVersion): string {
   const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
   
@@ -454,7 +364,7 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
   return code;
 }
 
-// 生成单个 Frame �?LUA 代码
+// 生成单个 Frame 的 LUA 代码
 function generateFrameLUA(frame: FrameData, project: ProjectData, version: ExportVersion): string {
   const parent = frame.parentId ? project.frames[frame.parentId].name : `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
   
@@ -621,7 +531,7 @@ export function generateTypeScriptCode(project: ProjectData): string {
 export class ${project.libraryName} {
 `;
   
-  // 声明所�?Frame 变量
+// 声明所有 Frame 变量
   Object.values(project.frames).forEach(frame => {
     const isArray = frame.name.includes('[');
     if (!isArray || frame.name.includes('[00]')) {
@@ -638,7 +548,7 @@ export class ${project.libraryName} {
   
   code += `  private createFrames(): void {\n`;
   
-  // 创建所�?Frame
+// 创建所有 Frame
   Object.values(project.frames).forEach(frame => {
     code += generateFrameTypeScript(frame, project, version);
   });
@@ -651,7 +561,7 @@ export class ${project.libraryName} {
   return code;
 }
 
-// 生成单个 Frame �?TypeScript 代码
+// 生成单个 Frame 的 TypeScript 代码
 function generateFrameTypeScript(frame: FrameData, project: ProjectData, version: ExportVersion): string {
   const getOriginFrame = getAPIFunction(version, 'GetOriginFrame');
   const parent = frame.parentId ? `this.${project.frames[frame.parentId].name}` : `${getOriginFrame}(ORIGIN_FRAME_GAME_UI, 0)`;
@@ -805,7 +715,7 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
   return code;
 }
 
-// 主导出函�?
+// 主导出函数
 export function exportProject(project: ProjectData, language: ExportLanguage): string {
   switch (language) {
     case 'jass':

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock hotReloadExporter to avoid localStorage dependency
 vi.mock('../utils/hotReloadExporter', () => ({
@@ -28,14 +28,14 @@ vi.stubGlobal('localStorage', {
 
 import { useUIStore, STYLE_PROPERTIES } from './uiStore';
 import { useProjectStore } from './projectStore';
-import { FrameData, FrameType } from '../types';
+import { FrameData, FrameType, ProjectData } from '../types';
 
 // 创建测试用 frame
 function makeTestFrame(overrides: Partial<FrameData> = {}): FrameData {
   return {
     id: 'test-frame-1',
     name: 'TestFrame',
-    type: 'BACKDROP' as FrameType,
+    type: FrameType.BACKDROP,
     x: 0.1,
     y: 0.1,
     width: 0.2,
@@ -54,6 +54,32 @@ function makeTestFrame(overrides: Partial<FrameData> = {}): FrameData {
     backdropBackgroundSize: 0.04,
     ...overrides,
   } as FrameData;
+}
+
+// 创建测试用 ProjectData（补齐 ProjectData 全部必填字段）
+function makeTestProject(patch: {
+  frames: Record<string, FrameData>;
+  rootFrameIds: string[];
+}): ProjectData {
+  return {
+    version: 2,
+    libraryName: 'TESTLIB',
+    originMode: 'gameui',
+    exportVersion: 'reforged',
+    hideGameUI: false,
+    hideHeroBar: false,
+    hideMiniMap: false,
+    hideResources: false,
+    hideButtonBar: false,
+    hidePortrait: false,
+    hideChat: false,
+    appInterface: 'dark',
+    backgroundImage: '/backgrounds/wc3-with-ui.png',
+    frames: patch.frames,
+    rootFrameIds: patch.rootFrameIds,
+    tableArrays: [],
+    circleArrays: [],
+  };
 }
 
 describe('STYLE_PROPERTIES', () => {
@@ -90,24 +116,17 @@ describe('copyStyleToClipboard', () => {
   beforeEach(() => {
     useUIStore.setState({ styleClipboard: null });
     useProjectStore.setState({
-      project: {
-        name: 'test',
-        version: '1',
-        frames: {},
-        frameOrder: [],
-      },
+      project: makeTestProject({ frames: {}, rootFrameIds: [] }),
     });
   });
 
   it('复制 frame 的所有已定义样式属性到剪贴板', () => {
     const frame = makeTestFrame();
     useProjectStore.setState({
-      project: {
-        name: 'test',
-        version: '1',
+      project: makeTestProject({
         frames: { [frame.id]: frame },
-        frameOrder: [frame.id],
-      },
+        rootFrameIds: [frame.id],
+      }),
     });
 
     useUIStore.getState().copyStyleToClipboard(frame.id);
@@ -126,12 +145,10 @@ describe('copyStyleToClipboard', () => {
   it('只复制已定义(非 undefined)的属性', () => {
     const frame = makeTestFrame({ font: undefined, fontSize: undefined });
     useProjectStore.setState({
-      project: {
-        name: 'test',
-        version: '1',
+      project: makeTestProject({
         frames: { [frame.id]: frame },
-        frameOrder: [frame.id],
-      },
+        rootFrameIds: [frame.id],
+      }),
     });
 
     useUIStore.getState().copyStyleToClipboard(frame.id);
@@ -203,12 +220,10 @@ describe('pasteStyleFromClipboard', () => {
     });
 
     useProjectStore.setState({
-      project: {
-        name: 'test',
-        version: '1',
+      project: makeTestProject({
         frames: { [source.id]: source, [target.id]: target },
-        frameOrder: [source.id, target.id],
-      },
+        rootFrameIds: [source.id, target.id],
+      }),
     });
 
     // 先复制源样式
@@ -231,12 +246,10 @@ describe('pasteStyleFromClipboard', () => {
     });
 
     useProjectStore.setState({
-      project: {
-        name: 'test',
-        version: '1',
+      project: makeTestProject({
         frames: { [source.id]: source, [locked.id]: locked },
-        frameOrder: [source.id, locked.id],
-      },
+        rootFrameIds: [source.id, locked.id],
+      }),
     });
 
     useUIStore.getState().copyStyleToClipboard(source.id);
@@ -249,12 +262,10 @@ describe('pasteStyleFromClipboard', () => {
   it('没有剪贴板时不做任何操作', () => {
     const frame = makeTestFrame({ textColor: '#000000' });
     useProjectStore.setState({
-      project: {
-        name: 'test',
-        version: '1',
+      project: makeTestProject({
         frames: { [frame.id]: frame },
-        frameOrder: [frame.id],
-      },
+        rootFrameIds: [frame.id],
+      }),
     });
 
     useUIStore.getState().pasteStyleFromClipboard([frame.id]);

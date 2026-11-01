@@ -1,14 +1,14 @@
 // ============================================================
-// SceneGraphManager �?Three.js 场景管理器（WebGPU / WebGL2 双后端）
+// SceneGraphManager …Three.js 场景管理器（WebGPU / WebGL2 双后端）
 // ============================================================
-// 职责�?
+// 职责�?
 //   1. 管理 Renderer (WebGPU 优先 / WebGL2 降级) + Scene + Camera
-//   2. 维护 FrameData �?渲染节点 (基础面片 / Backdrop 背景 / 九宫格边�?
+//   2. 维护 FrameData �?渲染节点 (基础面片 / Backdrop 背景 / 九宫格边�?
 //   3. 按需渲染 (dirty flag + rAF)
 //
 // 异步创建：`await SceneGraphManager.create(canvas, options)`
-//   �?WebGPURenderer 需�?`await renderer.init()` 才能开始渲�?
-//   �?navigator.gpu 不可用或 init 失败时自动回落到 WebGLRenderer
+//   …WebGPURenderer 需�?`await renderer.init()` 才能开始渲�?
+//   …navigator.gpu 不可用或 init 失败时自动回落到 WebGLRenderer
 
 import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
@@ -30,7 +30,7 @@ import { computeEdgePlacement, computeBackgroundPlacement } from './backdropLayo
 import { renderTextTexture, disposeTextCache } from './textLayout';
 import { resolveButtonState, type ButtonState } from './buttonState';
 import { planSplitEdges } from './backdropSplitEdges';
-import { buildEditBoxBorderPositions, normalizeEditBoxBorderColor } from './editBoxBorder';
+import { normalizeEditBoxBorderColor } from './editBoxBorder';
 import { resolveHighlightAlphaMode, resolveHighlightTint } from './highlightColor';
 import { resolveBackdropBgAlphaMode } from './backdropBlend';
 import { resolveHighlightRenderMode } from './highlightType';
@@ -47,7 +47,7 @@ interface FrameRenderNode {
   baseMesh: THREE.Mesh;
   backgroundMesh: THREE.Mesh | null;
   textMesh: THREE.Mesh | null;
-  /** 控件状态纹�?mesh (Button controlBackdrop / Highlight / Sprite) */
+  /** 控件状态纹�?mesh (Button controlBackdrop / Highlight / Sprite) */
   controlMesh: THREE.Mesh | null;
   /** Button/Checkbox mouseover ????? */
   highlightOverlayMesh: THREE.Mesh | null;
@@ -85,7 +85,7 @@ export class SceneGraphManager {
     console.warn('[SGM] WebGL context lost');
   };
   private onContextRestored = () => {
-    console.info('[SGM] WebGL context restored �?rebuilding scene');
+    console.info('[SGM] WebGL context restored …rebuilding scene');
     this.contextLost = false;
     this.textureCache.dispose();
     for (const [, node] of this.nodes) {
@@ -169,7 +169,7 @@ export class SceneGraphManager {
     this.textureCache = new TextureCache();
     this.resolveTexturePath = options.resolveTexturePath ?? ((path) => path);
 
-    // 上下文丢失：�?WebGL 后端触发；WebGPU 使用 device.lost Promise（此处暂记录�?
+    // 上下文丢失：�?WebGL 后端触发；WebGPU 使用 device.lost Promise（此处暂记录�?
     if (backend === 'webgl2') {
       canvas.addEventListener('webglcontextlost', this.onContextLost, false);
       canvas.addEventListener('webglcontextrestored', this.onContextRestored, false);
@@ -736,7 +736,7 @@ export class SceneGraphManager {
 
   // ---- Phase 4: 控件渲染 ----
 
-  /** 计算 texCoord �?u_offset / u_repeat */
+  /** 计算 texCoord �?u_offset / u_repeat */
   private computeTexCoordOptions(frame: FrameData): { repeatX?: number; repeatY?: number; offsetX?: number; offsetY?: number } {
     if (!frame.texCoord) return {};
     const [left, right, top, bottom] = frame.texCoord;
@@ -749,8 +749,8 @@ export class SceneGraphManager {
   }
 
   /**
-   * 控件纹理 �?Button controlBackdrop / Highlight / Sprite
-   * 设计器仅展示默认状态纹�?
+   * 控件纹理 …Button controlBackdrop / Highlight / Sprite
+   * 设计器仅展示默认状态纹�?
    */
   private syncControlTexture(
     id: string,
@@ -891,8 +891,8 @@ export class SceneGraphManager {
   }
 
   /**
-   * StatusBar 填充条渲�?
-   * 在设计器中显�?50% 填充预览
+   * StatusBar 填充条渲�?
+   * 在设计器中显�?50% 填充预览
    */
   private syncStatusBarFill(
     _id: string,
@@ -910,7 +910,7 @@ export class SceneGraphManager {
       return;
     }
 
-    const fillFraction = 0.5; // 设计器预�?50%
+    const fillFraction = 0.5; // 设计器预�?50%
 
     if (!node.fillMesh) {
       const mat = new THREE.MeshBasicMaterial({
@@ -964,7 +964,7 @@ export class SceneGraphManager {
     }
 
     const isHorizontal = frame.sliderLayoutHorizontal || !frame.sliderLayoutVertical;
-    // 根据 minValue/maxValue/sliderInitialValue 计算滑块位置，无数据时居�?
+    // 根据 minValue/maxValue/sliderInitialValue 计算滑块位置，无数据时居�?
     const minV = frame.minValue ?? 0;
     const maxV = frame.maxValue ?? 100;
     const curV = frame.sliderInitialValue ?? (minV + maxV) / 2;
@@ -1043,7 +1043,7 @@ export class SceneGraphManager {
     node.borderMesh.visible = true;
   }
 
-  // ---- �?mesh 释放辅助方法 ----
+  // ---- �?mesh 释放辅助方法 ----
 
   private disposeControlMesh(node: FrameRenderNode): void {
     if (node.controlMesh) {

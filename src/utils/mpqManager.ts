@@ -11,6 +11,30 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { join } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
+import {
+  LayeredDataSource,
+  MpqDataSource,
+  type DataSource,
+  type MpqFns,
+} from './dataSource';
+
+/** 基于 Tauri `invoke` 的 Rust 后端实现（默认）。单测可注入内存实现。 */
+export const tauriMpqFns: MpqFns = {
+  async readFile(archivePath, fileName) {
+    const data = await invoke<number[]>('read_mpq_file', {
+      archivePath,
+      fileName,
+    });
+    if (!data) return null;
+    return new Uint8Array(data).buffer;
+  },
+  async listFiles(archivePath) {
+    return invoke<MpqFileInfo[]>('load_mpq_archive', { path: archivePath });
+  },
+  async hasFile(archivePath, fileName) {
+    return invoke<boolean>('has_mpq_file', { archivePath, fileName });
+  },
+};
 
 // MPQ 文件信息接口
 interface MpqFileInfo {
@@ -57,6 +81,60 @@ export class MPQManager {
   private war3Path: string = '';
   private fileListCache: Map<string, FileSearchResult> = new Map();
   private isLoading: boolean = false; // 添加加载中标志
+  /** 按档案路径索引的轻量 DataSource 缓存（invalidate 于 unloadAll）。 */
+  private cachedDataSource: DataSource | null = null;
+
+  /** Rust 后端能力（可注入以便单测）。 */
+  private fns: MpqFns;
+  /** 路径拼接（默认 Tauri `join`；单测注入纯实现）。 */
+  private pathJoin: (base: string, name: string) => Promise<string>;
+
+  constructor(
+    fns: MpqFns = tauriMpqFns,
+    pathJoin: (base: string, name: string) => Promise<string> = join,
+  ) {
+    this.fns = fns;
+    this.pathJoin = pathJoin;
+  }
+
+  /**
+   * 当前已加载档案（低优先在前，War3 < War3x < War3xLocal < War3Patch）的
+   * 多层 DataSource 视图（高优先在前）。未加载任何档案时返回空栈。
+   */
+  getDataSource(): DataSource {
+    // 低优先在最底层：按 War3 → ... → War3Patch 顺序，后加载覆盖前。
+    const order = [
+      'War3.mpq',
+      'War3x.mpq',
+      'War3xLocal.mpq',
+      'War3Patch.mpq',
+    ];
+    const layers: MpqDataSource[] = [];
+    for (const mpqName of order) {
+      const info = this.archives.get(mpqName);
+      if (info?.loaded && info.path) {
+        layers.push(
+          new MpqDataSource({ name: mpqName, path: info.path }, this.fns),
+        );
+      }
+    }
+    // LayeredDataSource index0=最高优先 → 反转后入栈（War3Patch 在前）。
+    layers.reverse();
+    return new LayeredDataSource(layers);
+  }
+
+  /**
+   * 缓存的多层 DataSource 视图。
+   * 与 `getDataSource()` 语义一致（高优先在前），但共享同一实例，供
+   * TextureCache / textureLoader 等下游消费，避免每次重建档案清单缓存。
+   * 在 `unloadAll()` 时置空，下次调用重建。
+   */
+  getCachedDataSource(): DataSource {
+    if (!this.cachedDataSource) {
+      this.cachedDataSource = this.getDataSource();
+    }
+    return this.cachedDataSource;
+  }
   
   /**
    * 设置 Warcraft 3 安装路径
@@ -173,13 +251,13 @@ export class MPQManager {
    */
   async loadArchive(mpqName: string): Promise<boolean> {
     try {
-      const mpqPath = await join(this.war3Path, mpqName);
+      const mpqPath = await this.pathJoin(this.war3Path, mpqName);
       console.log(`[MPQManager]   检查文件: ${mpqPath}`);
       
       console.log(`[MPQManager]   调用 Rust 后端加载 MPQ...`);
       
-      // 使用 Tauri 后端加载 MPQ 档案
-      const files = await invoke<MpqFileInfo[]>('load_mpq_archive', { path: mpqPath });
+      // 使用 Rust 后端加载 MPQ 档案（可注入以便单测）
+      const files = await this.fns.listFiles(mpqPath);
       const fileCount = files.length;
       console.log(`[MPQManager]   找到 ${fileCount} 个文件`);
       
@@ -534,6 +612,7 @@ export class MPQManager {
     
     this.archives.clear();
     this.fileListCache.clear();
+    this.cachedDataSource = null;
     
     // 清理 Rust 后端的缓存
     invoke('clear_mpq_cache').catch(err => {

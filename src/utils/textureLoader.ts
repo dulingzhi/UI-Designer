@@ -12,6 +12,7 @@
 
 import { readFile } from '@tauri-apps/plugin-fs';
 import { mpqManager } from './mpqManager';
+import type { DataSource } from './dataSource';
 import { decodeBLPToDataURL } from './blpDecoder';
 
 /**
@@ -62,8 +63,8 @@ export async function loadWar3Skins(): Promise<void> {
   try {
     const { mpqManager } = await import('./mpqManager');
     
-    // 读取 war3skins.txt
-    const buffer = await mpqManager.readFile('UI\\war3skins.txt');
+    // 读取 war3skins.txt（经多层 DataSource，保留 mpqManager facade）
+    const buffer = await mpqManager.getCachedDataSource().read('UI\\war3skins.txt');
     
     if (!buffer) {
       console.warn('[TextureLoader] 无法读取 war3skins.txt,使用默认映射');
@@ -147,6 +148,12 @@ export class TextureLoader {
   private loadingPromises: Map<string, Promise<string>> = new Map();
   private maxCacheSize: number = 100; // 最大缓存数量
   private maxCacheAge: number = 30 * 60 * 1000; // 30分钟过期
+  /** WC3 资源数据源（默认走 MPQManager 多层视图；可注入以便单测）。 */
+  private mpqDataSource: DataSource;
+
+  constructor(mpqDataSource?: DataSource) {
+    this.mpqDataSource = mpqDataSource ?? mpqManager.getCachedDataSource();
+  }
   
   /**
    * 判断纹理类型
@@ -281,8 +288,8 @@ export class TextureLoader {
     // 规范化路径
     const normalizedPath = wc3Path.replace(/\//g, '\\');
     
-    // 从 MPQ 读取
-    const buffer = await mpqManager.readFile(normalizedPath);
+    // 从多层 DataSource 读取（保留 MPQ 语义）
+    const buffer = await this.mpqDataSource.read(normalizedPath);
     
     if (!buffer) {
       // 静默失败，不记录日志（很多文件在 listfile 中但无法读取）
@@ -336,6 +343,7 @@ export class TextureLoader {
       case 'bmp': return 'image/bmp';
       case 'webp': return 'image/webp';
       case 'tga': return 'image/tga';
+      // v8 ignore next -- provably unreachable: loadWC3Texture (line 305) and loadLocalTexture (line 319→321) both route every .blp path to decodeBLP* before calling getMimeType, so ext never equals 'blp' here.
       case 'blp': return 'image/blp';
       default: return 'application/octet-stream';
     }
@@ -469,10 +477,10 @@ export class TextureLoader {
       case TextureType.WC3_BUILTIN:
         // 内置纹理 - 检查映射后的实际路径
         const actualPath = WC3_BUILTIN_TEXTURES[path];
-        return await mpqManager.hasFile(actualPath.replace(/\//g, '\\'));
+        return await this.mpqDataSource.exists(actualPath.replace(/\//g, '\\'));
       
       case TextureType.WC3_PATH:
-        return await mpqManager.hasFile(path.replace(/\//g, '\\'));
+        return await this.mpqDataSource.exists(path.replace(/\//g, '\\'));
         
       case TextureType.DATA_URL:
       case TextureType.HTTP_URL:

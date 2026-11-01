@@ -10,6 +10,7 @@ import { readFile } from '@tauri-apps/plugin-fs';
 import * as THREE from 'three';
 import { decodeBLP } from '../utils/blpDecoder';
 import { mpqManager } from '../utils/mpqManager';
+import type { DataSource } from '../utils/dataSource';
 import {
   COMPACT_BORDER_LAYOUT,
   DEFAULT_BORDER_LAYOUT,
@@ -84,6 +85,12 @@ export class TextureCache {
   private accessCounter = 0;
   /** 最大缓存条目数 (textures + borderAtlases 合计) */
   private readonly maxEntries = 256;
+  /** WC3 资源数据源（默认走 MPQManager 的多层 DataSource 视图；可注入以便单测）。 */
+  private mpqDataSource: DataSource;
+
+  constructor(mpqDataSource?: DataSource) {
+    this.mpqDataSource = mpqDataSource ?? mpqManager.getCachedDataSource();
+  }
 
   async loadTexture(path: string): Promise<THREE.Texture> {
     const key = this.normalizeKey(path);
@@ -272,7 +279,7 @@ export class TextureCache {
     }
 
     const normalizedPath = path.replace(/\//g, '\\');
-    const buffer = await mpqManager.readFile(normalizedPath);
+    const buffer = await this.mpqDataSource.read(normalizedPath);
     if (!buffer) {
       throw new Error(`WC3 纹理未找到: ${path}`);
     }

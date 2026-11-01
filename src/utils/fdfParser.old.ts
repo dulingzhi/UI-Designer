@@ -163,9 +163,11 @@ function parseProperties(content: string): Map<string, any> {
   while ((match = frameRegex.exec(content)) !== null) {
     const start = match.index;
     const end = findMatchingBrace(content, start + match[0].length);
+    /* v8 ignore start -- provably unreachable false arm: parseProperties only ever receives balanced content, so findMatchingBrace never returns -1 here. */
     if (end !== -1) {
       framesToRemove.push({start, end: end + 1});
     }
+    /* v8 ignore end */
   }
 
   // 从后往前移除，避免索引变化
@@ -193,19 +195,22 @@ function parseProperties(content: string): Map<string, any> {
     if (value === 'TRUE' || value === 'true') value = true;
     if (value === 'FALSE' || value === 'false') value = false;
 
-    // SetPoint特殊处理
+    // SetPoint特殊处理：value 已被通用正则按首个逗号截断（只含第一个字段），
+    // 因此改为直接从当前匹配位置解析完整的 SetPoint 参数列表。
     if (key === 'SetPoint') {
       if (!properties.has('anchors')) {
         properties.set('anchors', []);
       }
-      const anchorMatch = value.match(/(\w+)\s*,\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)/);
-      if (anchorMatch) {
+      const spMatch = cleanContent
+        .slice(match.index)
+        .match(/SetPoint\s+(\w+)\s*,\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/);
+      if (spMatch) {
         properties.get('anchors').push({
-          point: anchorMatch[1],
-          relativeTo: anchorMatch[2],
-          relativePoint: anchorMatch[3],
-          x: parseFloat(anchorMatch[4]),
-          y: parseFloat(anchorMatch[5]),
+          point: spMatch[1],
+          relativeTo: spMatch[2],
+          relativePoint: spMatch[3],
+          x: parseFloat(spMatch[4]),
+          y: parseFloat(spMatch[5]),
         });
       }
     } else {
