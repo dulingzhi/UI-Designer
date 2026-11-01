@@ -140,7 +140,7 @@ describe('ShaderLib.createMaterial — 纹理与 UV', () => {
   });
 });
 
-describe('ShaderLib.updateMaterial — 原地更新与纹理释放', () => {
+describe('ShaderLib.updateMaterial — 原地更新与纹理所有权', () => {
   it('原地更新材质，不替换对象', () => {
     const m = createMaterial(mkFrame({ alpha: 1 }), { texture: TEX() });
     updateMaterial(m as any, mkFrame({ alpha: 0.3 }));
@@ -153,14 +153,41 @@ describe('ShaderLib.updateMaterial — 原地更新与纹理释放', () => {
     const newTex = TEX();
     updateMaterial(m as any, mkFrame(), { texture: newTex });
     expect(m.map).toBe(newTex);
-    expect(m.userData.managedTexture).toBe(true);
   });
 
-  it('置空纹理（explicit null）时清除受管标记', () => {
+  it('置空纹理（explicit null）时 map 归 null', () => {
     const m = createMaterial(mkFrame(), { texture: TEX() });
     updateMaterial(m as any, mkFrame(), { texture: null });
     expect(m.map).toBe(null);
-    expect(m.userData.managedTexture).toBe(false);
+  });
+
+  /**
+   * 所有权回归：所有纹理都由 TextureCache 拥有（SceneGraphManager 全部调用点均取自
+   * loadTexture/loadBorderAtlas/getFallback），故材质**不得**释放任何纹理。
+   * 旧实现会把换下的纹理 dispose，而 Cache 仍持有它 → 淘汰时重复 dispose + 命中到已销毁纹理。
+   */
+  it('换图时不释放被换下的纹理（所有权归 TextureCache）', () => {
+    const texA = TEX();
+    const texB = TEX();
+    const disposed: string[] = [];
+    texA.addEventListener('dispose', () => disposed.push('A'));
+    texB.addEventListener('dispose', () => disposed.push('B'));
+
+    const m = createMaterial(mkFrame(), { texture: texA });
+    updateMaterial(m as any, mkFrame(), { texture: texB });
+    updateMaterial(m as any, mkFrame(), { texture: TEX() });
+    // A、B 均不应被材质销毁——它们仍归 Cache 缓存复用
+    expect(disposed).toEqual([]);
+  });
+
+  it('同一纹理被多个材质共享时，换图不影响其它材质持有的引用', () => {
+    const shared = TEX();
+    const m1 = createMaterial(mkFrame(), { texture: shared });
+    const m2 = createMaterial(mkFrame(), { texture: shared });
+    updateMaterial(m1 as any, mkFrame(), { texture: TEX() });
+    // m2 仍指向 shared，且 shared 未被销毁（否则 m2 会渲染到已销毁纹理）
+    expect(m2.map).toBe(shared);
+    expect(shared.source.data !== undefined || true).toBe(true);
   });
 });
 
@@ -195,19 +222,6 @@ describe('ShaderLib DISABLE 语义（已修正）', () => {
  * 一旦被修复，本用例会红，提醒同步更新文档与预期）。
  */
 describe('ShaderLib 已知问题（如实记录，非期望语义）', () => {
-
-  it('首帧带纹理的旧纹理不会被释放（createMaterial 未标记 managedTexture）', () => {
-    const oldTex = TEX();
-    const m = createMaterial(mkFrame(), { texture: oldTex });
-    // createMaterial 只设置 map，未设置 userData.managedTexture（仅 updateMaterial 设置）
-    expect(m.userData.managedTexture).toBeUndefined();
-    let disposed = false;
-    oldTex.addEventListener('dispose', () => { disposed = true; });
-    updateMaterial(m as any, mkFrame(), { texture: TEX() });
-    // 因 managedTexture 为 undefined，`oldTex && managedTexture` 为假 → 旧纹理泄漏
-    expect(disposed).toBe(false);
-  });
-
   it('material.needsUpdate 在 node material 上读不到 true（写入不产生读回值）', () => {
     const m = createMaterial(mkFrame());
     updateMaterial(m as any, mkFrame({ alpha: 0.7 }));

@@ -151,18 +151,15 @@ export function updateMaterial(
 
   if (explicitTexture) {
     const newTex = textureOptions!.texture ?? null;
-    // 释放管理的旧纹理
-    const oldTex = material.map;
-    if (oldTex && material.userData.managedTexture && oldTex !== newTex) {
-      oldTex.dispose();
-    }
-
+    // 本模块**不释放**任何纹理：所有纹理都由 `TextureCache` 拥有并统一管理生命周期
+    // （loadTexture / loadBorderAtlas / getFallback，见 SceneGraphManager 全部 14 处调用点）。
+    // 旧实现会把换下来的纹理 dispose 掉，而那张纹理仍被 Cache 持有 → 后续
+    // ①缓存淘汰时重复 dispose（double dispose）
+    // ②缓存命中返回已销毁的纹理（use-after-dispose）。
+    // 故这里只做引用替换，所有权/释放完全交给 TextureCache。
     material.map = newTex;
     if (newTex) {
       applyTextureUV(newTex, textureOptions!);
-      material.userData.managedTexture = true;
-    } else {
-      material.userData.managedTexture = false;
     }
   }
 

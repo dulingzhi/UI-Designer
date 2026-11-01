@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `95 passed | 2 skipped` 测试文件，`1760 passed | 5 skipped` 测试
+- `96 passed | 2 skipped` 测试文件，`1763 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -120,9 +120,10 @@
 editBoxBorder / hitTest / layerStyle / fontResolver / textLayout / backdropBlend / backdropSplitEdges /
 pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `ShaderLib` 与 `TextureCache` 没有
 （此前 `psnr.real.test.ts` 只是间接用了 `TextureCache` 实例，未对其行为断言）。已补：
-- `tests/visual-regression/shaderLib.test.ts`（21 测）：材质映射（基色/NOSHADING/alpha 归一化/钳制）、
-  alphaMode → alphaTest 与混合（BLEND vs ADD 的差异在 `blendDst`）、纹理 UV（repeat/offset/wrap 默认与覆盖）、
-  `updateMaterial` 原地更新与受管纹理。
+- `tests/visual-regression/shaderLib.test.ts`（23 测）：材质映射（基色/NOSHADING/alpha 归一化/钳制）、
+  alphaMode → alphaTest 与混合（BLEND vs ADD 的差异在 `blendDst`）、DISABLE 语义、
+  纹理 UV（repeat/offset/wrap 默认与覆盖）、`updateMaterial` 原地更新与**纹理所有权**（不释放 Cache 的纹理）。
+- `tests/visual-regression/textureOwnership.test.ts`（2 测）：材质 ↔ TextureCache 所有权集成回归。
 - `tests/visual-regression/textureCache.test.ts`（7 测）：路径归一化、1×1 品红 fallback 及其 sRGB/LinearFilter
   参数、失败后从缓存移除允许重试、LRU 上限不崩、`dispose` 幂等。
 - **`SceneGraphManager` 仍无直接单测**：其构造需要真实 GPU（private ctor + `create()` 走 WebGPU/WebGL 回退），
@@ -130,10 +131,25 @@ pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `Shade
   故**可确定性断言的部分已覆盖**；GPU 光栅结果只在 `psnr.real.test.ts` 的 t1/t2/t4 三个公平基元上验证。
 
 **ShaderLib 已知问题（已在测试中以"已知问题"用例固定，非期望语义）**：
-1. `createMaterial` 不设置 `userData.managedTexture`（仅 `updateMaterial` 设置），
-   故首帧带纹理时旧纹理在首次换图时不会被 `dispose`（泄漏一次）。
-2. `material.needsUpdate = true` 在 NodeMaterial 上读回为 `undefined`（写入不产生可断言读回值）。
-这两项**未修**，测试锁定现状；修复时对应用例会变红，需同步更新本文档。
+1. `material.needsUpdate = true` 在 NodeMaterial 上读回为 `undefined`（写入不产生可断言读回值）。
+   仅影响可断言性，不影响 THREE 内部响应。**未修**，测试锁定现状。
+
+**已修：材质擅自释放 TextureCache 拥有的纹理（所有权错误，非"泄漏"）**
+- 原先记录为"首帧纹理泄漏（createMaterial 未标记 managedTexture）"——**定性错了**，实测方向相反。
+- **根因（探针实证）**：`updateMaterial` 把传入纹理标为 `userData.managedTexture = true`，换图时
+  执行 `oldTex.dispose()`。但 `SceneGraphManager` 的全部 14 处纹理来源都是 `TextureCache`
+  （`loadTexture` / `loadBorderAtlas` / `getFallback`），纹理**归 Cache 所有**。于是：
+  ① 被换下的纹理被材质销毁，而 Cache 仍持有它；
+  ② Cache 后续淘汰/`dispose` 时对同一张纹理**再次 dispose**（double dispose）；
+  ③ 缓存命中时返回**已销毁的纹理**（use-after-dispose）→ 渲染到失效纹理。
+  探针实测：`update#2` 后 `texA` 已 disposed，而 `disposed=["A"]`、随后 `["A","B"]`。
+- **修复**：`updateMaterial` **不再释放任何纹理**，只做 `material.map` 引用替换 + UV 参数应用；
+  删除 `managedTexture` 标记机制（该机制本身建立在错误的所有权假设上，全仓库仅 ShaderLib 自用）。
+  纹理生命周期完全由 `TextureCache` 负责（`ownedTextures` + `evictKey` + `dispose`）。
+  特例：`getFallback()` 返回模块级单例，不归任何 cache 实例销毁（已用测试记录该事实）。
+- **验证**：`shaderLib.test.ts`「纹理所有权」2 测（换图不销毁被换下纹理、共享纹理不受影响）；
+  新增 `textureOwnership.test.ts`（2 测）做材质 ↔ Cache 集成回归。
+  既有 PSNR 守卫与全部对拍仍绿。
 
 **已修：AlphaMode `DISABLE` 被静默丢弃（IDA 取证驱动）**
 - 症状：`parseAlphaMode` 的 switch 只识别 `ALPHAKEY/ADD/BLEND`，`'DISABLE'` 回落为 `BLEND`，
