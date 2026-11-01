@@ -31,11 +31,23 @@
   （编辑器渲染路径）与内核/参考 `fdfKernelLayout.toPixels`（openwar3 路径）落到**完全相同的整数像素矩形**。
   两者代数同构（uniform scale 1800=1080/0.6；编辑器加 240px X margin，内核无 margin，统一约定后抵消），
   故可全量成立、无 root/子帧特殊化。此守卫覆盖「编辑器渲染路径的世界→像素映射」与内核/参考一致的硬门槛。
-  **实证边界**：编辑器锚点求解器 `calculatePositionFromAnchors`（`anchorUtils.ts`）是**有状态 UI 辅助**
-  （依赖存储 x/y/width/height，`relativeTo` 递归），与内核声明式 `fdfKernelLayout.layout` 语义不同，
-  在真实 scene 上大量 global 分歧（产品数据中根/无锚点帧、动态尺寸多锚点均不一致），不把它们对拍为守卫。
-  锚点求解器不做反汇编 floor 等价（`subtreeparity.test.ts` 的 SKIP 理由仍成立），编辑器几何一致性的诚实
-  可验证层 = 像素映射，而非求解器本身。
+  **实证边界（已修正，勿沿用旧结论）**：编辑器锚点求解器 `calculatePositionFromAnchors`（`anchorUtils.ts`）
+  与内核 `fdfKernelLayout.layout` 经同一条 `fileToFrameData` 桥接后，**世界矩形逐字段等价**——
+  见下方 `editorgeometry.parity.test.ts` 守卫（12 类锚点配置、14 用例全绿）。
+  早期曾得出"两求解器大面积分歧"的结论，那是**探针自身缺陷**造成的假象：探针把
+  `Record<string, FrameData>` 误传为 `Map`（`allFrames[relativeTo]` 恒 undefined），且根帧锚点未按
+  画布绝对化。后者暴露了一个**真 bug**：`transformKernelFrames` 的顶层画布归一化曾排在"默认 CENTER
+  锚点注入"之前，使无显式 SetPoint 的根帧拿到未归一化的 `CENTER@__PARENT__`，求解器回落 (0,0) 再减
+  半宽高得 (-w/2,-h/2)，把整棵子树平移出画布。该顺序缺陷已修复（顶层归一化移到默认锚点注入之后）。
+- **编辑器渲染几何一致守卫（求解器 ↔ 内核 layout）**：`tests/fdfKernel/editorgeometry.parity.test.ts`。
+  对同一份 FDF 经 `fileToFrameData` 桥接后，断言编辑器渲染消费路径所用的
+  `calculatePositionFromAnchors`（`SceneGraphManager.sync` 逐帧调用）与内核 `layout(root,{box})`
+  在 **y-up、左下原点、[0,0.8]×[0,0.6] 世界坐标**下逐帧 world rect（x/y/w/h）完全一致。
+  覆盖单锚点 TOPLEFT/BOTTOMLEFT/CENTER、对角 TL+BR、上排 TL+TR、下排 BL+BR、四边 L+R+T+B、
+  左右 L+R、上下 T+B、跨节点相对锚、三级嵌套、root 显式 CENTER。根帧在编辑器侧无相对锚点
+  （已按画布绝对化）求解器返回 null、直接使用存储几何，与内核把 root 钉在 box(0,0) 等价。
+  **唯一有意不纳入的语义分歧**：无锚点子帧的默认落位——内核钉父控件 top-left（对齐 WC3 引擎），
+  编辑器注入默认 `CENTER@父 CENTER`（对齐设计器交互），两者均为有意的产品语义，不对拍。
 
 ---
 
@@ -52,8 +64,8 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `89 passed | 2 skipped` 测试文件，`1685 passed | 5 skipped` 测试
-- 内核/对拍：`13 passed | 2 skipped` 文件，`399 passed | 5 skipped` 测试
+- `91 passed | 2 skipped` 测试文件，`1702 passed | 5 skipped` 测试
+- 内核/对拍：`15 passed | 2 skipped` 文件，`416 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
 ### 编辑器命令层测试（`src/commands`，当前目标「编辑器端单测 + 完整编辑功能」）

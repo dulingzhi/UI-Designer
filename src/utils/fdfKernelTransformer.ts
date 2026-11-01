@@ -230,23 +230,26 @@ export function transformKernelFrames(frames: FdfFrame[], opts: KernelTransformO
       convert(child, fd);
     }
 
-    // 顶层（parent===null）锚点相对画布
-    if (parent === null && fd.anchors.length > 0) {
-      for (const a of fd.anchors) {
-        if (a.relativeTo === '__PARENT__') {
-          if (a.point === 0) { a.x = 0; a.y = 0.6; }
-          else if (a.point === 8) { a.x = 0.8; a.y = 0; }
-          else if (a.point === 4) { a.x = 0.4; a.y = 0.3; }
-          delete a.relativeTo;
-          delete a.relativePoint;
-        }
-      }
-    }
-
     // 无锚点 → 默认 CENTER
     if (fd.anchors.length === 0) {
       if (fd.width === 0.1 && fd.height === 0.1) { fd.width = 0.4; fd.height = 0.4; }
       fd.anchors = [{ point: 4, relativeTo: '__PARENT__', relativePoint: 4, x: 0, y: 0 }];
+    }
+
+    // 顶层（parent===null）锚点相对画布。必须放在**默认锚点注入之后**：根帧自身没有显式
+    // SetPoint 时会拿到上面注入的 CENTER@__PARENT__，若此时不归一化，编辑器求解器
+    // (calculatePositionFromAnchors) 解析不到 __PARENT__ 便回落 (0,0)，再按 CENTER 减半宽高
+    // 得到 (-w/2,-h/2)，把整棵子树平移出画布；内核 layout 则把根钉在 box(0,0)。
+    // 画布语义：TOPLEFT=(0,0.6)、BOTTOMRIGHT=(0.8,0)、CENTER=(0.4,0.3)。
+    for (const a of fd.anchors) {
+      if (a.relativeTo !== '__PARENT__') continue;
+      if (parent === null) {
+        if (a.point === 0) { a.x = 0; a.y = 0.6; }
+        else if (a.point === 8) { a.x = 0.8; a.y = 0; }
+        else if (a.point === 4) { a.x = 0.4; a.y = 0.3; }
+        delete a.relativeTo;
+        delete a.relativePoint;
+      }
     }
 
     // 登记父子关系后返回
