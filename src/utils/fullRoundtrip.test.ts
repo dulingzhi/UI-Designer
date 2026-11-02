@@ -96,6 +96,22 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     expect(back.text).toBe('He said "hi"');
   });
 
+  it('文本颜色经 |cff 内嵌编码往返', async () => {
+    const src = mkFrame({
+      id: 'c1', name: 'Clr', type: FrameType.TEXT_FRAME,
+      text: 'colored', textColor: '#FF8800',
+    });
+
+    dialogMocks.save.mockResolvedValue('/out/rt.fdf');
+    fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+    await exportToFDF(proj([src]), false, () => {});
+    const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
+
+    const [back] = importFromFDFText(fdf);
+    expect(back.text).toBe('colored');
+    expect(back.textColor).toBe('#FF8800');
+  });
+
   it('纹理属性原样往返', async () => {
     const src = mkFrame({
       id: 'tx1', name: 'Tx', type: FrameType.BACKDROP,

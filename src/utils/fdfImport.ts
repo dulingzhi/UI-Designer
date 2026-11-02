@@ -172,10 +172,21 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
   // 文本/纹理写回可编辑字段（修复与 backdrop 同款的往返断裂）。
   // SetText 直接读属性而非 fdfString 元数据：空串在元数据里会被 falsy 过滤成 undefined，
   // 而编辑器需要保留「导入了空文本」的语义。
-  const setText = findProperty(properties, 'SetText');
+  // 文本属性名兼容：模板定义里是 `Text`（exportUtils 导出此名），运行时调用风格是 `SetText`。
+  // 曾因只查 SetText 导致真实产物的剥离从未生效（mock 测试手写 SetText 掩盖了断裂）。
+  const setText = findProperty(properties, 'SetText') ?? findProperty(properties, 'Text');
   const textureFields: Partial<FrameData> = {};
   if (setText !== null) {
-    textureFields.text = String(setText);
+    // WC3 把文本颜色内嵌在 Text 里（|cffRRGGBB...|r），无独立模板属性。
+    // 剥离还原为 text + textColor，与导出侧的编码互逆；不完整的前缀不剥离（原样保留）。
+    const raw = String(setText);
+    const colorMatch = raw.match(/^\|cff([0-9a-fA-F]{6})(.*?)\|r$/s);
+    if (colorMatch) {
+      textureFields.text = colorMatch[2];
+      textureFields.textColor = `#${colorMatch[1]}`;
+    } else {
+      textureFields.text = raw;
+    }
   }
   if (fdfTexture) {
     if (fdfTexture.file) textureFields.texture = fdfTexture.file;

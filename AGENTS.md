@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `109 passed | 2 skipped` 测试文件，`1946 passed | 5 skipped` 测试
+- `110 passed | 2 skipped` 测试文件，`1951 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -305,6 +305,21 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 `fullRoundtrip.test.ts` 扩到 3 测（backdrop/文本/纹理全字段穿透）。
 注意：`SetTexture` 导出的是**有效背景**（backdropBackground 优先于 texture），
 往返后 `texture === 有效背景` 是预期语义，不是丢失。
+
+### textColor 往返 + 属性名不匹配修复（本轮，续 2）
+
+1. **textColor 三断链**：属性面板可设（TextProperties 有绑定）→ FDF 导出**零引用** →
+   导入也不读。已修：导出按 WC3 语义把颜色内嵌进 `Text`（`|cffRRGGBB...|r`，与 codeExport
+   的 JASS 编码一致，无独立模板属性）；导入剥离还原为 `text + textColor`
+   （前缀不完整时原样保留，不臆造）。
+2. **属性名不匹配（探针抓到的又一层断裂）**：导出写的属性名是 **`Text`**（模板属性），
+   导入查找的却是 **`SetText`**（运行时调用风格）——名字不匹配使真实产物的剥离从未生效；
+   mock 测试手写 `SetText` 掩盖了断裂。已兼容查找两种名字。
+
+**教训（第二次验证）**：mock AST 的导入测试永远无法发现"属性名对不上"这类断裂，
+只有端到端穿透（`fullRoundtrip.test.ts`，现 4 测）能抓到。
+
+**测试**：`fdfImportColor.test.ts`（4 测，先 2/4 红）+ fullRoundtrip 颜色穿透用例。
 
 ### luaGenerator 导出链路补齐（本轮）
 

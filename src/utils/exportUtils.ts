@@ -255,9 +255,14 @@ function generateFrameFDF(
       break;
 
     case FrameType.TEXT_FRAME: {
-      // 文本必须转义：未转义时 parser 不报错但会静默截断（"a"b" → 只剩 "a"）
+      // 文本必须转义：未转义时 parser 不报错但会静默截断（"a"b" → 只剩 "a"）。
+      // textColor 无独立模板属性，按 WC3 语义内嵌 |cffRRGGBB 前缀（与导入侧剥离互逆）。
       if (frame.text) {
-        lines.push(`${indentStr}    Text "${escapeJassString(frame.text)}",`);
+        const color = frame.textColor?.replace('#', '').slice(0, 6);
+        const colored = color && /^[0-9a-fA-F]{6}$/.test(color)
+          ? `|cff${color}${frame.text}|r`
+          : frame.text;
+        lines.push(`${indentStr}    Text "${escapeJassString(colored)}",`);
       }
       // 对齐属性（旧实现只在 horAlign 存在时输出 FrameFont，既没输出对齐、又硬编码字体名）
       const jh = justifyHOf(frame.horAlign);
