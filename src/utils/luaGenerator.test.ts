@@ -278,7 +278,10 @@ describe('LuaUIGenerator', () => {
       });
       const project = makeProject({ frames: { f }, rootFrameIds: ['f'] });
       const out = new LuaUIGenerator(project).generate();
-      expect(out).toContain('API.SetTexCoord(frame, 0, 16, 32, 48)');
+      // texCoord 定义为 [left, right, top, bottom] = [0, 32, 16, 48]；
+      // 引擎 DzFrameSetTexCoord(f, l, r, t, b) 要求 right 在 top 之前。
+      // 旧断言写成 (0, 16, 32, 48)，把 right/top 互换——那正是被修复的 bug。
+      expect(out).toContain('API.SetTexCoord(frame, 0, 32, 16, 48)');
       expect(out).toContain('API.SetVertexColor(frame, ');
     });
 

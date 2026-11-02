@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `100 passed | 2 skipped` 测试文件，`1847 passed | 5 skipped` 测试
+- `103 passed | 2 skipped` 测试文件，`1863 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -218,6 +218,33 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 断言字段值一致（不是只看字符串包含）。
 
 > 注意：`exportToFDF` 默认分支会调 `alert()`，在 node 测试环境不存在；测试须传 `onShowAlert` 回调绕过。
+
+### luaGenerator 导出链路补齐（本轮）
+
+审计发现 `src/utils/luaGenerator.ts`（33KB，`codeExport` 之外的**另一条独立导出链路**）有 4 类问题：
+
+1. **texCoord 参数顺序错**：`frame.texCoord` 定义为 `[left, right, top, bottom]`，但产物写成
+   `API.SetTexCoord(frame, left, top, right, bottom)` —— **`right`/`top` 互换，纹理区域裁错**。
+   引擎 `DzFrameSetTexCoord(f, l, r, t, b)` 要求 right 在 top 之前（openwar3 dzapi 确认）。
+   已修：API 包装形参与调用点都改成 `(left, right, top, bottom)`。
+   **既有测试 `luaGenerator.test.ts` 曾把错误顺序当成期望值**（输入 `[0,32,16,48]` 却断言
+   `(0, 16, 32, 48)`），已同步更正为 `(0, 32, 16, 48)`。
+2. **Reforged 分支的 `SetTexCoord` 是空壳**：函数体只 `print("...可能不支持")`、**不设置任何值**，
+   即 Reforged 下 texCoord 完全失效。已改为真正调用 `BlzFrameSetTexCoord(frame, l, r, t, b)`。
+3. **6 个隐藏开关 + hideGameUI 全未接入**。已补 `generateHideOriginCode()`：
+   `GetOriginFrame(TYPE,i)` + `ShowFrame(...,false)`；英雄栏 7 个按钮；
+   `hideResources` 按名字取 `ResourceBar`/`ConsoleUIBackdrop`（`HideOriginFrames` 不覆盖）。
+4. **文本对齐未接入**。已按 `horAlign/verAlign` → `TEXTALIGN_*` 输出 `SetTextAlignment`。
+
+配套补齐 loader 包装（此前 loader 里没有这些函数）：`API.GetOriginFrame` / `API.GetFrameByName` /
+`API.HideOriginFrames` / `API.SetTextAlignment`，japi 分支与 Reforged 分支各一套。
+
+**如实说明（不臆造）**：`alphaMode` **无法在运行时设置**——`DzFrameSetTexture` 只有
+`(frame, path, texCoord, fixedScale)` 四个参数，没有任何 alphaMode 接口；它属 FDF 模板属性，
+由 FDF 导出承担。测试只断言"产物不得伪装成支持"（不生成不存在的 `SetAlphaMode`）。
+
+**测试**：`luaGenerator.guard.test.ts`（16 测，先 11/12 红再修复转绿）。
+注意 `generate()` 只产出 Frame 创建代码，API 包装在 `generateLoaderScript()` 里——两者需分开断言。
 
 ### 渲染器单测缺口补齐（本轮）
 

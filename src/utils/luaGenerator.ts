@@ -163,6 +163,20 @@ if japi_loaded and japi and japi.DzCreateFrame then
     API.GetGameUI = function()
         return japi.DzGetGameUI()
     end
+
+    -- origin frame / 按名字取 frame / 隐藏原生 UI（用于隐藏小地图、英雄栏等）
+    API.GetOriginFrame = function(originType, index)
+        return japi.DzGetOriginFrame(originType, index or 0)
+    end
+    API.GetFrameByName = function(name, id)
+        return japi.DzFrameFindByName(name, id or 0)
+    end
+    API.HideOriginFrames = function(flag)
+        return japi.DzFrameHideInterface()
+    end
+    API.SetTextAlignment = function(frame, hor, ver)
+        return japi.DzFrameSetTextAlignment(frame, hor, ver)
+    end
     
     API.SetPoint = function(frame, point, relativeFrame, relativePoint, x, y)
         return japi.DzFrameSetPoint(frame, point, relativeFrame, relativePoint, x, y)
@@ -317,8 +331,8 @@ if japi_loaded and japi and japi.DzCreateFrame then
     end
     
     -- 纹理坐标 API
-    API.SetTexCoord = function(frame, left, top, right, bottom)
-        return japi.DzFrameSetTexCoord(frame, left, top, right, bottom)
+    API.SetTexCoord = function(frame, left, right, top, bottom)
+        return japi.DzFrameSetTexCoord(frame, left, right, top, bottom)
     end
 
 elseif BlzCreateFrame then
@@ -346,6 +360,14 @@ elseif BlzCreateFrame then
     API.GetGameUI = function()
         return BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)
     end
+
+    -- origin frame / 按名字取 frame / 隐藏原生 UI
+    API.GetOriginFrame = BlzGetOriginFrame
+    API.GetFrameByName = function(name, id)
+        return BlzGetFrameByName(name, id or 0)
+    end
+    API.HideOriginFrames = BlzHideOriginFrames
+    API.SetTextAlignment = BlzFrameSetTextAlignment
     
     API.SetPoint = BlzFrameSetPoint
     API.SetAbsolutePoint = BlzFrameSetAbsPoint
@@ -419,9 +441,11 @@ elseif BlzCreateFrame then
         return BlzFrameGetValue(frame)
     end
     
-    -- 纹理坐标 API (Reforged可能不支持)
-    API.SetTexCoord = function(frame, left, top, right, bottom)
-        print("|cffffcc00[UI Designer]|r SetTexCoord 在 Reforged 中可能不支持")
+    -- 纹理坐标 API
+    -- 参数顺序依引擎 DzFrameSetTexCoord(f, left, right, top, bottom)（openwar3 dzapi 确认）。
+    -- 旧实现只 print 一条警告、不设置任何值，导致 Reforged 下 texCoord 完全失效。
+    API.SetTexCoord = function(frame, left, right, top, bottom)
+        BlzFrameSetTexCoord(frame, left, right, top, bottom)
     end
     
 else
@@ -577,11 +601,54 @@ _G.UI_Designer_ParseColor = ParseColor`;
     for (const frame of rootFrames) {
       lines.push(...this.generateFrameCode(frame, 0));
     }
-    
+
+    // 隐藏原生 UI（依 openwar3 dzapi 的 origin frame 类型编号）
+    lines.push(...this.generateHideOriginCode());
+
     lines.push('');
     lines.push('print(string.format("|cff00ff00[UI Designer]|r 创建完成: %d 个Frame", frameCount))');
-    
+
     return lines.join('\n');
+  }
+
+  /**
+   * 生成"隐藏原生 UI 组件"的 Lua 代码。
+   *
+   * 依据（openwar3 `compat/lua/japi/dzapi/frame.ts` 与 `compat/frames.ts`）：
+   * origin frame 类型 3=HERO_BUTTON、8=MINIMAP、10=SIMPLE_BUTTON、13=CHAT_MSG、16=PORTRAIT；
+   * `HideOriginFrames(true)` 不含控制台美术/资源栏/黑色 ConsoleUIBackdrop，后者只能按名字取。
+   */
+  private generateHideOriginCode(): string[] {
+    const p = this.project as unknown as Record<string, unknown>;
+    const out: string[] = [];
+    const hideOrigin: Array<[string, string, number]> = [
+      ['hideMiniMap', 'ORIGIN_FRAME_MINIMAP', 1],
+      ['hideHeroBar', 'ORIGIN_FRAME_HERO_BUTTON', 7],
+      ['hideButtonBar', 'ORIGIN_FRAME_SIMPLE_BUTTON', 1],
+      ['hidePortrait', 'ORIGIN_FRAME_PORTRAIT', 1],
+      ['hideChat', 'ORIGIN_FRAME_CHAT_MSG', 1],
+    ];
+    const anyHide = this.project.hideGameUI || hideOrigin.some(([f]) => p[f] === true) || this.project.hideResources;
+    if (!anyHide) return out;
+
+    out.push('');
+    out.push('-- 隐藏原生 UI 组件');
+    if (this.project.hideGameUI) {
+      out.push('API.HideOriginFrames(true)');
+    }
+    for (const [flag, originType, count] of hideOrigin) {
+      if (p[flag] !== true) continue;
+      for (let i = 0; i < count; i += 1) {
+        out.push(`-- ${originType}[${i}]`);
+        out.push(`API.ShowFrame(API.GetOriginFrame(${originType}, ${i}), false)`);
+      }
+    }
+    if (this.project.hideResources) {
+      // 资源栏与控制台美术只能按名字取
+      out.push('API.ShowFrame(API.GetFrameByName("ResourceBar", 0), false)');
+      out.push('API.ShowFrame(API.GetFrameByName("ConsoleUIBackdrop", 0), false)');
+    }
+    return out;
   }
   
   /**
@@ -749,7 +816,7 @@ _G.UI_Designer_ParseColor = ParseColor`;
     if (frame.texCoord) {
       lines.push(`${indent}    -- 纹理坐标`);
       const [left, right, top, bottom] = frame.texCoord;
-      lines.push(`${indent}    API.SetTexCoord(frame, ${left}, ${top}, ${right}, ${bottom})`);
+      lines.push(`${indent}    API.SetTexCoord(frame, ${left}, ${right}, ${top}, ${bottom})`);
       lines.push('');
     }
     
@@ -767,7 +834,22 @@ _G.UI_Designer_ParseColor = ParseColor`;
       lines.push(`${indent}    API.ShowFrame(frame, false)`);
       lines.push('');
     }
-    
+
+    // 文本对齐（依 FrameSetTextAlignment 的 TEXTALIGN_* 常量）
+    if (frame.horAlign !== undefined || frame.verAlign !== undefined) {
+      const hor =
+        frame.horAlign === 'left' ? 'TEXTALIGN_LEFT'
+          : frame.horAlign === 'right' ? 'TEXTALIGN_RIGHT'
+            : 'TEXTALIGN_CENTER';
+      const ver =
+        frame.verAlign === 'start' ? 'TEXTALIGN_TOP'
+          : frame.verAlign === 'flex-end' ? 'TEXTALIGN_BOTTOM'
+            : 'TEXTALIGN_MIDDLE';
+      lines.push(`${indent}    -- 文本对齐`);
+      lines.push(`${indent}    API.SetTextAlignment(frame, ${hor}, ${ver})`);
+      lines.push('');
+    }
+
     // 递归创建子控件
     if (frame.children && frame.children.length > 0) {
       lines.push(`${indent}    -- 子控件`);
