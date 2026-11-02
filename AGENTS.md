@@ -154,6 +154,7 @@
 | backdropEdgeRenderer.ts | **删除死代码** | 全部导出（BackdropEdgeRenderer/renderBackdropEdge）生产零引用；BackdropEdge.tsx 组件实际用 textureAtlas（WebGL 路径），本文件是被取代的 canvas 2D 旧实现；6.6KB+11 测清除 |
 | textureAtlas.ts | **修 1 缺陷** | extractSubTextures 缓存键 `${url}_${subSize}` 不含 layout——同纹理换布局命中错误缓存返回错误部件；已加 `JSON.stringify(layout)` 进键（removeCacheEntry 同步签名）。**测试认证 bug 第 5 例**：既有测试名直接写 "reuses cache cacheKey layout-independent"、注释明示 "cache key ignores layout"——缺陷被认证为期望。HORIZONTAL_BORDER_LAYOUT 的 TODO(P1) Hexrays 索引顺序差异已有诚实记录，不动 |
 | coordinateService+fdfImportExport | 通过+删死函数 | 数学由 5760 组穷举守卫覆盖；clampWc3/clampWc3Size 生产零引用（真实钳制在 frameTransforms.clampRectToCanvas）删除；转换函数有生产引用保留。fdfImportExport 是 MenuBar 用的纯 re-export facade |
+| anchorUtils.ts | **修 1 性能缺陷** | 求解主路径 21 条 console.log 在 SceneGraphManager.sync 热路径上（1371 帧真实数据每次同步数千条日志，性能+控制台淹没真实 warn）；已删热路径 log，保留 warn 与 updateAnchorsFromBounds 编辑路径 log。另：getFrameVersion 缓存键缺目标帧 width/height，属防御性缺失非当前缺陷（updateFrame 全量清缓存保证失效），未来做精细化失效必须补 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）

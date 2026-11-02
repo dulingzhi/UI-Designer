@@ -477,7 +477,6 @@ export function calculatePositionFromAnchors(
         const relativePos = getAnchorPosition(relativeFrame, relativePoint);
         const absX = relativePos.x + anchor.x;
         const absY = relativePos.y + anchor.y;
-        console.log(`[Anchor] ${frame.name} ${FramePoint[anchor.point]}: relative to ${relativeFrame.name} at ${FramePoint[relativePoint]}, offset (${anchor.x.toFixed(3)}, ${anchor.y.toFixed(3)}), result (${absX.toFixed(3)}, ${absY.toFixed(3)})`);
         return { x: absX, y: absY };
       } else {
         console.warn(`[Anchor] Cannot find relative frame: ${anchor.relativeTo}`);
@@ -520,7 +519,6 @@ export function calculatePositionFromAnchors(
     y = bottomRightPos.y;
     width = bottomRightPos.x - topLeftPos.x;
     height = topLeftPos.y - bottomRightPos.y;
-    console.log(`[Anchor] ${frame.name}: Using TOPLEFT + BOTTOMRIGHT, dynamic size`);
   }
   // 策略2: 使用对角锚点 (TOPRIGHT + BOTTOMLEFT)
   else if (topRightPos && bottomLeftPos) {
@@ -528,7 +526,6 @@ export function calculatePositionFromAnchors(
     y = bottomLeftPos.y;
     width = topRightPos.x - bottomLeftPos.x;
     height = topRightPos.y - bottomLeftPos.y;
-    console.log(`[Anchor] ${frame.name}: Using TOPRIGHT + BOTTOMLEFT, dynamic size`);
   }
   // 策略3: 使用左右锚点 + 上下锚点
   else if (leftPos && rightPos && topPos && bottomPos) {
@@ -536,7 +533,6 @@ export function calculatePositionFromAnchors(
     y = bottomPos.y;
     width = rightPos.x - leftPos.x;
     height = topPos.y - bottomPos.y;
-    console.log(`[Anchor] ${frame.name}: Using LEFT + RIGHT + TOP + BOTTOM, dynamic size`);
   }
   // 策略4: 使用顶部两个锚点 (TOPLEFT + TOPRIGHT) - 动态宽度
   else if (topLeftPos && topRightPos) {
@@ -546,7 +542,6 @@ export function calculatePositionFromAnchors(
     y = avgY - frame.height;
     width = topRightPos.x - topLeftPos.x;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using TOPLEFT + TOPRIGHT, dynamic width, fixed height`);
   }
   // 策略5: 使用底部两个锚点 (BOTTOMLEFT + BOTTOMRIGHT) - 动态宽度
   else if (bottomLeftPos && bottomRightPos) {
@@ -556,7 +551,6 @@ export function calculatePositionFromAnchors(
     y = avgY;
     width = bottomRightPos.x - bottomLeftPos.x;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using BOTTOMLEFT + BOTTOMRIGHT, dynamic width, fixed height`);
   }
   // 策略5.1: 使用左侧两个锚点 (TOPLEFT + BOTTOMLEFT) - 动态高度
   else if (topLeftPos && bottomLeftPos) {
@@ -564,7 +558,6 @@ export function calculatePositionFromAnchors(
     y = bottomLeftPos.y;
     width = frame.width;
     height = topLeftPos.y - bottomLeftPos.y;
-    console.log(`[Anchor] ${frame.name}: Using TOPLEFT + BOTTOMLEFT, dynamic height, fixed width`);
   }
   // 策略5.2: 使用右侧两个锚点 (TOPRIGHT + BOTTOMRIGHT) - 动态高度
   else if (topRightPos && bottomRightPos) {
@@ -572,7 +565,6 @@ export function calculatePositionFromAnchors(
     y = bottomRightPos.y;
     width = frame.width;
     height = topRightPos.y - bottomRightPos.y;
-    console.log(`[Anchor] ${frame.name}: Using TOPRIGHT + BOTTOMRIGHT, dynamic height, fixed width`);
   }
   // 策略6: 使用左右锚点（宽度动态，高度固定）
   else if (leftPos && rightPos) {
@@ -580,7 +572,6 @@ export function calculatePositionFromAnchors(
     height = frame.height;
     x = leftPos.x;
     y = (leftPos.y + rightPos.y) / 2 - height / 2; // 中心对齐
-    console.log(`[Anchor] ${frame.name}: Using LEFT + RIGHT, dynamic width, fixed height`);
   }
   // 策略7: 使用上下锚点（高度动态，宽度固定）
   else if (topPos && bottomPos) {
@@ -588,7 +579,6 @@ export function calculatePositionFromAnchors(
     height = topPos.y - bottomPos.y;
     x = (topPos.x + bottomPos.x) / 2 - width / 2; // 中心对齐
     y = bottomPos.y;
-    console.log(`[Anchor] ${frame.name}: Using TOP + BOTTOM, dynamic height, fixed width`);
   }
   // 策略8: 单锚点 TOPLEFT（固定尺寸）
   else if (topLeftPos) {
@@ -596,7 +586,6 @@ export function calculatePositionFromAnchors(
     y = topLeftPos.y - frame.height;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using TOPLEFT only, fixed size`);
   }
   // 策略9: 单锚点 BOTTOMRIGHT（固定尺寸）
   else if (bottomRightPos) {
@@ -604,7 +593,6 @@ export function calculatePositionFromAnchors(
     y = bottomRightPos.y;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using BOTTOMRIGHT only, fixed size`);
   }
   // 策略8: 单锚点 CENTER（固定尺寸）
   else if (centerPos) {
@@ -612,7 +600,6 @@ export function calculatePositionFromAnchors(
     y = centerPos.y - frame.height / 2;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using CENTER only, fixed size`);
   }
   // 策略9: 单锚点 TOP（固定尺寸）
   else if (topPos) {
@@ -620,7 +607,6 @@ export function calculatePositionFromAnchors(
     y = topPos.y - frame.height;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using TOP only, fixed size`);
   }
   // 策略10: 单锚点 TOPRIGHT（固定尺寸）
   else if (topRightPos) {
@@ -628,7 +614,6 @@ export function calculatePositionFromAnchors(
     y = topRightPos.y - frame.height;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using TOPRIGHT only, fixed size`);
   }
   // 策略11: 单锚点 LEFT（固定尺寸）
   else if (leftPos) {
@@ -636,7 +621,6 @@ export function calculatePositionFromAnchors(
     y = leftPos.y - frame.height / 2;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using LEFT only, fixed size`);
   }
   // 策略12: 单锚点 RIGHT（固定尺寸）
   else if (rightPos) {
@@ -644,7 +628,6 @@ export function calculatePositionFromAnchors(
     y = rightPos.y - frame.height / 2;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using RIGHT only, fixed size`);
   }
   // 策略13: 单锚点 BOTTOMLEFT（固定尺寸）
   else if (bottomLeftPos) {
@@ -652,7 +635,6 @@ export function calculatePositionFromAnchors(
     y = bottomLeftPos.y;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using BOTTOMLEFT only, fixed size`);
   }
   // 策略14: 单锚点 BOTTOM（固定尺寸）
   else if (bottomPos) {
@@ -660,7 +642,6 @@ export function calculatePositionFromAnchors(
     y = bottomPos.y;
     width = frame.width;
     height = frame.height;
-    console.log(`[Anchor] ${frame.name}: Using BOTTOM only, fixed size`);
   }
   // 策略15: 其他情况（不应该到达这里）
   /* v8 ignore start: every FramePoint 0-8 is matched by a strategy above; unreachable else. */
@@ -678,7 +659,6 @@ export function calculatePositionFromAnchors(
     return null;
   }
 
-  console.log(`[Anchor] Calculated position for ${frame.name}: (${x.toFixed(3)}, ${y.toFixed(3)}), size: (${width.toFixed(3)}, ${height.toFixed(3)})`);
   
   const result = { x, y, width, height };
   setCachedPosition(frame.id, frameVersion, result);
