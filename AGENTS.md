@@ -173,6 +173,7 @@
 | 编辑器健壮性收口（rounds 126-142 归并） | feat 3+修 10 | ①多选：组拖拽/方向键微调全员同步，组合命令一次 Ctrl+Z 全撤 ②存档环打破：手编辑 parentId 互指→migrate 切根+children/rootFrameIds 重建（渲染递归假死 P1）③NaN 防御矩阵：parseFloat/parseInt 输入面 14 处+guide 几何 ④组合命令族：组合模板/BatchEditPanel N 帧独立命令只撤一帧→组合命令；applyStylePreset/clearGuides/addGuide 直调 store 不可撤销→捕获型命令入 undo 栈（r141 只修了 add/clear；r143 补漏 updateGuide 拖动/removeGuide 单删 2 消费点；r144 终扫：右键锁定/可见性+组 CRUD 直调 store 定性低价值不修——同一菜单项再点即恢复，与 saveFrameAsPreset/setRace 同档，旁路清单 10 项全定性）⑤dirty 防护：beforeunload 拦截+project-state-reset 事件（监听 1/派发 8）+加载前 dirty 确认 3 处（dirty 迁 uiStore 同源，r145 补 2 测——store action 行为测试约定）。教训：r133 声称 4/4 实际 2/4——批量替换后必须 grep 验证 |
 | 构建与健壮性收口（rounds 115-125 归并） | 通过+修 8 | ①存档链：序列化保真 2 测/frames 缺失归一化/recentFiles 类型防御/hotReloadConfig 自动导出 try-catch（损坏 JSON 异步 rejection 曾使链路静默死亡）②undo：拖拽手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪——pushCommand 统一 3 处旁路（+3 测）③构建：tsconfig.build.json 修复生产构建从未绿过（95 测试侧报错阻塞）/cargo release 首验+2 死代码清理/manualChunks 分离 three/react（主 chunk -31%）④stale closure：window.checkForUpdates 重暴露修复防重入（全仓扫描为唯一一例）。r147-148 文档对账（README 8 项/QUICKSTART 倒置×5/PNG 虚标删/JSON 导出核查反转保留）；r151 HistoryPanel 跳转推演核查通过（4 场景索引映射全对） |。r145 门禁疏漏修复：r129 环打破新增分支未跑 coverage（All files 曾破 100）——inCycle 后重建阶段的 if(parentId) 结构不可达（第二步清悬空/环切根恒 falsy 实证）→ 消除死分支+悬空清理统一 null（r116 断言同步）；**门禁 2 恢复 100×4**。导出错误处理核查通过（3 入口 try-catch+alert） |
 | Ctrl+F 聚焦搜索（round 153） | feat 补 1 宣称缺口 | README 快捷键表宣称 Ctrl+F 全仓无实现（r90/91 帮助面板对账漏了 README 表）——实现：hook 派发 focus-frame-search 事件+ProjectTree ref 聚焦（事件解耦跨组件）；帮助面板同步列入（r91 对账一致性）。2123 测全绿 |
+| PNG 导出宣称恢复（round 156） | **修 1 误删** | r147 删「图片导出」宣称关键字 exportPNG 漏匹配 exportToPNG——该功能真实（save 对话框+toBlob+MenuBar 入口），恢复宣称。教训：虚标判定先穷尽同义关键字（r148 同款） |
 | 导出防重入（round 155） | 通过+防御 | Toolbar handleExport（3 导出按钮）无防重入——对话框打开期间再点其他按钮交错触发。加 exportingRef 防护（同 handleLaunchWar3 isLaunching 模式），finally 复位。2123 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
@@ -187,16 +188,9 @@ historyPanel(5)/utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7
 **wiringExtra.test.ts（4 测）**补齐 StylePresetPanel/FrameGroupPanel/UpdateChecker 三组件边界。
 **教训**：多行字符串断言过脆——用 indexOf 顺序断言（语义等价抗格式化）。
 
-### 真实数据大样本往返守卫（本轮，转正）
+### 真实数据大样本往返守卫（压缩）
 
-`tests/ow3compare/roundtrip.real.test.ts`（guarded，war3.mpq）：全量 42 个 Glue FDF →
-parseFDF(useKernelLayout) → FDF 导出 → importFromFDFText → 断言 42/42 全通过、
-1371 帧无一抛错。这是对 18 轮导出/导入工作在**真实数据上的总验证**——
-真实语法变体（数值格式、模板引用、空字段）全部被往返消化。
-
-**探针自身教训**：首轮大样本 42 个全挂，是探针忘了 `await` 异步导出（mock 未完成时读
-`mock.calls.at(-1)` 得 undefined，报 `undefined[1]`）——不是产品缺陷。定位方法：
-单文件最小复现成功 → 对比差异 → 发现 await 缺失。**大样本验证前先确认探针自身正确**。
+`tests/ow3compare/roundtrip.real.test.ts`（guarded，war3.mpq）：42 个 Glue FDF → parseFDF(useKernelLayout) → FDF 导出 → importFromFDFText，42/42 全通过、1371 帧无一抛错。探针教训：首轮 42 全挂是探针漏 `await` 异步导出（mock.calls.at(-1) undefined）——大样本验证前先确认探针自身正确。
 
 ### JASS/LUA/TS 代码导出完善（本轮）
 
