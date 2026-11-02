@@ -29,6 +29,8 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
   
   // 搜索和筛选状态
   const [searchQuery, setSearchQuery] = useState<string>('');
+  // round 153：Ctrl+F 聚焦搜索框（useKeyboardShortcuts 派发 focus-frame-search）
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
   const [filterType, setFilterType] = useState<FrameType | 'all'>('all');
   const [filterVisible, setFilterVisible] = useState<boolean | null>(null);
   const [filterLocked, setFilterLocked] = useState<boolean | null>(null);
@@ -429,7 +431,14 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
     const handleClick = () => setContextMenu(null);
     if (contextMenu) {
       document.addEventListener('click', handleClick);
-      return () => document.removeEventListener('click', handleClick);
+    
+  // Ctrl+F 聚焦搜索框
+  React.useEffect(() => {
+    const onFocus = () => searchInputRef.current?.focus();
+    window.addEventListener('focus-frame-search', onFocus);
+    return () => window.removeEventListener('focus-frame-search', onFocus);
+  }, []);
+  return () => document.removeEventListener('click', handleClick);
     }
   }, [contextMenu]);
 
@@ -603,6 +612,7 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
       <div className="tree-search-filters">
         <div className="search-input-row">
           <input 
+            ref={searchInputRef}
             type="text" 
             className="tree-search-input"
             placeholder="搜索控件..."

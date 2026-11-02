@@ -59,7 +59,21 @@ export const useKeyboardShortcuts = (
       }
 
       // ========== Ctrl 组合键 ==========
-      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+      
+      // round 153：Ctrl+F 聚焦项目树搜索框（README 宣称补齐，事件解耦 ProjectTree）
+
+      if (e.key === 'f' || e.key === 'F') {
+
+        e.preventDefault();
+
+        window.dispatchEvent(new CustomEvent('focus-frame-search'));
+
+        return;
+
+      }
+
+      
+if (e.ctrlKey && !e.shiftKey && !e.altKey) {
         switch (e.key.toLowerCase()) {
           case 's':
             e.preventDefault();

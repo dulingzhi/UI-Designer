@@ -1,4 +1,5 @@
-# agents.md
+#| Ctrl+F 聚焦搜索（round 153） | feat 补 1 宣称缺口 | README 快捷键表宣称 Ctrl+F 全仓无实现（r90/91 帮助面板对账漏了 README 表）——实现：hook 派发 focus-frame-search 事件+ProjectTree ref 聚焦（事件解耦跨组件）；帮助面板同步列入（r91 对账一致性）。2123 测全绿 |
+ agents.md
 
 本文件是给代码代理（agent）的「操作规则 / 门禁 / 验收标准」备忘录。所有后续迭代**必须**在改动后同步更新本文件，并在提交前复查一遍是否与本仓库的实际规则一致。
 

@@ -24,6 +24,7 @@ export const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isOpen, onClose }) =
       { keys: 'Ctrl+X', description: '剪切控件' },
       { keys: 'Ctrl+D', description: '快速复制选中控件' },
       { keys: 'Ctrl+A', description: '全选控件' },
+  { keys: 'Ctrl+F', description: '聚焦搜索框（round 153）' },
       { keys: 'Ctrl+Shift+A', description: '反选控件' },
       { keys: 'Delete / Backspace', description: '删除选中控件' },
       { keys: 'Esc', description: '取消选择' },
