@@ -144,6 +144,14 @@ function AppContent() {
 
       if (e.ctrlKey && !e.shiftKey && !e.altKey) {
         switch (e.key) {
+          case '1':
+            e.preventDefault();
+            setShowProjectTree(prev => !prev);
+            break;
+          case '2':
+            e.preventDefault();
+            setShowPropertiesPanel(prev => !prev);
+            break;
           case '3':
             e.preventDefault();
             setShowStylePresetPanel(prev => !prev);
@@ -155,6 +163,16 @@ function AppContent() {
           case '5':
             e.preventDefault();
             setShowHotReloadPanel(prev => !prev);
+            break;
+          case '9':
+            // 适应窗口（MenuBar 同款）
+            e.preventDefault();
+            canvasRef.current?.centerCanvas();
+            break;
+          case '/':
+            // 快捷键帮助（F1 同款）
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('openShortcutHelp'));
             break;
         }
       }

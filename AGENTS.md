@@ -177,6 +177,7 @@
 | 编辑器事件接线核实（round 89） | 通过 | 全仓 CustomEvent 清点：仅 openShortcutHelp(1L/2D)+openPreferences(1L/1D) 两个自定义事件，dispatch/listen 均配对（Toolbar/MenuBar 监听、shortcuts/MenuBar 派发）；其余全为原生 DOM 事件有源——无 dead dispatch |
 | 帮助面板虚标快捷键补齐（round 90） | **修 1 宣称≠实现** | ShortcutHelp 宣称的 Ctrl+X 剪切 / Ctrl+±/0 缩放 hook 无实现（按了没反应）——已补：Ctrl+X=复制+删除半步（过滤锁定帧走确认框）、Ctrl+=/- 缩放钳 0.1..5、Ctrl+0 重置 1。其余宣称项核实存在（Alt+滚轮/Ctrl+点击/Shift 框选）。2094 测全绿 |
 | 帮助面板反向对账（round 91） | docs 补全 | 已实现但未列：Ctrl+A 全选/Ctrl+Shift+A 反选/Ctrl+; 清参考线/Ctrl+, 偏好设置——补入 ShortcutHelp 编辑操作类。双向对账完成（宣称≠实现 r90 + 实现≠宣称 r91），帮助面板与 hook 全量一致 |
+| MenuBar 虚标收敛（round 92） | **修 1 误判+补 4 快捷键** | 初判 Ctrl+3/4/5/Shift+D 虚标——**误判**：App.tsx 有独立键盘监听器（不在 hook 内）已实现；真正虚标仅 Ctrl+1/2（面板）、Ctrl+9（适应窗口）、Ctrl+/（帮助）——App handleViewToggle 补 case 1/2/9//（canvasRef.centerCanvas 同 MenuBar 款）。教训：跨文件键盘监听器并存，虚标判定须扫全仓而非单 hook |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
