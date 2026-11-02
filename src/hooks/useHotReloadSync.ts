@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useProjectStore } from '../store/projectStore';
 import { ProjectData } from '../types';
+import { buildHotReloadLua } from '../utils/hotReloadLua';
 
 export type HotReloadStatus = 'idle' | 'connected' | 'error';
 
@@ -53,20 +54,8 @@ export function useHotReloadSync() {
     const data = pendingUpdateRef.current;
     pendingUpdateRef.current = null;
 
-    // 摘取所有被更新的帧，打平成一个平铺的同步字典。
-    // 在最极端的 MVP 我们直接发能在魔兽中执行的 Lua 代码：
-    let luaCode = '';
-    const uiFrames = '_G.UI_Designer_Frames';
-    Object.values(data.frames).forEach(frame => {
-      luaCode += `local f = ${uiFrames}["${frame.id}"]\n`;
-      luaCode += `if f and f.handle then\n`;
-      // 位置同步
-      luaCode += `  _G.UI_Designer_API.SetAbsolutePoint(f.handle, _G.UI_Designer_GetAnchor("BOTTOMLEFT"), ${frame.x.toFixed(6)}, ${frame.y.toFixed(6)})\n`;
-      // 大小同步
-      luaCode += `  _G.UI_Designer_API.SetSize(f.handle, ${frame.width.toFixed(6)}, ${frame.height.toFixed(6)})\n`;
-      // 这里可以按需追加文本、纹理的同步
-      luaCode += `end\n`;
-    });
+    // 逐帧生成同步 Lua（纯逻辑已抽到 hotReloadLua.ts，可单测）
+    const luaCode = buildHotReloadLua(data.frames);
 
     try {
       await invoke('send_hot_reload_update', {
