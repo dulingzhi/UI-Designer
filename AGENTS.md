@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `124 passed | 2 skipped` 测试文件，`2084 passed | 5 skipped` 测试
+- `125 passed | 2 skipped` 测试文件，`2089 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -201,6 +201,15 @@ return + 按钮 disabled）、分组创建/更新/删除全走 store action。
 
 **测试**：`src/components/presetGroupWiring.test.ts`（6 测，6/6 一次通过）。
 组件层接线守卫现共 **66 测**。
+
+### PreferencesDialog 接线守卫（本轮，续）
+
+偏好设置入口守卫锁定：双键持久化（`preferences` + `war3_install_path` 分键保存）、
+开关/滑条/主题语言全部受控、重置有确认框且回落 DEFAULT_PREFERENCES、
+清除本地数据为 danger-button 危险操作带警示、网格尺寸值回显。
+
+**测试**：`src/components/preferencesWiring.test.ts`（5 测，5/5 一次通过）。
+组件层接线守卫现共 **71 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
