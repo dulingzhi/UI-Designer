@@ -175,6 +175,7 @@
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
 | 生命周期清理域（rounds 165-166 收口） | 修 1+横向排查通过 | useHotReloadSync 的 project effect rAF 无卸载清理（卸载后仍触发 sendUpdate）——加 return cancelAnimationFrame；横向排查 hooks+组件层全部成对（App×4/MenuBar×3/HotReloadPanel×2/Toolbar×1/hooks×2），r165 是唯一缺陷；Tauri listen 清理核查通过 |
 | 夹具补强与接线核查域（rounds 168/170 归并） | test 补强+核查通过 | ①fullProject 夹具数组字段恒空——填非空条目+5 断言（白名单序列化回归锁不住）②模板文件加载链完整（MenuBar→importFDFFolder→loadTemplatesFromFile，TemplatePanel 展示内置分工合理）；门禁复验 2126/444/100×4 |
+| QUICKSTART 控件级对账（round 173） | 通过 | 父级下拉/isRelative 勾选/horAlign 编辑/库名+Origin 模式控件全部真实存在——修正后 QUICKSTART 宣称与控件一致 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
