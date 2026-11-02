@@ -218,15 +218,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     // 清除缓存（因为frame可能被修改）
     clearPositionCache();
 
+    // round 112 修复（幽灵帧同族第 8 处）：parentId 变更指向已删除的帧时
+    // 归一化为根帧——与 addFrame/fileOperations 清理语义一致。
+    // 原实现不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧复发。
+    const changingParent = 'parentId' in updates && updates.parentId !== frame.parentId;
+    const newParentId: string | null = changingParent && updates.parentId && !state.project.frames[updates.parentId]
+      ? null
+      : (changingParent ? (updates.parentId ?? null) : frame.parentId);
+
     const updatedFrames = {
       ...state.project.frames,
-      [id]: { ...frame, ...updates },
+      [id]: newParentId !== updates.parentId && changingParent
+        ? { ...frame, ...updates, parentId: newParentId }
+        : { ...frame, ...updates },
     };
 
     // 如果更新了parentId，需要同步更新父子关系
-    if ('parentId' in updates && updates.parentId !== frame.parentId) {
+    if (changingParent) {
       const oldParentId = frame.parentId;
-      const newParentId = updates.parentId;
 
       // 从旧父控件的children中移除
       if (oldParentId && updatedFrames[oldParentId]) {
@@ -247,13 +256,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     }
 
-    // 更新rootFrameIds
+    // 更新rootFrameIds（以归一化后的 newParentId 为准——悬空已归一化为根）
     let newRootFrameIds = state.project.rootFrameIds;
-    if ('parentId' in updates) {
-      if (updates.parentId === null && !newRootFrameIds.includes(id)) {
+    if (changingParent) {
+      if (newParentId === null && !newRootFrameIds.includes(id)) {
         // 变为根控件
         newRootFrameIds = [...newRootFrameIds, id];
-      } else if (updates.parentId !== null && newRootFrameIds.includes(id)) {
+      } else if (newParentId !== null && newRootFrameIds.includes(id)) {
         // 从根控件变为子控件
         newRootFrameIds = newRootFrameIds.filter(fid => fid !== id);
       }
