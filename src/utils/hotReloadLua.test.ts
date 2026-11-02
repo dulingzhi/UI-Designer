@@ -53,4 +53,20 @@ describe('buildHotReloadLua', () => {
     const lua = buildHotReloadLua({ n: frame({ id: 'n', x: -0.5 }) });
     expect(lua).toContain('-0.500000');
   });
+
+  it('携带 text 的帧追加 SetText（转义）', () => {
+    const lua = buildHotReloadLua({ t: frame({ id: 't', text: 'He said "hi"' }) });
+    expect(lua).toContain('SetText(f.handle, "He said \\"hi\\"")');
+  });
+
+  it('无 text/texture 的帧不生成 SetText/SetTexture', () => {
+    const lua = buildHotReloadLua({ p: frame({}) });
+    expect(lua).not.toContain('SetText');
+    expect(lua).not.toContain('SetTexture');
+  });
+
+  it('携带 texture 的帧追加 SetTexture（转义 + fixedScale 0）', () => {
+    const lua = buildHotReloadLua({ x: frame({ id: 'x', texture: 'UI\\X.blp' }) });
+    expect(lua).toContain('SetTexture(f.handle, "UI\\\\X.blp", 0)');
+  });
 });

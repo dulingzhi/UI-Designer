@@ -20,6 +20,14 @@ export function buildHotReloadLua(frames: Record<string, FrameData>): string {
     luaCode += `  _G.UI_Designer_API.SetAbsolutePoint(f.handle, _G.UI_Designer_GetAnchor("BOTTOMLEFT"), ${frame.x.toFixed(6)}, ${frame.y.toFixed(6)})\n`;
     // 大小同步
     luaCode += `  _G.UI_Designer_API.SetSize(f.handle, ${frame.width.toFixed(6)}, ${frame.height.toFixed(6)})\n`;
+    // 文本同步（仅文本帧携带 text）
+    if (frame.text) {
+      luaCode += `  _G.UI_Designer_API.SetText(f.handle, "${escapeLuaString(frame.text)}")\n`;
+    }
+    // 纹理同步（仅设置过 texture 的帧；BlzFrameSetTexture 对 TEXTURE 类帧生效）
+    if (frame.texture) {
+      luaCode += `  _G.UI_Designer_API.SetTexture(f.handle, "${escapeLuaString(frame.texture)}", 0)\n`;
+    }
     luaCode += `end\n`;
   });
   return luaCode;
