@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `126 passed | 2 skipped` 测试文件，`2094 passed | 5 skipped` 测试
+- `127 passed | 2 skipped` 测试文件，`2100 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -220,6 +220,19 @@ loading/error/正常三态 UI。
 
 **测试**：`src/components/mdxViewerWiring.test.ts`（5 测，5/5 一次通过）。
 组件层接线守卫现共 **76 测**。
+
+### Canvas 接线守卫（本轮，续）
+
+画布核心（1016 行，渲染+交互总入口）守卫锁定：SceneGraphManager 生命周期
+（异步创建 + **cancelled 竞态防护**——dispose 分支紧跟 cancelled 判断、卸载
+dispose+清空 ref 防渲染到失效场景）、渲染初始化失败显式记录、右键菜单 6 类
+动作全走命令层（Copy/CopyStyle/Duplicate/Paste/Remove/Update）、点击判定走
+WebGL hitTest（产品真实命中路径）、拖拽/缩放/平移经 hook 化。
+
+**测试**：`src/components/canvasWiring.test.ts`（6 测）。
+**守卫编写教训**：多行字符串断言对缩进/换行过脆（首版 1/6 失败），
+改为 `indexOf` 顺序断言（cancelled 判断先于 dispose）——语义等价且抗格式化。
+组件层接线守卫现共 **82 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
