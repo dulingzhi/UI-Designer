@@ -176,7 +176,15 @@ export const useUIStore = create<UIState>((set, get) => ({
     const { project } = useProjectStore.getState();
     const group = (project.frameGroups || []).find(g => g.id === groupId);
     if (group) {
-      set({ selectedFrameIds: [...group.frameIds] });
+      // round 105 修复两处：
+      // ① 同步 selectedFrameId=最后成员（与 selectMultipleFrames/toggleSelectFrame
+      //    语义一致——原实现只设 ids，组选择后属性面板残留旧选中帧）
+      // ② frameIds 可选防御（手编辑存档 JSON 可能缺字段，spread undefined 抛错）
+      const ids = [...(group.frameIds || [])];
+      set({
+        selectedFrameIds: ids,
+        selectedFrameId: ids.length > 0 ? ids[ids.length - 1] : null,
+      });
     }
   },
 }));

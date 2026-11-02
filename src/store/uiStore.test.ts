@@ -274,3 +274,80 @@ describe('pasteStyleFromClipboard', () => {
     expect(updated.textColor).toBe('#000000'); // 未变
   });
 });
+
+describe('选择类 action（round 105 补齐，编辑器核心交互）', () => {
+  beforeEach(() => {
+    useUIStore.setState({
+      selectedFrameId: null,
+      selectedFrameIds: [],
+      highlightedFrameIds: [],
+    });
+    useProjectStore.setState({
+      project: makeTestProject({ frames: {}, rootFrameIds: [] }),
+    });
+  });
+
+  it('selectFrame 单选并同步 selectedFrameId；null 清空', () => {
+    useUIStore.getState().selectFrame('a');
+    expect(useUIStore.getState().selectedFrameId).toBe('a');
+    expect(useUIStore.getState().selectedFrameIds).toEqual(['a']);
+
+    useUIStore.getState().selectFrame(null);
+    expect(useUIStore.getState().selectedFrameId).toBeNull();
+    expect(useUIStore.getState().selectedFrameIds).toEqual([]);
+  });
+
+  it('toggleSelectFrame 加选/移除，selectedFrameId=最后成员', () => {
+    useUIStore.getState().toggleSelectFrame('a');
+    useUIStore.getState().toggleSelectFrame('b');
+    expect(useUIStore.getState().selectedFrameIds).toEqual(['a', 'b']);
+    expect(useUIStore.getState().selectedFrameId).toBe('b');
+
+    useUIStore.getState().toggleSelectFrame('a');
+    expect(useUIStore.getState().selectedFrameIds).toEqual(['b']);
+    expect(useUIStore.getState().selectedFrameId).toBe('b');
+  });
+
+  it('clearSelection 清空双状态', () => {
+    useUIStore.getState().selectMultipleFrames(['a', 'b']);
+    useUIStore.getState().clearSelection();
+    expect(useUIStore.getState().selectedFrameId).toBeNull();
+    expect(useUIStore.getState().selectedFrameIds).toEqual([]);
+  });
+
+  it('selectGroup 选中组成员并同步 selectedFrameId=最后成员（round 105 修复）', () => {
+    useProjectStore.setState({
+      project: makeTestProject({
+        frames: { a: makeTestFrame({ id: 'a' }), b: makeTestFrame({ id: 'b' }) },
+        rootFrameIds: ['a', 'b'],
+      }),
+      // frameGroups 不在 makeTestProject 里，直接补
+    } as never);
+    useProjectStore.setState((s) => ({
+      project: { ...s.project, frameGroups: [{ id: 'g1', name: 'G', createdAt: 0, frameIds: ['a', 'b'] }] },
+    }));
+
+    // 先造一个旧选中残留
+    useUIStore.getState().selectFrame('old-frame');
+    useUIStore.getState().selectGroup('g1');
+
+    expect(useUIStore.getState().selectedFrameIds).toEqual(['a', 'b']);
+    // 修复点：selectedFrameId 必须同步为最后成员，而非残留 'old-frame'
+    expect(useUIStore.getState().selectedFrameId).toBe('b');
+  });
+
+  it('selectGroup 未知组静默 no-op（不改当前选择）', () => {
+    useUIStore.getState().selectFrame('keep');
+    useUIStore.getState().selectGroup('no-such-group');
+    expect(useUIStore.getState().selectedFrameId).toBe('keep');
+    expect(useUIStore.getState().selectedFrameIds).toEqual(['keep']);
+  });
+
+  it('selectGroup 组缺 frameIds 字段不抛错（手编辑存档防御，round 105 修复）', () => {
+    useProjectStore.setState((s) => ({
+      project: { ...s.project, frameGroups: [{ id: 'g2', name: 'Bad', createdAt: 0 } as never] },
+    }));
+    expect(() => useUIStore.getState().selectGroup('g2')).not.toThrow();
+    expect(useUIStore.getState().selectedFrameIds).toEqual([]);
+  });
+});
