@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-- `141 passed | 2 skipped` 测试文件，`2120 passed | 5 skipped` 测试
+- `141 passed | 2 skipped` 测试文件，`2121 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -189,6 +189,7 @@
 | 多选拖拽实现（round 126） | **feat 补 1 功能缺口** | useCanvasDrag 原只移动被拖帧（无 selectedFrameIds 引用）——多选拖动其余选中帧留原地（与主流编辑器相悖）。实现：startDrag 捕获选中集起始状态/位置/锚点快照，updateDrag 对其余帧平移同一 delta（**绝对锚点跟随+相对锚点 offset 平移——两种锚点 += delta 解算位置等量平移，数学一致**），endDrag 组合命令一次 Ctrl+Z 全撤（逆序恢复）。computeMultiDragFrames 导出+3 测（delta 平移/锚点语义/单选零位移空）。2119 测全绿 |
 | 方向键多选微调（round 127） | feat 补齐 | 方向键/Shift+方向键原只处理 selectedFrameId 单帧——多选时仅主帧步进。提取 nudgeSelected：selectedFrameIds 全员同步步进（无选中回退主帧），单帧 executeCommand/多帧组合命令一次 Ctrl+Z 全撤（r126 拖拽同款）。r88 静态守卫同步新语义+1 测。2120 测全绿 |
 | 多选复制语义观察（round 128） | 产品观察 | 多选 Ctrl+C/Ctrl+D 原单帧语义（copyToClipboard/DuplicateFrameCommand 单帧）——复制全部选中 vs 仅主帧在不同编辑器行为不一（Figma 组复制/部分工具主帧）；clipboard 结构改造涉及 PasteFrameCommand 递归粘贴链，属产品决策。多选交互已收口：选择同步(r105)/组拖拽(r126)/键盘微调(r127)/删除(BatchRemove)——复制语义待用户裁定 |
+| 存档环打破（round 129） | **修 1 假死缺陷** | 手编辑存档 parentId 互指（A↔B）→ migrateProjectData 重建 children 后互含——加载后渲染遍历（collectIds/renderTreeNode 按 children 递归，无 visited）**无限递归栈溢出假死**。修复：migrate 第三步环检测（parent 链回自身→切根）+children/rootFrameIds 按新 parentId 重建（顺带修复 rootFrameIds 原本不重建的漂移）。UI 拖拽环检测（isDescendant）核查方向正确。+1 测（互指切根/遍历终止/rootFrameIds 重建）。2121 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 

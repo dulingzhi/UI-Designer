@@ -54,9 +54,45 @@ function migrateProjectData(project: ProjectData): ProjectData {
     }
   }
   
+
+  // 第三步：环打破（round 129）。手编辑存档可能 parentId 互指（A.parentId=B 且 B.parentId=A），
+  // 重建 children 后双向互含——加载后渲染遍历（collectIds/renderTreeNode 按 children 递归）
+  // 无限递归栈溢出假死。parent 链回到自身的帧强制切根（parentId 清空）。
+  const visiting = new Set<string>();
+  const resolved = new Set<string>();
+  const inCycle = (id: string): boolean => {
+    if (resolved.has(id)) return false;
+    if (visiting.has(id)) return true;
+    visiting.add(id);
+    const p = migratedFrames[id]?.parentId;
+    const cyc = p ? inCycle(p) : false;
+    visiting.delete(id);
+    resolved.add(id);
+    return cyc;
+  };
+  for (const id of Object.keys(migratedFrames)) {
+    if (inCycle(id)) {
+      migratedFrames[id] = { ...migratedFrames[id], parentId: null };
+    }
+  }
+  // 切根后 children 与 rootFrameIds 需按新 parentId 再重建一次（复用第二步逻辑）
+  for (const frame of Object.values(migratedFrames)) {
+    frame.children = [];
+  }
+  const rootFrameIds: string[] = [];
+  for (const [id, frame] of Object.entries(migratedFrames)) {
+    if (frame.parentId && migratedFrames[frame.parentId]) {
+      migratedFrames[frame.parentId].children.push(id);
+    } else {
+      if (frame.parentId) frame.parentId = null;
+      rootFrameIds.push(id);
+    }
+  }
+
   return {
     ...project,
-    frames: migratedFrames
+    frames: migratedFrames,
+    rootFrameIds,
   };
 }
 

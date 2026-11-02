@@ -177,3 +177,63 @@ describe('损坏但合法的 JSON 存档容错（round 116）', () => {
     await expect(loadProjectFromPath('C:\\tmp\\garbage.w3ui')).rejects.toThrow();
   });
 });
+
+
+// round 129 环测试专用最小帧（避免与本文件其他 helper 冲突）
+function makeCycleFrame(id: string, parentId: string | null): FrameData {
+  return {
+    id,
+    name: id,
+    type: FrameType.BACKDROP,
+    x: 0.1,
+    y: 0.1,
+    width: 0.2,
+    height: 0.2,
+    parentId,
+    children: [],
+  } as unknown as FrameData;
+}
+describe('手编辑存档 parentId 环打破（round 129）', () => {
+  beforeEach(() => {
+    writtenFiles.clear();
+    vi.mocked(save).mockReset();
+    vi.mocked(open).mockReset();
+  });
+
+  it('parentId 互指环（A↔B）→ 切根打破，children 无互含（渲染不假死）', async () => {
+    // A.parentId=B, B.parentId=A——重建 children 后会互含，collectIds/renderTreeNode 递归死循环
+    const cyclic = {
+      ...fullProject(),
+      frames: {
+        a: { ...makeCycleFrame('a', null), parentId: 'b' },
+        b: { ...makeCycleFrame('b', 'a'), parentId: 'a' },
+        c: { ...makeCycleFrame('c', 'b'), parentId: 'b' },
+      },
+      rootFrameIds: [],
+    } as unknown as ProjectData;
+    writtenFiles.set('C:\\tmp\\cycle.w3ui', JSON.stringify(cyclic));
+    vi.mocked(open).mockResolvedValue('C:\\tmp\\cycle.w3ui');
+
+    const { project } = await loadProjectFromPath('C:\\tmp\\cycle.w3ui');
+
+    // 环被打破：至少一个环成员切根（parentId 清空），children 链不再互指
+    const parentIds = Object.values(project.frames).map(f => f.parentId ?? null);
+    const hasNull = parentIds.includes(null);
+    expect(hasNull).toBe(true);
+    // children 重建后无环：从任一帧沿 children 走最多 frames.length 步必终止
+    for (const startId of Object.keys(project.frames)) {
+      let current = startId;
+      let steps = 0;
+      const guard = Object.keys(project.frames).length + 1;
+      let stack = [...(project.frames[startId]?.children ?? [])];
+      while (stack.length > 0 && steps < guard) {
+        const id = stack.pop()!;
+        stack.push(...(project.frames[id]?.children ?? []));
+        steps++;
+      }
+      expect(steps).toBeLessThan(guard);
+    }
+    // rootFrameIds 由迁移重建（至少含被切根的帧）
+    expect(project.rootFrameIds.length).toBeGreaterThan(0);
+  });
+});
