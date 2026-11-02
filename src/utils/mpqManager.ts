@@ -81,6 +81,8 @@ export class MPQManager {
   private war3Path: string = '';
   private fileListCache: Map<string, FileSearchResult> = new Map();
   private isLoading: boolean = false; // 添加加载中标志
+  /** 加载代际：setWar3Path 每次自增；过期加载在档案间隙中止，防并发混合加载 */
+  private loadGeneration = 0;
   /** 按档案路径索引的轻量 DataSource 缓存（invalidate 于 unloadAll）。 */
   private cachedDataSource: DataSource | null = null;
 
@@ -146,6 +148,7 @@ export class MPQManager {
       return;
     }
     
+    const generation = ++this.loadGeneration;
     this.war3Path = path;
     this.isLoading = true; // 设置加载中标志
     
@@ -157,7 +160,7 @@ export class MPQManager {
     try {
       // 自动加载标准 MPQ 档案
       console.log('[MPQManager] 开始加载 MPQ 档案...');
-      const result = await this.loadStandardArchives();
+      const result = await this.loadStandardArchives(generation);
       console.log(`[MPQManager] MPQ 加载结果: ${result.success} 成功, ${result.failed} 失败`);
       console.log(`[MPQManager] 文件缓存大小: ${this.fileListCache.size} 个文件`);
       
@@ -214,7 +217,7 @@ export class MPQManager {
   /**
    * 加载所有标准 MPQ 档案
    */
-  async loadStandardArchives(): Promise<{ success: number; failed: number }> {
+  async loadStandardArchives(generation: number = this.loadGeneration): Promise<{ success: number; failed: number }> {
     if (!this.war3Path) {
       throw new Error('未设置 Warcraft 3 路径');
     }
@@ -228,6 +231,11 @@ export class MPQManager {
       console.log(`[MPQManager] 正在加载: ${mpqName}...`);
       try {
         const loaded = await this.loadArchive(mpqName);
+        // 代际过期：期间发生了新的 setWar3Path，旧路径档案不得混入新缓存
+        if (generation !== this.loadGeneration) {
+          console.warn('[MPQManager] 加载代际已过期，中止剩余档案加载');
+          return { success: 0, failed: 0 };
+        }
         if (loaded) {
           success++;
         } else {

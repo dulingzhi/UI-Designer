@@ -148,6 +148,25 @@
   二进制 payload（`ArrayBuffer`/`Uint8Array` 直接传输），但需 Rust 端命令签名
   同步改为 `Vec<u8>`——**跨端联动改造，属性能优化决策项，行为正确，本轮不动**
 
+### mpqManager facade 审计（本轮，抓到并发 setWar3Path 混合加载竞态）
+
+MPQ 管理器 facade（717 行，57 测）审计发现 **1 处真实竞态缺陷**：
+`setWar3Path` 无并发防护——`WC3TextureBrowser:55` 启动恢复路径是
+**fire-and-forget**（`.then()` 不 await），用户随即改路径（L500 await）时
+两次加载并发：A 的剩余档案循环用 `this.war3Path`（已被 B 改写）拼路径，
+**path1 剩余档案与 path2 档案混合加载**，fileListCache 混入两个路径的清单。
+
+**修复（代际守卫）**：`loadGeneration` 每次 setWar3Path 自增；
+`loadStandardArchives` 每个档案加载完成后检查代际，过期即中止剩余档案
+（已发起的单次调用无法撤回，守卫保证的是**完成当前档案后不再继续**）。
+测试扩到 58 测（挂起-切路径-放行时序，断言 old 路径仅出现切换前那一次）。
+
+**实现教训**：跨 CRLF/LF 文本做 pwsh Replace 三次静默未命中（循环内中止
+分支、测试断言两处）——**批量文本替换后必须 grep 验证**，tsc 的
+"参数未使用"报错这次反而帮了忙（守卫缺失使参数真未用）。
+
+其余审计结论：unloadAll 四路清理（archives/fileListCache/cachedDataSource/
+后端缓存）完整 ✓；同路径重试语义正确（失败后 archives.size=0 允许重试）✓。
 ### snapUtils 死代码清理（本轮，零生产引用）
 
 几何工具族审计发现 `snapUtils.ts`（342 行，calculateSnap/snapToCanvasEdges，

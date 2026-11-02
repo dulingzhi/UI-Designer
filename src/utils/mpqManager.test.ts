@@ -93,6 +93,36 @@ describe('getDataSource / getCachedDataSource', () => {
 });
 
 describe('setWar3Path', () => {
+  it('过期的并发加载被代际守卫中止（旧路径档案不混入新缓存）', async () => {
+    // 模拟启动 fire-and-forget 加载 path1 期间，用户切换到 path2：
+    // path1 的剩余档案必须中止，不得以 path2 的 war3Path 拼路径或混入缓存。
+    const loadedPaths: string[] = [];
+    let releaseFirst!: () => void;
+    const gate = new Promise<void>((r) => { releaseFirst = r; });
+    let call = 0;
+    const fns = makeFns({
+      async listFiles(archivePath) {
+        loadedPaths.push(archivePath);
+        if (call++ === 0) {
+          await gate; // 第一个档案挂起，制造并发窗口
+        }
+        return [{ name: 'x.blp', size: 1 }];
+      },
+    });
+    const m = makeManager(fns);
+
+    const p1 = m.setWar3Path('C:\\old'); // fire-and-forget（同 WC3TextureBrowser:55）
+    await vi.waitFor(() => expect(loadedPaths).toHaveLength(1)); // old 的第一个档案挂起中
+    await m.setWar3Path('C:\\new'); // 并发切换（B：unloadAll + 新代际）
+    releaseFirst(); // A 的第一个档案完成——此后 A 必须中止
+    await p1;
+
+    // old 路径仅允许挂起切换前发起的那一次；其后全部来自 new（代际守卫中止 A 的剩余档案）
+    expect(loadedPaths.filter((p) => p.startsWith('C:\\old\\'))).toHaveLength(1);
+    expect(loadedPaths[loadedPaths.length - 1].startsWith('C:\\new\\')).toBe(true);
+    expect((m as any).loadGeneration).toBe(2);
+  });
+
   it('sets path and loads standard archives', async () => {
     const fns = makeFns({
       async listFiles() {
