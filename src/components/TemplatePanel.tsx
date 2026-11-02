@@ -50,9 +50,10 @@ export const TemplatePanel: React.FC = () => {
     const { executeCommand } = useCommandStore.getState();
     
     const framesData = template.createFrames();
-    
+
+    const commands: CreateFrameCommand[] = [];
     framesData.forEach((templateData) => {
-      const frameId = `frame-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const frameId = `frame-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 4)}`;
       const frameData: FrameData = {
         id: frameId,
         parentId: null,
@@ -62,10 +63,19 @@ export const TemplatePanel: React.FC = () => {
         visible: true,
         ...templateData,
       } as FrameData;
-      
-      const command = new CreateFrameCommand(frameData);
-      executeCommand(command);
+      commands.push(new CreateFrameCommand(frameData));
     });
+
+    // round 139：组合模板 N 帧构造为组合命令——原实现 N 个独立命令入栈，Ctrl+Z 只撤最后一帧
+    if (commands.length === 1) {
+      executeCommand(commands[0]);
+    } else {
+      useCommandStore.getState().pushCommand({
+        execute: () => commands.forEach((c) => c.execute()),
+        undo: () => [...commands].reverse().forEach((c) => c.undo()),
+        redo: () => commands.forEach((c) => c.execute()),
+      });
+    }
     
     console.log(`从组合模板创建控件: ${template.name}`);
   };
