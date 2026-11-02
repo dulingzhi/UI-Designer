@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-- `142 passed | 2 skipped` 测试文件，`2126 passed | 5 skipped` 测试
+- `141 passed | 2 skipped` 测试文件（r226 考古：r189 exclude 含 4 旧测试 147-4=143=141+2，误记修正；2126 无误），`2126 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`（r193 实测明细：Stmts 3212 / Branches 1858 / Funcs 439 / Lines 2911——漂移检测锚点）
 
@@ -186,8 +186,8 @@
 | Rust 依赖清除（220） | **依赖 1** | nom 删除，19/19 双验证 |
 | capabilities 核查（222） | 通过+**高危** | fs:scope ** 全盘读写——用户决策 12 |
 | .gitignore 核查（223） | 通过 | 6 路径 ignore ✓ |
-| ShortcutHelp 第三轮对账（224） | 通过 | 32 项宣称零漂移；3 探针 MISS 系正则误报——对账三验通过 |
-| MenuBar/Toolbar handler 对账（225） | 通过 | MenuBar 8 个 handler 全定义+6 内联非 stub；Toolbar 35 onClick 中 7 named 全定义（undo/redo 系 useCommandStore 解构——探针误报甄别），28 内联无 TODO/console stub；**handler↔宣称对账通过** |
+| ShortcutHelp 三验（224） | 通过 | 32 宣称零漂移；3 MISS 系正则误报 |
+| MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
