@@ -114,155 +114,33 @@
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
-### AnchorEditor 接线守卫（本轮）
+### 组件层接线守卫汇总（rounds 27-43，17 文件共 102 测，全部一次或微调通过）
 
-`AnchorEditor`（锚点编辑器——SetPoint/FramePoint 9 点是内核对拍语义的编辑入口）
-此前无任何测试。接线守卫转正：
+因未装 jsdom，均用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
+汇总要点（详细语义见各测试文件头部注释）：
 
-**测试**：`src/components/properties/anchorEditorWiring.test.ts`（6 测）——
-9 个 FramePoint 选项齐全（内核对拍语义的编辑入口）、所有修改走不可变数组更新 +
-`handleChange('anchors', …)` 单出口（≥4 处回写）、`createDefaultAnchors` 兜底、
-`detectAnchorConflicts` 冲突检测被消费、删除走 `filter` 不可变操作。
-现状正确（6/6 一次通过），守卫锁定防止回归。
+| 文件 | 测数 | 锁定核心 |
+|---|---|---|
+| `propertiesWiring.test.ts` | 13 | 全部 13 个可导出 backdrop 字段有 value+onChange（TypeSpecificProperties） |
+| `anchorEditorWiring.test.ts` | 6 | 9 FramePoint 选项齐全、不可变数组+handleChange 单出口、冲突检测消费 |
+| `propertyEditorsWiring.test.ts` | 5 | 受控成对、清空归一 undefined、RGBA 合并不丢 RGB |
+| `batchEditPanelWiring.test.ts` | 5 | 每帧一条 UpdateFrameCommand（可 undo）、哨兵 -1、单出口 |
+| `arrayDialogsWiring.test.ts` | 6 | NaN 防护、行×列>100 告警、二次确认、半径/count 下限、坐标钳制 |
+| `projectTreeWiring.test.ts` | 8 | 破坏性操作走命令层+确认框（含子帧计数）、锁定不可删、空名不生效 |
+| `hotReloadPanelWiring.test.ts` | 5 | localStorage 往返、手动导出走热重载同链路、war3Path 未配置 disabled |
+| `textureBrowserWiring.test.ts` | 6 | 双击文件才 onSelect、确定无选中不触发、格式过滤、mpq 搜索 |
+| `templatePanelWiring.test.ts` | 6 | createFrame→命令层、组合逐帧建、ID 唯一、分类过滤、空态 |
+| `presetGroupWiring.test.ts` | 6 | applyStylePreset 带目标集、分组创建双保险校验、全走 store action |
+| `preferencesWiring.test.ts` | 5 | 双键持久化、全部受控、重置确认、危险操作警示 |
+| `mdxViewerWiring.test.ts` | 5 | cancelled 竞态防护（卸载后 dispose）、WebGPU→WebGL2 回退、三态 UI |
+| `canvasWiring.test.ts` | 6 | SceneGraphManager 生命周期竞态+dispose、右键 6 类命令层、hitTest、hook 化 |
+| `toolbarMenuBarWiring.test.ts` | 5 | undo/redo 绑定栈+禁用态、命令前置校验、两入口共用 executeCommand |
+| `historyPanelWiring.test.ts` | 5 | 双栈时间轴（undoStack 正序+redoStack 反序）、步进跳转、初始标记 |
+| `utilityPanelsWiring.test.ts` | 5 | 更新检查 dev 跳过、版本双源（Tauri→package.json）、≥20 快捷键 |
+| `propertiesPanelWiring.test.ts` | 5 | handleChange 统一 UpdateFrameCommand、四子编辑器 props 一致、动态尺寸感知 |
 
-### PropertyEditors 接线守卫（本轮，续）
-
-属性面板的通用受控控件库（ColorPicker/TextField/MultiSelect 等）此前无测试。
-守卫锁定三条不变式：受控模式（value+onChange 成对）、文本/MultiSelect 清空
-归一为 `undefined`（FrameData 可选字段语义）、颜色 alpha 编辑合并进四元组不丢 RGB。
-
-**测试**：`src/components/propertyEditorsWiring.test.ts`（5 测，5/5 一次通过）。
-
-### BatchEditPanel 接线守卫（本轮，续）
-
-批量编辑面板守卫锁定三条不变式：**每帧一条 UpdateFrameCommand**（进 undo 栈可撤销，
-不得绕过命令层裸改 store）、类型 select 哨兵 `-1` 不触发修改、修改统一经
-handleBatchChange 单出口；另锁数字输入滚轮 `stopPropagation`。
-
-**测试**：`src/components/properties/batchEditPanelWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **29 测**（TypeSpecific 13 + Anchor 6 + PropertyEditors 5 + BatchEdit 5）。
-
-### 数组创建对话框接线守卫（本轮，续）
-
-`TableArrayDialog`/`CircleArrayDialog`（批量生成帧的参数入口）守卫锁定：
-数值解析 NaN 防护（`|| 1`/`|| 0` 默认值）、行×列超 100 告警、二次确认
-（ConfirmDialog）、半径最小 0.01（防 0 半径退化）、count 最小 2、
-世界坐标输入 0..0.8 钳制。
-
-**测试**：`src/components/arrayDialogsWiring.test.ts`（6 测，6/6 一次通过）。
-组件层接线守卫现共 **35 测**。
-
-### ProjectTree 接线守卫（本轮，续）
-
-帧树管理入口（32KB：删除/重命名/改父/复制/数组创建）守卫锁定：
-破坏性操作全部走命令层（RemoveFrame/ChangeParent/Duplicate/CreateTableArray/
-CreateCircleArray，均可 undo）+ 删除确认框（含子帧计数提示）+ 锁定帧不可删 +
-重命名空名不生效（trim 校验）+ 命令分发经 executeCommand 单出口。
-
-**测试**：`src/components/projectTreeWiring.test.ts`（8 测，8/8 一次通过）。
-组件层接线守卫现共 **43 测**。
-
-### HotReloadPanel 接线守卫（本轮，续）
-
-热重载面板（编辑器↔War3 的配置与手动导出入口）守卫锁定：
-配置 localStorage 往返（重开面板不丢）、手动导出走 `getHotReloadExporter(config).export`
-（与自动热重载同链路）、war3Path 未配置时导出按钮 disabled（防导到无效路径）、
-outputPath 显示给用户可核对、enabled 开关受控。
-
-**测试**：`src/components/hotReloadPanelWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **48 测**。
-
-### WC3TextureBrowser 接线守卫（本轮，续）
-
-纹理浏览器（纹理资产选择入口）守卫锁定：
-双击文件才 onSelect（目录不触发选择）、单击目录进入并清空搜索、
-确定按钮无选中不触发、选择后 onSelect+onClose 同步、图片格式过滤
-（blp/tga/dds/png）、搜索经 mpqManager.searchFiles 通配。
-
-**测试**：`src/components/textureBrowserWiring.test.ts`（6 测，6/6 一次通过）。
-组件层接线守卫现共 **54 测**。
-
-### TemplatePanel 接线守卫（本轮，续）
-
-模板面板（"从模板创建帧"入口）守卫锁定：
-单模板 `template.createFrame()` → CreateFrameCommand、组合模板 `createFrames()`
-逐帧建（全走命令层可 undo）、帧 ID 唯一（时间戳+随机后缀，单/组合各一处）、
-分类过滤消费 `getTemplatesByCategory`、空态提示、两类模板分别渲染。
-
-**测试**：`src/components/templatePanelWiring.test.ts`（6 测，6/6 一次通过）。
-组件层接线守卫现共 **60 测**。
-
-### StylePreset/FrameGroup 面板接线守卫（本轮，续）
-
-样式预设与分组面板（store action 的 UI 入口，store 行为已有测试）守卫锁定：
-applyStylePreset 带目标帧集合、saveFrameAsPreset 绑定、预设删除按钮、
-分组创建双保险校验（`!newGroupName.trim() || selectedFrameIds.length === 0`
-return + 按钮 disabled）、分组创建/更新/删除全走 store action。
-
-**测试**：`src/components/presetGroupWiring.test.ts`（6 测，6/6 一次通过）。
-组件层接线守卫现共 **66 测**。
-
-### PreferencesDialog 接线守卫（本轮，续）
-
-偏好设置入口守卫锁定：双键持久化（`preferences` + `war3_install_path` 分键保存）、
-开关/滑条/主题语言全部受控、重置有确认框且回落 DEFAULT_PREFERENCES、
-清除本地数据为 danger-button 危险操作带警示、网格尺寸值回显。
-
-**测试**：`src/components/preferencesWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **71 测**。
-
-### MDXModelViewer 接线守卫（本轮，续）
-
-MDX 模型预览入口守卫锁定：异步加载 **cancelled 竞态防护**（每步检查，卸载后
-加载完成则 dispose 已建资源——防 use-after-dispose/泄漏）、effect cleanup
-置 cancelled、WebGPU 初始化失败回退 WebGL2、模型加载失败显式错误消息（不静默）、
-loading/error/正常三态 UI。
-
-**测试**：`src/components/mdxViewerWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **76 测**。
-
-### Canvas 接线守卫（本轮，续）
-
-画布核心（1016 行，渲染+交互总入口）守卫锁定：SceneGraphManager 生命周期
-（异步创建 + **cancelled 竞态防护**——dispose 分支紧跟 cancelled 判断、卸载
-dispose+清空 ref 防渲染到失效场景）、渲染初始化失败显式记录、右键菜单 6 类
-动作全走命令层（Copy/CopyStyle/Duplicate/Paste/Remove/Update）、点击判定走
-WebGL hitTest（产品真实命中路径）、拖拽/缩放/平移经 hook 化。
-
-**测试**：`src/components/canvasWiring.test.ts`（6 测）。
-**守卫编写教训**：多行字符串断言对缩进/换行过脆（首版 1/6 失败），
-改为 `indexOf` 顺序断言（cancelled 判断先于 dispose）——语义等价且抗格式化。
-组件层接线守卫现共 **82 测**。
-
-### Toolbar/MenuBar 接线守卫（本轮，续）
-
-工具栏与菜单（编辑命令全局分发入口）守卫锁定：undo/redo 绑定命令栈并按
-canUndo/canRedo 禁用态、对齐/分布/画布对齐/批量删除/样式复制粘贴/Z 序全部走
-命令层、命令仅在选中帧存在时执行（前置校验）、两入口共用 executeCommand
-（undo 语义统一）。
-
-**测试**：`src/components/toolbarMenuBarWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **87 测**。
-
-### HistoryPanel 接线守卫（本轮，续）
-
-undo/redo 历史 UI 守卫锁定：消费 commandStore 双栈、合并视图按栈序
-（undoStack 正序 + redoStack 反序——时间轴语义）、回退逐次 undo / 前进逐次 redo
-（跳转由步数驱动，与 commandStore 单步语义一致）、初始状态 currentIndex===-1
-有视觉标记。
-
-**测试**：`src/components/historyPanelWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **92 测**。
-
-### 辅助面板接线守卫（本轮，续）
-
-三件套合并守卫：UpdateChecker（开发环境跳过更新检查不误报、检查/下载失败
-console.error 不静默、新版本 onUpdateAvailable 回调可联动 UI）、AboutDialog
-（版本双源：Tauri getVersion 优先 → package.json 兜底，打包环境差异不白屏）、
-ShortcutHelp（≥20 条快捷键清单 + onClose）。
-
-**测试**：`src/components/utilityPanelsWiring.test.ts`（5 测，5/5 一次通过）。
-组件层接线守卫现共 **97 测**。
+**守卫编写教训**：多行字符串断言对缩进/换行过脆（Canvas 首版 1/6 失败），
+改用 `indexOf` 顺序断言（如 cancelled 判断先于 dispose）——语义等价且抗格式化。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
