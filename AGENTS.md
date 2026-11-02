@@ -110,11 +110,11 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `133 passed | 2 skipped` 测试文件，`2132 passed | 5 skipped` 测试
+- `134 passed | 2 skipped` 测试文件，`2136 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
-### 组件层接线守卫汇总（rounds 27-44，19 文件共 114 测，全部一次或微调通过）
+### 组件层接线守卫汇总（rounds 27-46，20 文件共 118 测，全部一次或微调通过）
 
 因未装 jsdom，均用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
 汇总要点（详细语义见各测试文件头部注释）：
@@ -140,10 +140,11 @@
 | `propertiesPanelWiring.test.ts` | 5 | handleChange 统一 UpdateFrameCommand、四子编辑器 props 一致、动态尺寸感知 |
 | `sidePanelWiring.test.ts` | 5 | 模板/历史 tab 互斥渲染、active 视觉态、展开收起、空态、命令名中文映射 |
 | `canvasHelpersWiring.test.ts` | 7 | ContextMenu 禁用项不触发、GuideLine 位置钳制+WC3 坐标换算、Ruler 刻度密度、BackdropEdge 类型化 props |
+| `anchorVizHandlesWiring.test.ts` | 4 | 锚点可视化 9 点坐标映射与 FramePoint 语义一致、ResizeHandles 8 方向齐全 |
 
 **守卫编写教训**：多行字符串断言对缩进/换行过脆（Canvas 首版 1/6 失败），
 改用 `indexOf` 顺序断言（如 cancelled 判断先于 dispose）——语义等价且抗格式化。
-组件层接线守卫现共 **114 测**（19 文件）。
+组件层接线守卫现共 **118 测**（20 文件）。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
