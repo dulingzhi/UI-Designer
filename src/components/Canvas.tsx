@@ -68,6 +68,20 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     startPan, updatePan, endPan,
   } = useCanvasPan({ canvasRef, containerRef, showRulers });
 
+  // round 161：锚定视口中心缩放——imperativeHandle setScale 与右下角按钮统一走此函数
+  const zoomTo = (next: number) => {
+    if (containerSize.width <= 0 || containerSize.height <= 0) {
+      setScale(Math.max(0.1, Math.min(5, next)));
+      return;
+    }
+    const clamped = Math.max(0.1, Math.min(5, next));
+    const ax = containerSize.width / 2;
+    const ay = containerSize.height / 2;
+    const wx = (ax - offset.x) / scale;
+    const wy = (ay - offset.y) / scale;
+    setScale(clamped);
+    setOffset({ x: offset.x + wx * (scale - clamped), y: offset.y + wy * (scale - clamped) });
+  };
   const snapValue = (value: number, gs: number): number => {
     if (!snapToGrid) return value;
     return Math.round(value / gs) * gs;
@@ -268,22 +282,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   // 暴露给父组件的方法
   useImperativeHandle(ref, () => ({
     setScale: (newScale: number | ((prev: number) => number)) => {
-      // round 160：接口缩放统一锚定视口中心（快捷键/按钮与 r159 滚轮一致，不再原点缩放漂移）
-      if (containerSize.width <= 0 || containerSize.height <= 0) {
-        setScale(prev => (typeof newScale === 'function' ? newScale(prev) : newScale));
-        return;
-      }
-      const anchor = { x: containerSize.width / 2, y: containerSize.height / 2 };
-      const prevScale = scale;
-      const next = typeof newScale === 'function' ? newScale(prevScale) : newScale;
-      const clamped = Math.max(0.1, Math.min(5, next));
-      const wx = (anchor.x - offset.x) / prevScale;
-      const wy = (anchor.y - offset.y) / prevScale;
-      setScale(clamped);
-      setOffset({
-        x: offset.x + wx * (prevScale - clamped),
-        y: offset.y + wy * (prevScale - clamped),
-      });
+      // round 160/161：统一锚定视口中心（r161 抽出 zoomTo，按钮同款）
+      const next = typeof newScale === 'function' ? newScale(scale) : newScale;
+      zoomTo(next);
     },
     centerCanvas: () => {
       setOffset({ x: 0, y: 0 });
@@ -985,9 +986,9 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
       {/* 缩放控制 */}
       <div className="canvas-controls">
-        <button onClick={() => setScale(prev => Math.min(5, prev * 1.2))}>+</button>
+        <button onClick={() => zoomTo(scale * 1.2)}>+</button>
         <span>{Math.round(scale * 100)}%</span>
-        <button onClick={() => setScale(prev => Math.max(0.1, prev * 0.8))}>-</button>
+        <button onClick={() => zoomTo(scale * 0.8)}>-</button>
         <button onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }}>重置</button>
         <button 
           onClick={() => setShowGrid(!showGrid)}
