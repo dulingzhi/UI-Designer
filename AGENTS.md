@@ -184,12 +184,8 @@
 | Rust 补测与命令族核查（rounds 102/103/110/111 归并） | 通过 | tcp_server 4 测（State 契约/broadcast Err 语义/wire 序列化）+ resolve_username 抽纯函数 4 测（**空 USERNAME 视同缺失**——原 Ok("") 拼坏路径，行为改进）→ Rust 19/19；DuplicateFrame（redo 稳定快照）与 UpdateFrame（undo 按键精确采样/已删帧安全）核查通过；PasteFrame redo 重新生成 id 定性低危边界不修 |
 | updateFrame 悬空归一化修复（round 112） | **修 1 同族缺陷（第 8 处）** | parentId 变更路径无归一化：拖拽到已删父（悬空）不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧在 updateFrame 路径复发。修复：悬空归一化根帧（与 addFrame r108 统一），rootFrameIds 判定改用归一化值。+3 测（悬空/正常父/拖回根）。2109 测全绿 |
 | CreateFrame/重命名核查（round 114） | 通过 | CreateFrame 构造期快照（redo id 稳定）；MoveFrame redo 重新捕获经分析安全（undo 后新 execute 清空 redo 栈——重捕获值=正确旧值）；ProjectTree 重命名走 UpdateFrameCommand 可撤销。命令族 20 类全部核查完毕 |
-| saveProject 序列化保真测试（round 115） | 通过+守卫 | JSON.stringify 对 ProjectData 语义安全（undefined 丢弃与消费方 X||等价；无循环/Date/Map）。+2 往返保真测（全字段/嵌套 children/组/参考线/转义文本不被破坏）锁定结论。2111 测全绿 |
-| 损坏存档容错（round 116） | **修 1 防御缺口** | 合法 JSON 但 frames 缺失（手编辑残档）→ migrateProjectData 的 Object.entries(undefined) 抛 TypeError（上层警告框兜住但信息技术化）——改为归一化空项目/空 rootFrameIds。非法 JSON 保持抛错冒泡（handleOpen 警告框，不静默失败）语义正确。+2 测（缺 frames/非法 JSON）。2113 测全绿 |
-| recentFiles 类型防御（round 117） | **修 1 同族缺口** | 值语义审计（r95 配对审计延伸）：上限 10/去重置顶/加载 try-catch/失败文件移除全健康——唯 JSON.parse 无类型验证，存档损坏成非数组时 filter 抛 TypeError。加 Array.isArray 回落空列表（与 r116 frames 归一化同族） |
-| hotReloadConfig 损坏容错（round 118） | **修 1 异步抛错** | 自动导出订阅的 JSON.parse 无 try-catch——损坏 JSON 在 setTimeout 异步上下文抛未捕获 rejection，**自动导出链路静默死亡**（每次编辑重复触发）。损坏回落默认配置+console.error。Toolbar 读取点在大 try 内已安全。同族第 10 处收口 |
-| 拖拽入栈旁路统一（round 119） | **修 1 上限旁路** | useCanvasDrag/Resize 结束时手动 setState 入栈——**绕过 MAX_UNDO_HISTORY=100 裁剪**（拖拽是最频繁操作，撤销栈无限增长）且 (command as any).previousState 三处重复。修复：commandStore 加 pushCommand（入栈+裁剪+清 redo，不调 execute——拖拽过程已实时应用），executeCommand 复用它，3 处旁路统一。+3 测（不执行/裁剪生效/清 redo）。2116 测全绿 |
 | 生产构建修复（round 120） | **修 1 P1 交付缺陷** | npm run build（tsc && vite build）被 95 个测试文件 TS 报错阻塞——生产构建从未绿过（门禁"测试侧可暂缓"与 build 全量编译矛盾，无法发布）。修复：新增 tsconfig.build.json（exclude *.test.ts/__test_helpers__），build 脚本改用之。vite build 4.72s 绿；主 chunk 1.87MB 警告=分割优化项 |
+| 数据完整性与持久化收口（rounds 115-119 归并） | 通过+修 5 | 存档序列化保真 2 测（全字段往返/JSON 转义）；损坏容错：存档 frames 缺失归一化空项目（+2 测）、recentFiles 非数组回落空列表、hotReloadConfig 自动导出订阅 try-catch（**损坏 JSON 异步未捕获 rejection 曾使自动导出静默死亡**）；undo 旁路：useCanvasDrag/Resize 手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪（拖拽最频繁操作栈无限增长）——commandStore 加 pushCommand 统一 3 处旁路（+3 测） |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
