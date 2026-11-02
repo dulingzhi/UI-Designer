@@ -184,8 +184,9 @@
 | 静态资源孤儿清除（216） | **清除 svg 2** | tauri.svg/react.svg 零引用删除 |
 | 依赖零引用核查（218） | **清除依赖 4** | clsx/immer/react-window/@types/react-window 删除；lockfile 无锁定（用户决策） |
 | Rust 依赖零引用核查（220） | **清除依赖 1** | nom 零 use 删除，cargo 19/19 双验证 |
-| capabilities 权限面核查（222） | 通过+**1 高危发现** | 22 权限/20 命令核对；**fs:scope 全系 `**`（全盘读写）**——安全加固 vs 任意路径 MPQ 取舍，**用户决策 12**（与 CSP 同族） |
-| 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧（产品决策）；主 chunk 低于基线；**git 总账**：513 提交（fix 88/feat 26/cleanup 9） |
+| capabilities 权限面核查（222） | 通过+**1 高危发现** | 22 权限/20 命令核对；**fs:scope 全系 ** 全盘读写**——加固 vs 任意路径 MPQ 取舍，**用户决策 12** |
+| .gitignore 完整性核查（223） | 通过 | 43 条目；check-ignore 实测 6 路径全 ignore；lockfile 系有意（用户决策） |
+| 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped 明细核查（205） | 通过 | 5 skipped 有据 |
 | 渲染器域与竞态守卫（176-181） | **修 3**+test | hitTest→point.z；fontResolver 缓存键；layerStyle 7 测；ProjectContext→cancelled |
