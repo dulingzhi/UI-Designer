@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `127 passed | 2 skipped` 测试文件，`2100 passed | 5 skipped` 测试
+- `128 passed | 2 skipped` 测试文件，`2105 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -233,6 +233,16 @@ WebGL hitTest（产品真实命中路径）、拖拽/缩放/平移经 hook 化�
 **守卫编写教训**：多行字符串断言对缩进/换行过脆（首版 1/6 失败），
 改为 `indexOf` 顺序断言（cancelled 判断先于 dispose）——语义等价且抗格式化。
 组件层接线守卫现共 **82 测**。
+
+### Toolbar/MenuBar 接线守卫（本轮，续）
+
+工具栏与菜单（编辑命令全局分发入口）守卫锁定：undo/redo 绑定命令栈并按
+canUndo/canRedo 禁用态、对齐/分布/画布对齐/批量删除/样式复制粘贴/Z 序全部走
+命令层、命令仅在选中帧存在时执行（前置校验）、两入口共用 executeCommand
+（undo 语义统一）。
+
+**测试**：`src/components/toolbarMenuBarWiring.test.ts`（5 测，5/5 一次通过）。
+组件层接线守卫现共 **87 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
