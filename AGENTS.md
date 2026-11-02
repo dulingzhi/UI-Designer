@@ -381,6 +381,20 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 **测试**：`exportControlProps.test.ts` 扩到 13 测（先 1/13 红；
 editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确）。
 
+### appInterface 查证（本轮：字段本身无引擎语义）
+
+之前多轮记录的"`appInterface` 未接入（语义不明，不臆造）"本轮彻底查证：
+
+- **war3.mpq 全部 72 个 FDF/TOC 文件中 `AppInterface` 出现 0 次**——它在 WC3
+  FDF 语法中不存在
+- openwar3 全仓库亦无此概念
+- 本仓库现状：类型有定义、store 初始为 `''`、`updateGeneralSettings` 的 Pick
+  白名单**不含它**、无 UI 控件、导出导入均零引用——即**全链路断**
+
+结论：它不是"未接入的功能"，而是**建模时自造、无可接入引擎语义的字段**。
+按诚实原则如实记录；是否删除字段属产品决策（涉及类型/store/测试多处与存档兼容性），
+本轮不动代码。若未来确认删除，需同步移除 `updateGeneralSettings` 白名单核对项。
+
 ### Control/Font 系导入写回（本轮，收口）
 
 上轮如实记录的"只进元数据"口径升级为**真写回**（backdrop 同款处理）：
