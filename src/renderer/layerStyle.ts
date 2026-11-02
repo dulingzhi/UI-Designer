@@ -5,7 +5,7 @@ export function hasLayerStyleFlag(layerStyle: string | undefined, flag: string):
   if (!layerStyle) return false;
   const expected = flag.trim().toUpperCase();
   return layerStyle
-    .split('|')
+    .split(/[|,]/) // 竖线为本仓约定；兼容真实 WC3 FDF 逗号变体（无权威样本仲裁，防御性接受两种）
     .map(part => part.trim().toUpperCase())
     .includes(expected);
 }
