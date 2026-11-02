@@ -172,25 +172,15 @@
 | useCanvasPan 纯逻辑抽取（round 83） | test 抽取 | computeWheelScale/startPanAnchor/computePanOffset 抽到 canvasViewTransforms.ts（与 frameTransforms 同模式）+7 测；hook 保留状态/事件接线。钳制测试断言首版自错（raw vs 钳制值矛盾+手算错）修正。2083 测全绿 |
 | useHotReloadSync 纯逻辑抽取（round 84） | test 抽取+1 防御 | buildHotReloadLua 抽到 hotReloadLua.ts +5 测（空串/toFixed 6/多帧/id 双引号转义 escapeLuaString——原内联实现 id 直插无转义，抽取时加防御）；hook 保留 rAF 节流/状态机。2088 测全绿 |
 | 热重载 Lua 补文本/纹理同步（round 85） | feat 补齐 | buildHotReloadLua 原只发位置/大小（原实现注释"可以按需追加"）——补 SetText（仅 text 帧）/SetTexture（仅 texture 帧，fixedScale 0 与 luaGenerator 同参），均 escapeLuaString。8 测全绿 |
+| 交互面与数据链核查通过（rounds 88-106 归并） | 通过 | 十一次核查全通过：修饰键反模式横向排查（canvas 三 hook 正确）、CustomEvent 配对、画布交互 4 项、Toolbar 启动链（含 grep 假阴性教训）、localStorage 6 键配对、自动导出订阅、uiStore 5 开关消费、右键菜单 11 项、DebugPanel 接线、mpq 6 测+参考线闭环、commandStore 异常路径（+2 守卫测）。详见各轮 git 历史 |
 | useKeyboardShortcuts 修复（round 87） | **修 1 死功能** | 方向键微调的 Shift 精细步长(0.001)判断放在 !e.shiftKey 分支内——恒 false，Shift+方向键落入 Ctrl+Shift 分支尾静默无操作（注释宣称的精调功能从未生效）；已加独立 Shift+方向键分支（0.001 步长）。2091 测全绿+src 0 报错 |
-| 修饰键反模式横向排查（round 88） | 通过+守卫 | useCanvasResize shiftKey 在 mousemove 直接读（正确）/useCanvasPan altKey 在 wheel 内（正确）/useCanvasDrag 无修饰键——反模式仅 shortcuts 特有（全局 keydown 大分支链）。静态守卫 3 测锁定修复（无修饰分支不含 shiftKey 判断/Shift 分支 0.001 四方向走命令层/六分支互斥链完整） |
-| 编辑器事件接线核实（round 89） | 通过 | 全仓 CustomEvent 清点：仅 openShortcutHelp(1L/2D)+openPreferences(1L/1D) 两个自定义事件，dispatch/listen 均配对（Toolbar/MenuBar 监听、shortcuts/MenuBar 派发）；其余全为原生 DOM 事件有源——无 dead dispatch |
 | 帮助面板虚标快捷键补齐（round 90） | **修 1 宣称≠实现** | ShortcutHelp 宣称的 Ctrl+X 剪切 / Ctrl+±/0 缩放 hook 无实现（按了没反应）——已补：Ctrl+X=复制+删除半步（过滤锁定帧走确认框）、Ctrl+=/- 缩放钳 0.1..5、Ctrl+0 重置 1。其余宣称项核实存在（Alt+滚轮/Ctrl+点击/Shift 框选）。2094 测全绿 |
 | 帮助面板反向对账（round 91） | docs 补全 | 已实现但未列：Ctrl+A 全选/Ctrl+Shift+A 反选/Ctrl+; 清参考线/Ctrl+, 偏好设置——补入 ShortcutHelp 编辑操作类。双向对账完成（宣称≠实现 r90 + 实现≠宣称 r91），帮助面板与 hook 全量一致 |
 | MenuBar 虚标收敛（round 92） | **修 1 误判+补 4 快捷键** | 初判 Ctrl+3/4/5/Shift+D 虚标——**误判**：App.tsx 有独立键盘监听器（不在 hook 内）已实现；真正虚标仅 Ctrl+1/2（面板）、Ctrl+9（适应窗口）、Ctrl+/（帮助）——App handleViewToggle 补 case 1/2/9//（canvasRef.centerCanvas 同 MenuBar 款）。教训：跨文件键盘监听器并存，虚标判定须扫全仓而非单 hook |
-| 画布交互宣称核查（round 93） | 通过 | 帮助面板画布交互 4 项全属实：Ctrl+点击多选（Canvas.tsx:788 toggleSelectFrame）/Shift+左键框选（:290 isBoxSelecting）/Alt+中键平移（:287 startPan）/空白点击清选且修饰键豁免（:798） |
-| Toolbar 启动链路核查（round 94） | 通过 | "自动导出Lua并启动"宣称属实：handleLaunchWar3 完整链路 = getCurrentPid 检测→kill 重启→getHotReloadExporter().export(project,true) 静默导出→extract_template_map 模板地图→launchMapWithKKWE→setProcess PID。**教训**：grep exportCode|exportProject 漏了 exporter.export 模式——假阴性，链路核查搜索词须穷举导出形态 |
-| localStorage 键位配对审计（round 95） | 通过 | 全仓 6 键（system_username/hotReloadConfig/recentFiles/preferences/war3_install_path/war3_process_pid）写读全配对：无孤立写、无未初始化读；跨文件语义正确（hotReloadConfig 写于 HotReloadPanel/Toolbar 读于 projectStore 自动导出；system_username 读侧带 81468 回退=已记录决策项） |
-| projectStore 自动导出订阅审计（round 96） | 通过 | 底部 subscribe 语义健康：引用比较正确过滤无关变更（zustand 任意 state 变化都进 subscribe）/首跳初始化/setTimeout(0) 脱同步栈/PID 双检/快速变更由 exportDebounced(L169) 防抖合并/配置读执行时快照。无缺陷 |
 | 偏好设置死链修复（round 97） | **修 1 摆设面板** | PreferencesDialog 6 项中 5 项保存后零消费：showGrid/snapToGrid/gridSize 画布读 uiStore（偏好不生效）、preferences-updated 事件 0 监听、theme/language 仓库无主题/i18n 系统（纯摆设承诺）。修：①handleSave 实时同步 3 画布项到 uiStore ②App 启动恢复 preferences→uiStore ③删 theme/language 控件（不留无效承诺）。preferencesWiring 守卫同步（断言 ui 同步+无 theme/language） |
-| uiStore 开关消费审计（round 98） | 通过 | 5 开关字段全有消费方：showGrid 3 文件/showAnchors 1（Canvas.tsx:905 条件渲染=真实路径）/showRulers 2/snapToGrid 6/gridSize 6——无 round 97 同族死开关 |
-| Canvas 右键菜单核查（round 99） | 通过 | 11 项 action 全有效：复制/粘贴/复制控件/复制样式/粘贴样式/锁定（动态 label）/删除全走命令层，网格/锚点/吸附走 uiStore（round 98 已验证消费链）；粘贴样式带 styleClipboard 空守卫；菜单 shortcut 提示与实存快捷键一致 |
-| DebugPanel 核查（round 101） | 通过 | 纯只读展示面板（85 行无交互元素）接线完整：App:300 挂载/mousePosition 经 canvasRef.getMousePosition 实时更新/scale=canvasScale/isVisible=showDebugPanel（Ctrl+Shift+D）/selectedFrame 全部真实传入。编辑器全部面板至此核查完毕 |
 | tcp_server 单测补齐（round 102） | test 补齐 | round 87 is_running 复位修复当时仅编译验证（cargo 被阻塞）——现补 4 测：State::new 初始 not_running/broadcast 无订阅者 send=Err（锁定命令层 Err 语义）/有订阅者消息可达/HotReloadMessage 序列化 wire 契约。bind 失败复位逻辑仍内嵌 tauri command（依赖 AppHandle），抽函数收益低如实记录 |
 | get_username 单测补齐（round 103） | test 补齐+1 改进 | resolve_username 抽纯函数（避免 env 全局态并行竞态）+4 测：USERNAME 优先/USER 回退/双无 Err/**空 USERNAME 视同缺失回退**（原实现 Ok(\"\") 拼出 C:\\Users\\\\ 坏路径——行为改进如实记录）。Rust 19/19 |
-| Rust 测试面收官核实+参考线闭环（round 104） | 通过 | mpq_io 6 测自包含全部通过（19 总数对账 6mpq+4tcp+4username+5mdx）——Rust 可测面完全无缺口；参考线闭环：addGuide(Canvas:257)→渲染(:916 guides.map 条件渲染)→removeGuide→clearGuides(Ctrl+;)，store 已有 guides||[] 防御 |
 | uiStore 选择类 action 补测（round 105） | **修 1 不一致+1 防御** | 发现选择类 action（编辑器核心交互）零测试覆盖。selectGroup 两缺陷：①只设 selectedFrameIds 不同步 selectedFrameId——组选择后属性面板残留旧选中帧（与 selectMultipleFrames 语义不一致），已同步=最后成员 ②frameIds 无防御（手编辑存档缺字段 spread 抛错），已 ||[]。+6 测（单选/toggle 加移除/清空/组选同步/未知组 no-op/缺字段防御）。2100 测全绿 |
-| commandStore 异常路径锁定（round 106） | 通过+守卫 | executeCommand 先执行后入栈——execute 抛错时栈不入（失败命令不污染撤销栈，正确语义）+store 后续可用。命令 execute 内部容错全部健康（copy/remove/paste 均有不存在 id/空剪贴板守卫）。+2 测锁定该语义（防未来 set 前移回归）。2102 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
