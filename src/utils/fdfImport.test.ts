@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   readDir: vi.fn(),
   parseFDFToAST: vi.fn(),
   transform: vi.fn(),
-  templateManager: { applyTemplate: vi.fn() },
+  templateManager: { applyTemplate: vi.fn(), loadTemplatesFromFile: vi.fn() },
 }));
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open }));
