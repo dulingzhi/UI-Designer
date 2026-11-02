@@ -320,6 +320,7 @@ export const useKeyboardShortcuts = (
         const path = await saveProject(project, currentFilePath || undefined);
         if (path) {
           setCurrentFilePath(path);
+          window.dispatchEvent(new CustomEvent('project-state-reset'));
           console.log('✅ 项目已保存:', path);
         }
       } catch (error) {
@@ -333,6 +334,7 @@ export const useKeyboardShortcuts = (
         const path = await saveProject(project);
         if (path) {
           setCurrentFilePath(path);
+          window.dispatchEvent(new CustomEvent('project-state-reset'));
           console.log('✅ 项目已另存为:', path);
         }
       } catch (error) {

@@ -234,8 +234,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const handleOpenRecent = async (filePath: string) => {
     try {
       const result = await loadProjectFromPath(filePath);
+      // round 131：加载成功后清除 dirty（App 的 project 变化 effect 会先置 true，此事件随后清除）
       if (result) {
         setProject(result.project);
+      window.dispatchEvent(new CustomEvent('project-state-reset'));
         setCurrentFilePath(result.path);
         addToRecentFiles(result.path);
       }
@@ -285,6 +287,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       exportVersion: 'reforged',
     });
     setCurrentFilePath(null);
+    window.dispatchEvent(new CustomEvent('project-state-reset'));
   };
 
   const handleOpen = async () => {
@@ -305,6 +308,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       const path = await saveProject(project, currentFilePath || undefined);
       if (path) {
         setCurrentFilePath(path);
+          window.dispatchEvent(new CustomEvent('project-state-reset'));
         addToRecentFiles(path);
       }
     } catch (error) {
@@ -317,6 +321,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       const path = await saveProject(project);
       if (path) {
         setCurrentFilePath(path);
+        window.dispatchEvent(new CustomEvent('project-state-reset'));
         addToRecentFiles(path);
       }
     } catch (error) {
