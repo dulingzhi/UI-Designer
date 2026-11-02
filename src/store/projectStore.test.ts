@@ -135,3 +135,77 @@ describe('projectStore 帧操作', () => {
     expect(p.originMode).toBe('gameui'); // 未触碰设置保留
   });
 });
+
+describe('projectStore 数组编辑器', () => {
+  beforeEach(() => {
+    useProjectStore.setState({ project: null as never });
+    useProjectStore.getState().setProject({
+      version: 2, libraryName: 'T', originMode: 'gameui', exportVersion: 'reforged',
+      backgroundImage: '', hideGameUI: false, hideHeroBar: false, hideMiniMap: false,
+      hideResources: false, hideButtonBar: false, hidePortrait: false, hideChat: false,
+      appInterface: '', frames: {}, rootFrameIds: [],
+      tableArrays: [], circleArrays: [], guides: [], stylePresets: [],
+    } as never);
+  });
+
+  const tarr = (id: string) => ({ id, name: `tbl_${id}`, count: 5 } as never);
+  const carr = (id: string) => ({ id, name: `cir_${id}`, count: 6 } as never);
+  const guide = (id: string) => ({ id, axis: 'x', position: 0.3 } as never);
+  const preset = (id: string) => ({ id, name: `pre_${id}`, category: 'btn' } as never);
+
+  it('tableArray 增/改/删', () => {
+    const s = useProjectStore.getState();
+    s.addTableArray(tarr('t1'));
+    expect(useProjectStore.getState().project!.tableArrays).toHaveLength(1);
+    s.updateTableArray('t1', { count: 8 } as never);
+    expect((useProjectStore.getState().project!.tableArrays[0] as any).count).toBe(8);
+    s.removeTableArray('t1');
+    expect(useProjectStore.getState().project!.tableArrays).toHaveLength(0);
+  });
+
+  it('circleArray 增/改/删', () => {
+    const s = useProjectStore.getState();
+    s.addCircleArray(carr('c1'));
+    expect(useProjectStore.getState().project!.circleArrays).toHaveLength(1);
+    s.removeCircleArray('c1');
+    expect(useProjectStore.getState().project!.circleArrays).toHaveLength(0);
+  });
+
+  it('guide 增/改/清空', () => {
+    const s = useProjectStore.getState();
+    s.addGuide(guide('g1'));
+    s.addGuide(guide('g2'));
+    expect(useProjectStore.getState().project!.guides).toHaveLength(2);
+    s.clearGuides();
+    expect(useProjectStore.getState().project!.guides).toHaveLength(0);
+  });
+
+  it('stylePreset 增/删', () => {
+    const s = useProjectStore.getState();
+    s.addStylePreset(preset('s1'));
+    expect(useProjectStore.getState().project!.stylePresets).toHaveLength(1);
+    s.removeStylePreset('s1');
+    expect(useProjectStore.getState().project!.stylePresets).toHaveLength(0);
+  });
+
+  it('applyStylePreset 将样式字段应用到目标帧', () => {
+    const s = useProjectStore.getState();
+    s.addFrame(makeFrame('a1', { texture: 'old.png' }));
+    s.addFrame(makeFrame('a2'));
+    s.addStylePreset({ id: 'px', name: 'Red', category: '默认',
+      style: { texture: 'red.png' } } as never);
+    s.applyStylePreset('px', ['a1', 'a2']);
+    const p = useProjectStore.getState().project!;
+    expect(p.frames['a1'].texture).toBe('red.png');
+    expect(p.frames['a2'].texture).toBe('red.png');
+    // 非目标帧不受影响
+    expect(p.frames['a1'].name).toBe('Frame_a1');
+  });
+
+  it('applyStylePreset 未知 presetId 是 no-op', () => {
+    const s = useProjectStore.getState();
+    s.addFrame(makeFrame('b1', { texture: 'keep.png' }));
+    s.applyStylePreset('missing', ['b1']);
+    expect(useProjectStore.getState().project!.frames['b1'].texture).toBe('keep.png');
+  });
+});

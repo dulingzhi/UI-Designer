@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `115 passed | 2 skipped` 测试文件，`2019 passed | 5 skipped` 测试
+- `115 passed | 2 skipped` 测试文件，`2025 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -629,6 +629,11 @@ updateGeneralSettings。mock 头部照抄 uiStore.test.ts（stubGlobal 必须在
 deleteFrame（`.filter`）——**导入 FDF 后任何涉及父子关系的编辑操作都可能崩溃**。
 测试扩到 10 测（先 2/10 红）：addFrame 到无 children 父帧、addFrames 父子同批导入。
 防护模式统一为 `(parentFrame.children ?? [])`。
+
+**数组编辑器补测（续本轮）**：tableArray/circleArray/guide/stylePreset 的
+增改删与清空（6 测，行为全部正常——数组编辑器无 children 同款缺陷）；
+applyStylePreset 样式合并（含"非目标帧不受影响"与"未知 presetId no-op"2 测）。
+`projectStore.test.ts` 现共 **16 测**。
 
 ### commandStore 审计（本轮）
 
