@@ -127,6 +127,25 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     expect(back.text).toBe('Click me');
   });
 
+  it('SLIDER 四字段往返（0 值不丢）', async () => {
+    const src = mkFrame({
+      id: 'sl', name: 'Sl', type: FrameType.SLIDER,
+      minValue: 0, maxValue: 2, sliderInitialValue: 2, stepSize: 1,
+    });
+
+    dialogMocks.save.mockResolvedValue('/out/rt.fdf');
+    fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+    await exportToFDF(proj([src]), false, () => {});
+    const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
+
+    const [back] = importFromFDFText(fdf);
+    // minValue=0 必须原样回来（数值 0 不得按 falsy 丢弃）
+    expect(back.minValue).toBe(0);
+    expect(back.maxValue).toBe(2);
+    expect(back.sliderInitialValue).toBe(2);
+    expect(back.stepSize).toBe(1);
+  });
+
   it('Control/Font 系属性写回可编辑字段并往返', async () => {
     const src = mkFrame({
       id: 'cf1', name: 'Cf', type: FrameType.BUTTON,

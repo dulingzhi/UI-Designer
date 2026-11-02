@@ -172,6 +172,25 @@ describe('导入写回可编辑字段：Control/Font 系', () => {
     expect((frames[0] as any).editCursorColor).toEqual([1, 0.5, 0]);
   });
 
+  it('SliderMinValue/MaxValue → minValue/maxValue（0 值也如实写回）', async () => {
+    const frames = await importWithProps([
+      prop('SliderMinValue', numberValue(0)),
+      prop('SliderMaxValue', numberValue(2)),
+    ]);
+    expect((frames[0] as any).minValue).toBe(0);
+    expect((frames[0] as any).maxValue).toBe(2);
+  });
+
+  it('SliderInitialValue → sliderInitialValue', async () => {
+    const frames = await importWithProps([prop('SliderInitialValue', numberValue(2))]);
+    expect((frames[0] as any).sliderInitialValue).toBe(2);
+  });
+
+  it('SliderStepSize → stepSize', async () => {
+    const frames = await importWithProps([prop('SliderStepSize', numberValue(1))]);
+    expect((frames[0] as any).stepSize).toBe(1);
+  });
+
   it('数值属性非法输入 → 不设置（不臆造）', async () => {
     const frames = await importWithProps([
       prop('FontShadowColor', stringValue('not an array')),

@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1991 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1995 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -410,6 +410,15 @@ editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确
 
 已接入 4 字段的 FDF 导出（`!== undefined` 判断，0 值也会如实输出）。
 **测试**：`exportControlProps.test.ts` 扩到 15 测（先 1/15 红；含"未设置不输出"用例）。
+
+### SLIDER 系导入写回（本轮，闭环）
+
+`enhanceFrameWithFDF` 补 `SliderMinValue/MaxValue/InitialValue/StepSize` 四字段写回
+（与导出互逆）。**关键点**：数值用 `!== null && !isNaN` 判断——`minValue=0` 是合法值，
+不得按 falsy 丢弃（与之前 `BackdropTileBackground` 的 undefined 覆盖陷阱同类教训）。
+
+**测试**：`fdfImportRoundtrip.test.ts` 扩到 42 测（先 3/42 红，含 0 值用例）；
+`fullRoundtrip.test.ts` 扩到 **8 测**（新增 SLIDER 穿透，断言 `minValue === 0` 原样回来）。
 
 ### Control/Font 系导入写回（本轮，收口）
 

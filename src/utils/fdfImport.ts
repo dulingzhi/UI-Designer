@@ -251,6 +251,21 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
     }
   }
 
+  // SLIDER 系写回（与导出侧 SliderMinValue/MaxValue/InitialValue/StepSize 互逆）。
+  // 数值用 !== null 判断：0 是合法值（minValue=0），不得按 falsy 丢弃。
+  const sliderAssigns: Array<[string, keyof FrameData]> = [
+    ['SliderMinValue', 'minValue'],
+    ['SliderMaxValue', 'maxValue'],
+    ['SliderInitialValue', 'sliderInitialValue'],
+    ['SliderStepSize', 'stepSize'],
+  ];
+  for (const [name, field] of sliderAssigns) {
+    const v = find(name);
+    if (v !== null && v !== undefined && !isNaN(Number(v))) {
+      (controlFields as Record<string, unknown>)[field] = Number(v);
+    }
+  }
+
   return {
     ...frame,
     ...backdropFields,
