@@ -351,6 +351,7 @@ export const useKeyboardShortcuts = (
           useProjectStore.setState({ project: result.project });
           useUIStore.getState().selectFrame(null);
           setCurrentFilePath(result.path);
+          window.dispatchEvent(new CustomEvent('project-state-reset'));
           console.log('✅ 项目已打开:', result.path);
         }
       } catch (error) {
@@ -367,6 +368,7 @@ export const useKeyboardShortcuts = (
         if (confirm('创建新项目将丢失未保存的更改。是否继续？')) {
           useProjectStore.getState().resetProject();
           setCurrentFilePath(null);
+          window.dispatchEvent(new CustomEvent('project-state-reset'));
           console.log('✅ 新项目已创建');
         }
       }
