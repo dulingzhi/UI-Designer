@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `121 passed | 2 skipped` 测试文件，`2066 passed | 5 skipped` 测试
+- `122 passed | 2 skipped` 测试文件，`2072 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -171,6 +171,16 @@ outputPath 显示给用户可核对、enabled 开关受控。
 
 **测试**：`src/components/hotReloadPanelWiring.test.ts`（5 测，5/5 一次通过）。
 组件层接线守卫现共 **48 测**。
+
+### WC3TextureBrowser 接线守卫（本轮，续）
+
+纹理浏览器（纹理资产选择入口）守卫锁定：
+双击文件才 onSelect（目录不触发选择）、单击目录进入并清空搜索、
+确定按钮无选中不触发、选择后 onSelect+onClose 同步、图片格式过滤
+（blp/tga/dds/png）、搜索经 mpqManager.searchFiles 通配。
+
+**测试**：`src/components/textureBrowserWiring.test.ts`（6 测，6/6 一次通过）。
+组件层接线守卫现共 **54 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
