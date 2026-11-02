@@ -327,7 +327,7 @@ describe('importFromFDF', () => {
 });
 
 describe('loadProjectFromPath 悬空 parentId 迁移', () => {
-  it('指向不存在帧的 parentId 迁移时清理为空串', async () => {
+  it('指向不存在帧的 parentId 迁移时清理为 null（round 145：与正常根帧一致）', async () => {
     fsMocks.readTextFile.mockResolvedValue(JSON.stringify({
       frames: {
         a: { id: 'a', name: 'A', type: FrameType.FRAME, x: 0, y: 0, width: 1, height: 1, parentId: '' },
@@ -336,7 +336,7 @@ describe('loadProjectFromPath 悬空 parentId 迁移', () => {
     }));
     const { project } = await loadProjectFromPath('C:\\p.w3ui');
     // 悬空引用被清理（不再随再次保存永久化）
-    expect(project.frames.b.parentId).toBe('');
+    expect(project.frames.b.parentId).toBe(null);
     // 有效父子关系不受影响
     expect(project.frames.a.children).toEqual([]);
   });

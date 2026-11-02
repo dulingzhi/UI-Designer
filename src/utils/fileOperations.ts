@@ -84,7 +84,9 @@ function migrateProjectData(project: ProjectData): ProjectData {
     if (frame.parentId && migratedFrames[frame.parentId]) {
       migratedFrames[frame.parentId].children.push(id);
     } else {
-      if (frame.parentId) frame.parentId = null;
+      // round 145：无条件切根（消除结构不可达分支——第二步已清悬空为 ''/环切根为 null，
+      // 此处 parentId 恒 falsy；统一归 null 使迁移输出更规范）
+      frame.parentId = null;
       rootFrameIds.push(id);
     }
   }
