@@ -208,4 +208,36 @@ describe('projectStore 数组编辑器', () => {
     s.applyStylePreset('missing', ['b1']);
     expect(useProjectStore.getState().project!.frames['b1'].texture).toBe('keep.png');
   });
+
+  it('saveFrameAsPreset 捕获帧样式字段', () => {
+    const s = useProjectStore.getState();
+    s.addFrame(makeFrame('src', { texture: 'btn.png', text: 'OK', textScale: 0.012 }));
+    s.saveFrameAsPreset('src', 'MyBtn', 'buttons');
+    const presets = useProjectStore.getState().project!.stylePresets!;
+    expect(presets).toHaveLength(1);
+    expect(presets[0].name).toBe('MyBtn');
+    expect((presets[0] as any).style.texture).toBe('btn.png');
+    expect((presets[0] as any).style.text).toBe('OK');
+  });
+
+  it('saveFrameAsPreset 未知帧是 no-op', () => {
+    useProjectStore.getState().saveFrameAsPreset('ghost', 'X');
+    expect(useProjectStore.getState().project!.stylePresets!).toHaveLength(0);
+  });
+
+  it('group 增改删与成员去重', () => {
+    const s = useProjectStore.getState();
+    const gid = s.createGroup('G1', ['f1', 'f2']);
+    expect(gid).toMatch(/^group_/);
+    expect(useProjectStore.getState().project!.frameGroups).toHaveLength(1);
+    // 重复添加去重
+    s.addFramesToGroup(gid, ['f2', 'f3']);
+    expect((useProjectStore.getState().project!.frameGroups![0] as any).frameIds).toEqual(['f1', 'f2', 'f3']);
+    s.removeFramesFromGroup(gid, ['f1']);
+    expect((useProjectStore.getState().project!.frameGroups![0] as any).frameIds).toEqual(['f2', 'f3']);
+    s.updateGroup(gid, { name: 'G2' });
+    expect((useProjectStore.getState().project!.frameGroups![0] as any).name).toBe('G2');
+    s.removeGroup(gid);
+    expect(useProjectStore.getState().project!.frameGroups).toHaveLength(0);
+  });
 });
