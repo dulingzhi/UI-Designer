@@ -184,6 +184,7 @@
 | projectStore 自动导出订阅审计（round 96） | 通过 | 底部 subscribe 语义健康：引用比较正确过滤无关变更（zustand 任意 state 变化都进 subscribe）/首跳初始化/setTimeout(0) 脱同步栈/PID 双检/快速变更由 exportDebounced(L169) 防抖合并/配置读执行时快照。无缺陷 |
 | 偏好设置死链修复（round 97） | **修 1 摆设面板** | PreferencesDialog 6 项中 5 项保存后零消费：showGrid/snapToGrid/gridSize 画布读 uiStore（偏好不生效）、preferences-updated 事件 0 监听、theme/language 仓库无主题/i18n 系统（纯摆设承诺）。修：①handleSave 实时同步 3 画布项到 uiStore ②App 启动恢复 preferences→uiStore ③删 theme/language 控件（不留无效承诺）。preferencesWiring 守卫同步（断言 ui 同步+无 theme/language） |
 | uiStore 开关消费审计（round 98） | 通过 | 5 开关字段全有消费方：showGrid 3 文件/showAnchors 1（Canvas.tsx:905 条件渲染=真实路径）/showRulers 2/snapToGrid 6/gridSize 6——无 round 97 同族死开关 |
+| Canvas 右键菜单核查（round 99） | 通过 | 11 项 action 全有效：复制/粘贴/复制控件/复制样式/粘贴样式/锁定（动态 label）/删除全走命令层，网格/锚点/吸附走 uiStore（round 98 已验证消费链）；粘贴样式带 styleClipboard 空守卫；菜单 shortcut 提示与实存快捷键一致 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
