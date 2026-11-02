@@ -351,3 +351,20 @@ describe('选择类 action（round 105 补齐，编辑器核心交互）', () =>
     expect(useUIStore.getState().selectedFrameIds).toEqual([]);
   });
 });
+
+describe('dirty 未保存标志（round 142 迁移入 uiStore，round 145 补测）', () => {
+  beforeEach(() => {
+    useUIStore.getState().setDirty(false);
+  });
+
+  it('初始状态 dirty=false', () => {
+    expect(useUIStore.getState().dirty).toBe(false);
+  });
+
+  it('setDirty(true/false) 往返切换', () => {
+    useUIStore.getState().setDirty(true);
+    expect(useUIStore.getState().dirty).toBe(true);
+    useUIStore.getState().setDirty(false);
+    expect(useUIStore.getState().dirty).toBe(false);
+  });
+});
