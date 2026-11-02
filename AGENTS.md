@@ -167,29 +167,7 @@
 因未装 jsdom，均用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
 汇总要点（详细语义见各测试文件头部注释）：
 
-| 文件 | 测数 | 锁定核心 |
-|---|---|---|
-| `propertiesWiring.test.ts` | 13 | 全部 13 个可导出 backdrop 字段有 value+onChange（TypeSpecificProperties） |
-| `anchorEditorWiring.test.ts` | 6 | 9 FramePoint 选项齐全、不可变数组+handleChange 单出口、冲突检测消费 |
-| `propertyEditorsWiring.test.ts` | 5 | 受控成对、清空归一 undefined、RGBA 合并不丢 RGB |
-| `batchEditPanelWiring.test.ts` | 5 | 每帧一条 UpdateFrameCommand（可 undo）、哨兵 -1、单出口 |
-| `arrayDialogsWiring.test.ts` | 6 | NaN 防护、行×列>100 告警、二次确认、半径/count 下限、坐标钳制 |
-| `projectTreeWiring.test.ts` | 8 | 破坏性操作走命令层+确认框（含子帧计数）、锁定不可删、空名不生效 |
-| `hotReloadPanelWiring.test.ts` | 5 | localStorage 往返、手动导出走热重载同链路、war3Path 未配置 disabled |
-| `textureBrowserWiring.test.ts` | 6 | 双击文件才 onSelect、确定无选中不触发、格式过滤、mpq 搜索 |
-| `templatePanelWiring.test.ts` | 6 | createFrame→命令层、组合逐帧建、ID 唯一、分类过滤、空态 |
-| `presetGroupWiring.test.ts` | 6 | applyStylePreset 带目标集、分组创建双保险校验、全走 store action |
-| `preferencesWiring.test.ts` | 5 | 双键持久化、全部受控、重置确认、危险操作警示 |
-| `mdxViewerWiring.test.ts` | 5 | cancelled 竞态防护（卸载后 dispose）、WebGPU→WebGL2 回退、三态 UI |
-| `canvasWiring.test.ts` | 6 | SceneGraphManager 生命周期竞态+dispose、右键 6 类命令层、hitTest、hook 化 |
-| `toolbarMenuBarWiring.test.ts` | 5 | undo/redo 绑定栈+禁用态、命令前置校验、两入口共用 executeCommand |
-| `historyPanelWiring.test.ts` | 5 | 双栈时间轴（undoStack 正序+redoStack 反序）、步进跳转、初始标记 |
-| `utilityPanelsWiring.test.ts` | 5 | 更新检查 dev 跳过、版本双源（Tauri→package.json）、≥20 快捷键 |
-| `propertiesPanelWiring.test.ts` | 5 | handleChange 统一 UpdateFrameCommand、四子编辑器 props 一致、动态尺寸感知 |
-| `sidePanelWiring.test.ts` | 5 | 模板/历史 tab 互斥渲染、active 视觉态、展开收起、空态、命令名中文映射 |
-| `canvasHelpersWiring.test.ts` | 7 | ContextMenu 禁用项不触发、GuideLine 位置钳制+WC3 坐标换算、Ruler 刻度密度、BackdropEdge 类型化 props |
-| `anchorVizHandlesWiring.test.ts` | 4 | 锚点可视化 9 点坐标映射与 FramePoint 语义一致、ResizeHandles 8 方向齐全 |
-| `miscPanelsWiring.test.ts` | 5 | DebugPanel 坐标回显、LazyImage/TexturePreview 懒加载+disconnect、ConfirmDialog 遮罩取消防冒泡、RaceSwitcher 五族+setRace |
+完整语义见各测试文件头部注释（src/components/**/*Wiring.test.ts，21 文件）：properties(13)/anchorEditor(6)/propertyEditors(5)/batchEdit(5)/arrayDialogs(6)/projectTree(8)/hotReloadPanel(5)/textureBrowser(6)/templatePanel(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/historyPanel(5)/utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7)/anchorVizHandles(4)/miscPanels(5)。
 
 **守卫编写教训**：多行字符串断言对缩进/换行过脆（Canvas 首版 1/6 失败），
 改用 `indexOf` 顺序断言（如 cancelled 判断先于 dispose）——语义等价且抗格式化。
