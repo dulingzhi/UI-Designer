@@ -131,6 +131,25 @@ describe('EditBox 系（真实语法实证）', () => {
   });
 });
 
+describe('SLIDER 系（真实语法实证：SliderMin/Max/InitialValue、SliderStepSize）', () => {
+  it('slider 四字段全部导出', async () => {
+    const f = mkFrame({ id: 'sl', name: 'Sl', type: FrameType.SLIDER,
+      minValue: 0, maxValue: 2, sliderInitialValue: 2, stepSize: 1 });
+    const c = await content([f]);
+    expect(c).toContain('SliderMinValue 0,');
+    expect(c).toContain('SliderMaxValue 2,');
+    expect(c).toContain('SliderInitialValue 2,');
+    expect(c).toContain('SliderStepSize 1,');
+  });
+
+  it('未设置时不输出 Slider 属性', async () => {
+    const f = mkFrame({ id: 'sl2', name: 'Sl2', type: FrameType.SLIDER });
+    const c = await content([f]);
+    expect(c).not.toContain('SliderMinValue');
+    expect(c).not.toContain('SliderStepSize');
+  });
+});
+
 describe('未设置时不输出（不产生空属性）', () => {
   it('无 control/highlight/font 字段的帧不输出这些属性', async () => {
     const f = mkFrame({ id: 'n', name: 'N' });

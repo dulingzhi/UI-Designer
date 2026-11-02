@@ -358,6 +358,22 @@ function generateFrameFDF(
     lines.push(`${indentStr}    EditCursorColor ${r} ${g} ${b},`);
   }
 
+  // SLIDER 系（真实 FDF 实证：SliderMinValue/MaxValue/InitialValue/StepSize 各 13 次，
+  // 数值型）。注意 FDF 模板名是 SliderStepSize —— 与运行时 API FrameSetStepValue
+  // 不同名但并存（前者是模板属性，后者是运行时调用，不矛盾）。
+  if (frame.minValue !== undefined) {
+    lines.push(`${indentStr}    SliderMinValue ${frame.minValue},`);
+  }
+  if (frame.maxValue !== undefined) {
+    lines.push(`${indentStr}    SliderMaxValue ${frame.maxValue},`);
+  }
+  if (frame.sliderInitialValue !== undefined) {
+    lines.push(`${indentStr}    SliderInitialValue ${frame.sliderInitialValue},`);
+  }
+  if (frame.stepSize !== undefined) {
+    lines.push(`${indentStr}    SliderStepSize ${frame.stepSize},`);
+  }
+
   // 递归处理子控件
   if (frame.children && frame.children.length > 0) {
     lines.push('');

@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1989 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1991 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -394,6 +394,22 @@ editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确
 结论：它不是"未接入的功能"，而是**建模时自造、无可接入引擎语义的字段**。
 按诚实原则如实记录；是否删除字段属产品决策（涉及类型/store/测试多处与存档兼容性），
 本轮不动代码。若未来确认删除，需同步移除 `updateGeneralSettings` 白名单核对项。
+
+### SLIDER 系 FDF 导出（本轮，真实语法实证）
+
+核对 FDF 导出（`exportUtils`）的 SLIDER 帧：**只输出类型名**，
+`minValue/maxValue/sliderInitialValue/stepSize` 四字段全丢（codeExport 运行时侧早已写
+`FrameSetMinMaxValue`/`FrameSetStepValue`，FDF 侧缺失）。真实语法扫描实证：
+
+- `SliderMinValue` 13 次、`SliderMaxValue` 13 次、`SliderInitialValue` 13 次、
+  `SliderStepSize` 13 次（数值型）
+- **注意**：FDF 模板名是 `SliderStepSize` —— 与运行时 API `FrameSetStepValue`
+  **不同名但并存**，不矛盾（前者是模板属性，后者是运行时调用；之前修正的是后者）
+- 另实证 `SliderThumbButtonFrame` / `ScrollBarIncButtonFrame` / `ScrollBarDecButtonFrame`
+  （模板引用型，对应 FrameData 的 *Ref 字段，本轮未接——需模板依赖排序，另行处理）
+
+已接入 4 字段的 FDF 导出（`!== undefined` 判断，0 值也会如实输出）。
+**测试**：`exportControlProps.test.ts` 扩到 15 测（先 1/15 红；含"未设置不输出"用例）。
 
 ### Control/Font 系导入写回（本轮，收口）
 
