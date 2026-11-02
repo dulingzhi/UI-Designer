@@ -380,4 +380,57 @@ mod tests {
     fn test_mdx_magic() {
         assert_eq!(MDX_MAGIC, b"MDLX");
     }
+
+    /// 构造一个最小合法 MDLX 文件：magic + VERS chunk + GEOS chunk（含给定 count 的 VRTX）。
+    fn build_mdx(vertex_count: u32, include_vertex_bytes: bool) -> Vec<u8> {
+        let mut v = Vec::new();
+        v.extend_from_slice(b"MDLX");
+        // VERS chunk
+        v.extend_from_slice(b"VERS");
+        v.extend_from_slice(&4u32.to_le_bytes());
+        v.extend_from_slice(&800u32.to_le_bytes());
+        // GEOS chunk
+        v.extend_from_slice(b"GEOS");
+        // geoset 前置 size:u32（GEOS 内每个 geoset 的布局是 size + sub-chunks）
+        let geos_body_size = 4 + 4 + 4 + if include_vertex_bytes { vertex_count * 12 } else { 0 };
+        v.extend_from_slice(&(geos_body_size as u32).to_le_bytes());
+        let geoset_size = (4 + 4 + if include_vertex_bytes { vertex_count * 12 } else { 0 }) as u32;
+        v.extend_from_slice(&geoset_size.to_le_bytes());
+        // geoset 内 VRTX sub-chunk
+        v.extend_from_slice(b"VRTX");
+        v.extend_from_slice(&vertex_count.to_le_bytes());
+        if include_vertex_bytes {
+            for i in 0..vertex_count {
+                let x = i as f32;
+                v.extend_from_slice(&x.to_le_bytes());
+                v.extend_from_slice(&0.0f32.to_le_bytes());
+                v.extend_from_slice(&0.0f32.to_le_bytes());
+            }
+        }
+        v
+    }
+
+    #[test]
+    fn truncated_vertex_data_errors_instead_of_inflating() {
+        // 截断文件：VRTX count 声称 3 个顶点但无数据字节。
+        // 修复前 unwrap_or(0.0) 会静默 push 3 个零顶点；修复后必须报错。
+        let data = build_mdx(3, false);
+        let mut parser = MdxParser::new(data).expect("new");
+        let result = parser.parse();
+        assert!(result.is_err(), "truncated vertex data must error");
+        let msg = result.unwrap_err();
+        assert!(msg.contains("vertex"), "error should mention vertex, got: {}", msg);
+    }
+
+    #[test]
+    fn valid_vertices_parse_and_bounds_compute() {
+        let data = build_mdx(3, true);
+        let mut parser = MdxParser::new(data).expect("new");
+        let model = parser.parse().expect("parse ok");
+        assert_eq!(model.version, 800);
+        assert_eq!(model.vertices.len(), 3);
+        assert_eq!(model.vertices[2].x, 2.0);
+        assert_eq!(model.bounds.max.x, 2.0);
+        assert_eq!(model.bounds.min.x, 0.0);
+    }
 }
