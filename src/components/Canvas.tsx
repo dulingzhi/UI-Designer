@@ -268,11 +268,22 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
   // 暴露给父组件的方法
   useImperativeHandle(ref, () => ({
     setScale: (newScale: number | ((prev: number) => number)) => {
-      if (typeof newScale === 'function') {
-        setScale(prev => newScale(prev));
-      } else {
-        setScale(newScale);
+      // round 160：接口缩放统一锚定视口中心（快捷键/按钮与 r159 滚轮一致，不再原点缩放漂移）
+      if (containerSize.width <= 0 || containerSize.height <= 0) {
+        setScale(prev => (typeof newScale === 'function' ? newScale(prev) : newScale));
+        return;
       }
+      const anchor = { x: containerSize.width / 2, y: containerSize.height / 2 };
+      const prevScale = scale;
+      const next = typeof newScale === 'function' ? newScale(prevScale) : newScale;
+      const clamped = Math.max(0.1, Math.min(5, next));
+      const wx = (anchor.x - offset.x) / prevScale;
+      const wy = (anchor.y - offset.y) / prevScale;
+      setScale(clamped);
+      setOffset({
+        x: offset.x + wx * (prevScale - clamped),
+        y: offset.y + wy * (prevScale - clamped),
+      });
     },
     centerCanvas: () => {
       setOffset({ x: 0, y: 0 });
