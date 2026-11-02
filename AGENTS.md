@@ -184,6 +184,7 @@
 | addFrame 幽灵帧修复（round 108） | **修 1 P1 缺陷** | 粘贴审计发现：复制子帧→删原父→Ctrl+V，PasteFrameCommand 以原 parentId 粘贴副本，addFrame 对悬空 parentId 不挂父也不入 rootFrameIds——**副本成幽灵帧**（存在但不可见不可选）。修复：addFrame 悬空 parentId 归一化为根帧（与 fileOperations 迁移清理语义统一）。+2 测（归一化/有效父不回归）。2104 测全绿 |
 | BatchRemove undo 恢复顺序修复（round 109） | **修 1 回归风险** | round 108 修复引入的回归面：undo 按用户选择序（Map 插入序）恢复，子先于父时子帧被归一化成根帧 → 与父 children 快照树断裂。修复：undo 按拓扑序（父先）恢复（迭代去依赖+环防御）。+2 测（跨层级删除树完整/兄弟多选不变）。2106 测全绿 |
 | DuplicateFrame 命令核查（round 110） | 通过 | redo 用构造期稳定快照（id 不变、undo 精确删除）优于 PasteFrame 的 redo 重新生成；round 108 归一化使其"undo 后父被删再 redo"边界优雅入根。PasteFrameCommand redo 重新生成 id 定性低危已知边界（功能等价/栈 100 上限），不修 |
+| UpdateFrameCommand 核查（round 111） | 通过 | undo 快照按 updates 键精确采样（只还原被改属性，undefined 覆盖语义自洽）；undo/redo 对已删帧安全（updateFrame 有 !frame 守卫 no-op）。FrameCommands 命令族全部核查完毕 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
