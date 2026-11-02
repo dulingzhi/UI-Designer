@@ -188,6 +188,7 @@
 | 构建与健壮性收口（rounds 115-125 归并） | 通过+修 8 | ①存档链：序列化保真 2 测/frames 缺失归一化/recentFiles 类型防御/hotReloadConfig 自动导出 try-catch（损坏 JSON 异步 rejection 曾使链路静默死亡）②undo：拖拽手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪——pushCommand 统一 3 处旁路（+3 测）③构建：tsconfig.build.json 修复生产构建从未绿过（95 测试侧报错阻塞）/cargo release 首验+2 死代码清理/manualChunks 分离 three/react（主 chunk -31%）④stale closure：window.checkForUpdates 重暴露修复防重入（全仓扫描为唯一一例） |
 | 多选拖拽实现（round 126） | **feat 补 1 功能缺口** | useCanvasDrag 原只移动被拖帧（无 selectedFrameIds 引用）——多选拖动其余选中帧留原地（与主流编辑器相悖）。实现：startDrag 捕获选中集起始状态/位置/锚点快照，updateDrag 对其余帧平移同一 delta（**绝对锚点跟随+相对锚点 offset 平移——两种锚点 += delta 解算位置等量平移，数学一致**），endDrag 组合命令一次 Ctrl+Z 全撤（逆序恢复）。computeMultiDragFrames 导出+3 测（delta 平移/锚点语义/单选零位移空）。2119 测全绿 |
 | 方向键多选微调（round 127） | feat 补齐 | 方向键/Shift+方向键原只处理 selectedFrameId 单帧——多选时仅主帧步进。提取 nudgeSelected：selectedFrameIds 全员同步步进（无选中回退主帧），单帧 executeCommand/多帧组合命令一次 Ctrl+Z 全撤（r126 拖拽同款）。r88 静态守卫同步新语义+1 测。2120 测全绿 |
+| 多选复制语义观察（round 128） | 产品观察 | 多选 Ctrl+C/Ctrl+D 原单帧语义（copyToClipboard/DuplicateFrameCommand 单帧）——复制全部选中 vs 仅主帧在不同编辑器行为不一（Figma 组复制/部分工具主帧）；clipboard 结构改造涉及 PasteFrameCommand 递归粘贴链，属产品决策。多选交互已收口：选择同步(r105)/组拖拽(r126)/键盘微调(r127)/删除(BatchRemove)——复制语义待用户裁定 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
