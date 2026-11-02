@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useCommandStore } from '../store/commandStore';
 import { useUIStore } from '../store/uiStore';
 import { StylePreset } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -56,7 +57,16 @@ export const StylePresetPanel: React.FC<StylePresetPanelProps> = ({ onClose }) =
       return;
     }
 
-    applyStylePreset(presetId, targetIds);
+    // round 140：预设应用入 undo 栈（原直接调 store 不可撤销）。捕获旧帧快照：
+// undo 恢复完整旧帧 / redo 重放预设合并（幂等：预设值固定）。pushCommand 不重复执行。
+const proj = useProjectStore.getState();
+const oldFrames = targetIds.map(id => ({ id, old: proj.getFrame(id) })).filter(x => x.old);
+applyStylePreset(presetId, targetIds);
+useCommandStore.getState().pushCommand({
+  execute: () => useProjectStore.getState().applyStylePreset(presetId, targetIds),
+  undo: () => oldFrames.forEach(({ id, old }) => useProjectStore.getState().updateFrame(id, old!)),
+  redo: () => useProjectStore.getState().applyStylePreset(presetId, targetIds),
+});
   };
 
   // 删除预设 - 显示确认对话框

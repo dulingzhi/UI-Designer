@@ -13,7 +13,9 @@ const src = readFileSync(join(__dirname, 'BatchEditPanel.tsx'), 'utf-8');
 
 describe('BatchEditPanel 接线守卫', () => {
   it('批量修改走 UpdateFrameCommand（可 undo，不裸改 store）', () => {
-    expect(src).toContain("executeCommand(new UpdateFrameCommand(id, { [field]: value }));");
+    // r140：组合命令——cmds.push 收集，单帧 executeCommand / 多帧 pushCommand 一次撤销
+    expect(src).toContain("cmds.push(new UpdateFrameCommand(id, {");
+    expect(src).toContain("useCommandStore.getState().pushCommand({");
     expect(src).toContain("useCommandStore();");
   });
 

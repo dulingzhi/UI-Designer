@@ -24,9 +24,9 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({ onClose }) => {
 
   const handleBatchChange = (field: string, value: any) => {
     // round 134：几何字段同步重算 anchors（与 PropertiesPanel 单帧路径一致）。
-    // 原实现只写字段——批量改尺寸后锚点数据滞后，锚点编辑器显示旧 bounds。
     const isGeometry = ['x', 'y', 'width', 'height'].includes(field);
     const { project } = useProjectStore.getState();
+    const cmds: UpdateFrameCommand[] = [];
     selectedFrameIds.forEach(id => {
       const frame = project.frames[id];
       if (!frame) return;
@@ -35,14 +35,24 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({ onClose }) => {
         const ny = field === 'y' ? value : frame.y;
         const nw2 = field === 'width' ? value : frame.width;
         const nh = field === 'height' ? value : frame.height;
-        executeCommand(new UpdateFrameCommand(id, {
+        cmds.push(new UpdateFrameCommand(id, {
           [field]: value,
           anchors: updateAnchorsFromBounds(frame.anchors, nx, ny, nw2, nh),
         }));
       } else {
-        executeCommand(new UpdateFrameCommand(id, { [field]: value }));
+        cmds.push(new UpdateFrameCommand(id, { [field]: value }));
       }
     });
+    // round 140：多帧组合命令一次撤销（r139 同族）
+    if (cmds.length === 1) {
+      executeCommand(cmds[0]);
+    } else {
+      useCommandStore.getState().pushCommand({
+        execute: () => cmds.forEach((c) => c.execute()),
+        undo: () => [...cmds].reverse().forEach((c) => c.undo()),
+        redo: () => cmds.forEach((c) => c.execute()),
+      });
+    }
   };
 
   return (
