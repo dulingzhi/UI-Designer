@@ -148,7 +148,18 @@ export class FDFLexer {
     const quote = this.advance(); // " 或 '
     
     let value = '';
-    while (this.current() && this.current() !== quote) {
+    while (this.current()) {
+      // FDF 双写引号转义："" → 字面引号（WC3 引擎与内核 fdfKernelParser 均按此语义）。
+      // 必须在"遇引号即退出"之前判断，否则第一个 " 会提前终止字符串（文本静默截断）。
+      if (this.current() === quote && this.peek() === quote) {
+        this.advance();
+        this.advance();
+        value += quote;
+        continue;
+      }
+      if (this.current() === quote) {
+        break; // 真正的结束引号
+      }
       if (this.current() === '\\') {
         this.advance();
         const escaped = this.advance();

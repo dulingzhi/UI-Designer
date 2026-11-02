@@ -123,6 +123,11 @@ export interface FDFBackdropData {
   backgroundSize?: number;              // 背景尺寸
   backgroundInsets?: [number, number, number, number]; // [left, top, right, bottom]
   edgeFile?: string;                    // 边框纹理
+  cornerFile?: string;                  // 角点纹理（九宫格四角）
+  topFile?: string;                     // 上边纹理
+  bottomFile?: string;                  // 下边纹理
+  leftFile?: string;                    // 左边纹理
+  rightFile?: string;                   // 右边纹理
   cornerFlags?: string;                 // 角标志 "UL|UR|BL|BR|T|L|B|R"
   cornerSize?: number;                  // 角尺寸
   blendAll?: boolean;                   // 混合所有层

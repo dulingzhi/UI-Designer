@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `106 passed | 2 skipped` 测试文件，`1910 passed | 5 skipped` 测试
+- `108 passed | 2 skipped` 测试文件，`1937 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -254,6 +254,33 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 **接线守卫（wiring guard）**：因未装 jsdom 无法渲染组件，改用静态断言锁
 "全部 13 个可导出 backdrop 字段在面板里都有 value 读取 + onChange 回写"。
 这不是行为测试的替代品，而是该约束下的诚实守卫；若将来引入 jsdom，应改为渲染级交互测试。
+
+### 导入往返断裂修复（本轮，fdfImport + fdfLexer 两处）
+
+导出侧修完后审计**导入方向**（`fdfImport`），发现往返链路两端都断：
+
+**断点 1：导入不写回可编辑字段。** `extractBackdropData` 原来只读 3 个属性
+（background/edgeFile/cornerFlags），且**只进 `fdfMetadata.fdfBackdrop` 元数据**——
+从不写 `frame.backdropBackground` 等字段。后果：**导入带背景的 FDF → 属性面板显示空 →
+再导出 → 背景丢失**。现已读取全部 13 个 backdrop 属性（含新增的 cornerFile/四边/尺寸/
+内边距/平铺/混合），并同时写回可编辑字段 + 保留元数据（既有测试不破坏）。
+`FontJustificationH/V` 逆映射为 `horAlign/verAlign`（未知常量不写回，不臆造）。
+
+**断点 2（端到端探针抓到的更深 bug）：旧 lexer 不支持双写引号转义。**
+单独测导出（产物正确）与单独测导入（mock AST）都绿，但把 `exportToFDF` 真实产物喂给
+`importFromFDFText` 时文本仍被截断。探针定案：`fdfKernelParser` 正确处理 `""` → 三段，
+而旧 `FDFLexer.readString` 的循环条件 `while (current !== quote)` **在第一个 " 就终止**，
+把 FDF 双写转义 `""` 误判为字符串结束。修复要点：双写检测必须放在循环**条件之后、
+退出判断之前**——我第一次把检测写进循环体，被 while 条件先拦住，探针仍显示旧结果，
+第二次才修对。现 `while (current)` + 循环内先判双写再判真结束引号，
+`"He said ""hi"""` 正确解析为 `He said "hi"`（与内核 parser 语义一致）。
+
+**教训**：各环节独立测试全绿 ≠ 链路通。**端到端往返测试（导出产物→真 parser→字段比对）
+是唯一能抓住这类断裂的守卫**（`fullRoundtrip.test.ts`，2 测，不 mock parser）。
+
+**测试**：`fdfImportRoundtrip.test.ts`（27 测，先 15/16 红）+ `fullRoundtrip.test.ts`（2 测）。
+覆盖率中途跌至 99.47%，按未覆盖分支逐一补真实用例（布尔大小写变体、非法四元组、
+未知 JUSTIFY 常量）恢复 100，无 v8-ignore。
 
 ### luaGenerator 导出链路补齐（本轮）
 

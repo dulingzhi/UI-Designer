@@ -127,9 +127,44 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
   
   // 提取 Backdrop 数据
   const fdfBackdrop = extractBackdropData(properties);
-  
+
+  // 把 backdrop / 对齐**同时写回可编辑字段**（修复往返断裂：
+  // 旧实现只进 fdfMetadata 元数据，属性面板读到空，再导出即丢失）。
+  const backdropFields: Partial<FrameData> = fdfBackdrop
+    ? {
+      backdropBackground: fdfBackdrop.background,
+      backdropEdgeFile: fdfBackdrop.edgeFile,
+      backdropCornerFile: fdfBackdrop.cornerFile,
+      backdropTopFile: fdfBackdrop.topFile,
+      backdropBottomFile: fdfBackdrop.bottomFile,
+      backdropLeftFile: fdfBackdrop.leftFile,
+      backdropRightFile: fdfBackdrop.rightFile,
+      backdropCornerFlags: fdfBackdrop.cornerFlags,
+      backdropCornerSize: fdfBackdrop.cornerSize,
+      backdropBackgroundSize: fdfBackdrop.backgroundSize,
+      backdropBackgroundInsets: fdfBackdrop.backgroundInsets,
+      backdropTileBackground: fdfBackdrop.tileBackground,
+      backdropBlendAll: fdfBackdrop.blendAll,
+    }
+    : {};
+
+  // 文本对齐（导出侧 FontJustificationH/V 的逆映射； JUSTIFY* 常量由 name 提供）
+  const justifyH = findProperty(properties, 'FontJustificationH');
+  const justifyV = findProperty(properties, 'FontJustificationV');
+  const alignFields: Partial<FrameData> = {};
+  if (justifyH !== null) {
+    const h = JUSTIFY_H_REVERSE[String(justifyH).toUpperCase()];
+    if (h) alignFields.horAlign = h;
+  }
+  if (justifyV !== null) {
+    const v = JUSTIFY_V_REVERSE[String(justifyV).toUpperCase()];
+    if (v) alignFields.verAlign = v;
+  }
+
   return {
     ...frame,
+    ...backdropFields,
+    ...alignFields,
     fdfMetadata,
     fdfTexture,
     fdfString,
@@ -227,23 +262,85 @@ function extractStringData(properties: FDFProperty[]): FDFStringData | undefined
 }
 
 /**
- * 提取 Backdrop 数据
+ * 解析 FDF 布尔标识符（TRUE/FALSE，不区分大小写）。
+ */
+function parseFdfBool(value: any): boolean | undefined {
+  if (value === 'TRUE' || value === 'true') return true;
+  if (value === 'FALSE' || value === 'false') return false;
+  return undefined;
+}
+
+/**
+ * 解析四元组数值（背景内边距等），全为有限数才有效。
+ */
+function parseQuad(value: any): [number, number, number, number] | undefined {
+  if (Array.isArray(value) && value.length === 4) {
+    const nums = value.map(v => Number(v));
+    if (nums.every(c => !isNaN(c))) {
+      return nums as [number, number, number, number];
+    }
+  }
+  return undefined;
+}
+
+/**
+ * 提取 Backdrop 数据（元数据 + 可编辑字段双写）。
+ *
+ * 历史缺陷：本函数原来只读 3 个属性且**只进元数据**，导致
+ * 「导入带背景的 FDF → 属性面板为空 → 再导出 → 背景丢失」的往返断裂。
+ * 现读取全部 13 个 backdrop 属性；可编辑字段的映射在 enhanceFrameWithFDF 完成。
  */
 function extractBackdropData(properties: FDFProperty[]): FDFBackdropData | undefined {
   const background = findProperty(properties, 'BackdropBackground');
   const edgeFile = findProperty(properties, 'BackdropEdgeFile');
   const cornerFlags = findProperty(properties, 'BackdropCornerFlags');
-  
-  if (!background && !edgeFile && !cornerFlags) {
+  const cornerFile = findProperty(properties, 'BackdropCornerFile');
+  const topFile = findProperty(properties, 'BackdropTopFile');
+  const bottomFile = findProperty(properties, 'BackdropBottomFile');
+  const leftFile = findProperty(properties, 'BackdropLeftFile');
+  const rightFile = findProperty(properties, 'BackdropRightFile');
+  const cornerSize = findProperty(properties, 'BackdropCornerSize');
+  const backgroundSize = findProperty(properties, 'BackdropBackgroundSize');
+  const backgroundInsets = findProperty(properties, 'BackdropBackgroundInsets');
+  const tileBackground = findProperty(properties, 'BackdropTileBackground');
+  const blendAll = findProperty(properties, 'BackdropBlendAll');
+
+  if (!background && !edgeFile && !cornerFlags && !cornerFile && !topFile
+    && !bottomFile && !leftFile && !rightFile && !cornerSize && !backgroundSize
+    && !backgroundInsets && tileBackground === null && blendAll === null) {
     return undefined;
   }
-  
+
+  const insets = backgroundInsets !== null ? parseQuad(backgroundInsets) : undefined;
+
   return {
+    // 字符串属性用 truthy 语义（数值 0 / 空串对纹理路径无意义，丢弃垃圾值）
     background: background ? String(background) : undefined,
     edgeFile: edgeFile ? String(edgeFile) : undefined,
+    cornerFile: cornerFile ? String(cornerFile) : undefined,
+    topFile: topFile ? String(topFile) : undefined,
+    bottomFile: bottomFile ? String(bottomFile) : undefined,
+    leftFile: leftFile ? String(leftFile) : undefined,
+    rightFile: rightFile ? String(rightFile) : undefined,
     cornerFlags: cornerFlags ? String(cornerFlags) : undefined,
+    // 数值属性 0 是合法值，用 !== null 区分
+    cornerSize: cornerSize !== null ? Number(cornerSize) : undefined,
+    backgroundSize: backgroundSize !== null ? Number(backgroundSize) : undefined,
+    backgroundInsets: insets,
+    tileBackground: tileBackground !== null ? parseFdfBool(tileBackground) : undefined,
+    blendAll: blendAll !== null ? parseFdfBool(blendAll) : undefined,
   };
 }
+
+/**
+ * 编辑器对齐值 ← FDF Justify 常量（导出侧 justifyHOf/justifyVOf 的逆映射）。
+ */
+const JUSTIFY_H_REVERSE: Record<string, FrameData['horAlign']> = {
+  JUSTIFYLEFT: 'left', JUSTIFYCENTER: 'center', JUSTIFYRIGHT: 'right',
+};
+const JUSTIFY_V_REVERSE: Record<string, FrameData['verAlign']> = {
+  JUSTIFYTOP: 'start', JUSTIFYMIDDLE: 'center', JUSTIFYBOTTOM: 'flex-end',
+};
 
 /**
  * 查找属性值
