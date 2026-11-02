@@ -174,10 +174,9 @@
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
 | 生命周期清理域（165-166） | 修 1+排查通过 | hotReloadSync rAF 无卸载清理→cancelled；全 hooks+组件成对；Tauri listen ✓ |
 | 夹具与接线核查域（168-173） | 补强+核查 3 | 夹具数组填非空+5 断言；模板加载链完整；QUICKSTART 控件全真实；门禁复验 2126/444/100×4 |
-| 组件定性域（174-183） | 通过 | DebugPanel 纯展示+SidePanel 双 Tab+App 四区显隐；ConfirmDialog 69 行纯展示零缺陷——UI 基础链收口；cargo test r121 后首验 19/19 |
+| 组件定性域（174-184） | 通过+修 2 | DebugPanel/SidePanel/ConfirmDialog 纯展示；UpdateChecker 256 行状态机完整+NaN 矩阵收尾（contentLength>0 守卫）；WC3TextureBrowser 749 行 Escape 成对+blob 三路 revoke 无泄漏；cargo test r121 后首验 19/19 |
 | 渲染器域（176/178/180） | **修 2**+test | hitTest 排序键→point.z（认证第 6 例）；fontResolver 缓存键加 fontPath；layerStyle 首份 7 测+逗号兼容 |
 | ProjectContext 竞态守卫（181） | **修 1** | 异步 dirname 无取消→快速 saveAs 陈旧 resolve 覆盖新 projectDir（代际族第 3 例）；cancelled cleanup |
-| UpdateChecker 定性+NaN 收尾（182） | 通过+修 1 | 256 行状态机完整，r124 重暴露 ✓；NaN 矩阵收尾——contentLength 0/undefined 进度 NaN%，加 >0 守卫。2138 绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
