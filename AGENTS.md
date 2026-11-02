@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `134 passed | 2 skipped` 测试文件，`2119 passed | 5 skipped` 测试
+- `133 passed | 2 skipped` 测试文件，`2101 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -150,6 +150,7 @@
 | war3SkinsParser+textureLoader | **修 2 缺陷** | openwar3 仲裁：1.27 war3skins.txt 值大量带成对引号（`Key="UI\..."`），两 parser 均无 unquote → **路径含引号字符全部失效**。已加 unquote（两处）；textureLoader 扁平映射改段落感知（[Default] 全表优先，种族段 override 不冒充全局；且旧实现"后缀过滤在 unquote 前"会全部误过滤带引号值——测试红抓出）。textureLoader.parseWar3Skins 与 war3SkinsParser.parseWar3Skins 是双实现（扁平 vs 结构化，语义不同故并存） |
 | Rust lib.rs（20 命令） | 通过 | extract_template_map 白名单+include_bytes!（无路径注入）；parse_mdx ? 错误链显式；BLP 三命令 map_err 完整；get_username USERNAME→USER 环境变量回退。与此前 kkwe/MPQ/BLP 分项审计合并后 Rust 侧全面收口 |
 | codeExport 数值格式化 | 通过 | 全部数值插值有 toFixed(2/5) 保护（锚点/尺寸/MinMax/Step）——无 JASS/LUA 不支持的科学计数法（1e-7）风险；maxValue=0→100、stepSize=0→1 是无意义输入的防御兜底，与 SLIDER 导入侧 minValue=0 合法值不冲突（minValue||0 对 0 处理正确） |
+| fdfParser.old.ts | **删除死代码** | `.old.` 命名旧解析器实现，零生产引用（真实路径 fdfParser.ts 内核）；8.4KB+18 测清除。testMdxParser/fdfTest 是有意的控制台调试工具（非死代码）保留 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
