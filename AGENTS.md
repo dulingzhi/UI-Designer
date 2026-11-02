@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `133 passed | 2 skipped` 测试文件，`2077 passed | 5 skipped` 测试
+- `133 passed | 2 skipped` 测试文件，`2076 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -161,6 +161,7 @@
 | fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | mapFrameType FT 0-28 全覆盖（+100/101 别名）；exportTexture 的 TexCoord 顺序/AlphaMode/DecorateFileNames 与 exportUtils 一致；escapeString 数组多元素空格连接。fdfTemplates：循环继承 visited 防护、多级继承合并顺序正确（子覆盖父）。**边界**：applyTemplate 继承属性只进 fdfMetadata.rawProperties（不写可编辑字段）——导入带 INHERITS 的帧其继承 backdrop 在属性面板不可见，lossless 导出靠 rawProperties 保真，改动需产品决策 |
 | fdfImport.test mock 补齐 | test 侧修复 | mock templateManager 缺 loadTemplatesFromFile 致 tsc 测试侧 2 报错（生产无碍）；补 mock 后清零 |
 | 命令层 src/commands（9 文件全类） | 通过+1 边界 | 20 命令类全部有测试实例化（Frame 10/Align 3/AlignToCanvas/Size/ZIndex/Duplicate 2/Array 2）——无缺口。ZIndexCommand 语义：moveUp/Down 找相邻 z、边界 no-op 不写、bringToFront max+1/sendToBack min-1、undo/redo 存 old/new。**边界**：no-op 命令（已最高层再上移）仍入栈并清空 redo 栈——commandStore"新 execute 清 redo"设计语义的自然结果（类比 git empty commit），UX 细节记录不改。13 条 console.log 在用户操作路径非渲染热路径，保留 |
+| BackdropEdge.tsx+useTextureLoader | **删除死代码链** | 组件无任何 JSX 渲染点（WebGL 路径 SceneGraphManager.syncBackdropEdges 用 textureAtlas 取代）；useTextureLoader 唯一消费者是该孤儿、useTextureLoaderBatch 零消费。canvasHelpersWiring 相应用例随删（守卫 6 测）；useCanvasPan/useHotReloadSync 有活消费方（Canvas/HotReloadPanel）确认非死代码 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）

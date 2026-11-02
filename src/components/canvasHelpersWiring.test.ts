@@ -10,7 +10,6 @@ import { join } from 'node:path';
 const menu = readFileSync(join(__dirname, 'ContextMenu.tsx'), 'utf-8');
 const guide = readFileSync(join(__dirname, 'GuideLine.tsx'), 'utf-8');
 const ruler = readFileSync(join(__dirname, 'Ruler.tsx'), 'utf-8');
-const edge = readFileSync(join(__dirname, 'BackdropEdge.tsx'), 'utf-8');
 
 describe('画布辅助组件接线守卫', () => {
   it('ContextMenu：禁用项/无动作项不触发', () => {
@@ -42,9 +41,6 @@ describe('画布辅助组件接线守卫', () => {
     expect(ruler).toContain('ruler-${orientation}');
   });
 
-  it('BackdropEdge：九宫格边渲染组件有类型化 props', () => {
-    expect(edge.length).toBeGreaterThan(3000);
-    expect(edge).toContain('export interface BackdropEdgeProps');
-    expect(edge).toContain('React.FC<BackdropEdgeProps>');
-  });
+  // BackdropEdge.tsx 已删除（孤儿组件：渲染走 SceneGraphManager WebGL 路径，
+  // React 版从未接入；连带 useTextureLoader/useTextureLoaderBatch 零消费链）。
 });
