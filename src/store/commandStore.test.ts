@@ -86,3 +86,33 @@ describe('commandStore', () => {
     expect(useCommandStore.getState().undoStack.length).toBeLessThanOrEqual(100);
   });
 });
+
+describe('commandStore 异常路径（round 106 语义锁定）', () => {
+  beforeEach(() => {
+    useCommandStore.setState({ undoStack: [], redoStack: [] });
+  });
+
+  it('execute 抛错时命令不入栈（失败命令不得污染撤销栈）', () => {
+    const boom: Command = {
+      execute: () => { throw new Error('cmd failed'); },
+      undo: () => {},
+      redo: () => {},
+    };
+    expect(() => useCommandStore.getState().executeCommand(boom)).toThrow('cmd failed');
+    // 关键语义：set 在 execute 之后——抛错时栈保持干净
+    expect(useCommandStore.getState().undoStack).toHaveLength(0);
+  });
+
+  it('execute 抛错后 store 仍可用（后续成功命令正常入栈）', () => {
+    const boom: Command = {
+      execute: () => { throw new Error('fail'); },
+      undo: () => {},
+      redo: () => {},
+    };
+    const ok = makeCmd();
+    expect(() => useCommandStore.getState().executeCommand(boom)).toThrow();
+    useCommandStore.getState().executeCommand(ok.cmd);
+    expect(useCommandStore.getState().undoStack).toHaveLength(1);
+    expect(useCommandStore.getState().canUndo()).toBe(true);
+  });
+});
