@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `117 passed | 2 skipped` 测试文件，`2042 passed | 5 skipped` 测试
+- `118 passed | 2 skipped` 测试文件，`2047 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -132,6 +132,15 @@
 归一为 `undefined`（FrameData 可选字段语义）、颜色 alpha 编辑合并进四元组不丢 RGB。
 
 **测试**：`src/components/propertyEditorsWiring.test.ts`（5 测，5/5 一次通过）。
+
+### BatchEditPanel 接线守卫（本轮，续）
+
+批量编辑面板守卫锁定三条不变式：**每帧一条 UpdateFrameCommand**（进 undo 栈可撤销，
+不得绕过命令层裸改 store）、类型 select 哨兵 `-1` 不触发修改、修改统一经
+handleBatchChange 单出口；另锁数字输入滚轮 `stopPropagation`。
+
+**测试**：`src/components/properties/batchEditPanelWiring.test.ts`（5 测，5/5 一次通过）。
+组件层接线守卫现共 **29 测**（TypeSpecific 13 + Anchor 6 + PropertyEditors 5 + BatchEdit 5）。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
