@@ -170,14 +170,14 @@
 | 生产构建修复（round 120） | **修 1 P1 交付缺陷** | npm run build（tsc && vite build）被 95 个测试文件 TS 报错阻塞——生产构建从未绿过（门禁"测试侧可暂缓"与 build 全量编译矛盾，无法发布）。修复：新增 tsconfig.build.json（exclude *.test.ts/__test_helpers__），build 脚本改用之。vite build 4.72s 绿；主 chunk 1.87MB 警告=分割优化项 |
 | 编辑器健壮性收口（rounds 126-142 归并） | feat 3+修 10 | ①多选：组拖拽/方向键微调全员同步，组合命令一次 Ctrl+Z 全撤 ②存档环打破：手编辑 parentId 互指→migrate 切根+children/rootFrameIds 重建（渲染递归假死 P1）③NaN 防御矩阵：parseFloat/parseInt 输入面 14 处+guide 几何 ④组合命令族：组合模板/BatchEditPanel N 帧独立命令只撤一帧→组合命令；applyStylePreset/clearGuides/addGuide 直调 store 不可撤销→捕获型命令入 undo 栈（r141 只修了 add/clear；r143 补漏 updateGuide 拖动/removeGuide 单删 2 消费点；r144 终扫：右键锁定/可见性+组 CRUD 直调 store 定性低价值不修——同一菜单项再点即恢复，与 saveFrameAsPreset/setRace 同档，旁路清单 10 项全定性）⑤dirty 防护：beforeunload 拦截+project-state-reset 事件（监听 1/派发 8）+加载前 dirty 确认 3 处（dirty 迁 uiStore 同源，r145 补 2 测——store action 行为测试约定）。教训：r133 声称 4/4 实际 2/4——批量替换后必须 grep 验证 |
 | 构建与健壮性收口（rounds 115-125 归并） | 通过+修 8 | ①存档链：序列化保真 2 测/frames 缺失归一化/recentFiles 类型防御/hotReloadConfig 自动导出 try-catch（损坏 JSON 异步 rejection 曾使链路静默死亡）②undo：拖拽手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪——pushCommand 统一 3 处旁路（+3 测）③构建：tsconfig.build.json 修复生产构建从未绿过（95 测试侧报错阻塞）/cargo release 首验+2 死代码清理/manualChunks 分离 three/react（主 chunk -31%）④stale closure：window.checkForUpdates 重暴露修复防重入（全仓扫描为唯一一例）。r147-148 文档对账（README 8 项/QUICKSTART 倒置×5/PNG 虚标删/JSON 导出核查反转保留）；r151 HistoryPanel 跳转推演核查通过（4 场景索引映射全对） |。r145 门禁疏漏修复：r129 环打破新增分支未跑 coverage（All files 曾破 100）——inCycle 后重建阶段的 if(parentId) 结构不可达（第二步清悬空/环切根恒 falsy 实证）→ 消除死分支+悬空清理统一 null（r116 断言同步）；**门禁 2 恢复 100×4**。导出错误处理核查通过（3 入口 try-catch+alert） |
-| 宣称对账与补齐（90-157 核心） | 修 2 误删+feat 多 | 帮助面板双向对账；MenuBar 虚标收敛；Ctrl+F 实现；PNG 误删→恢复（穷尽同义关键字）+反转两次；防御=防重入+画布 id |
+| 宣称对账与补齐（90-157 核心） | 修 2 误删+feat 多 | 帮助面板双向对账；MenuBar 虚标收敛；Ctrl+F 实现；PNG 误删→恢复+反转两次；防御=防重入+画布 id |
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
 | 生命周期清理域（165-166） | 修 1+排查 | rAF 清理；全成对；Tauri listen |
 | 夹具与接线核查域（168-173） | 补强+核查 | 夹具填非空；模板链完整；QUICKSTART 真实 |
-| 组件定性域（174-190） | 通过+**修 3**+**清除 3** | 纯展示收口；UpdateChecker+NaN 收尾；WC3Browser/LazyPreview 修 key→path；索引 key+IO 横扫；**孤儿清除 3**（-386 行）；基线→2126 |
+| 组件定性域（174-190） | 通过+**修 3**+**清除 3** | 纯展示收口；UpdateChecker+NaN 收尾；WC3Browser/LazyPreview 修 key→path；索引 key+IO 横扫；**孤儿清除 3**（-386 行） |
 | 技术债普查（195） | 通过 | TODO 仅 1 处；console 235/41 热路径无残留 |
-| 仓库状态核查（196-198） | 通过+**定性修正** | main 干净；远端 feature 分支 +10 提交=**架构分歧**（删 TS 渲染器+Rust 解析器，产品决策）；主 chunk 1265.7kB 低于基线 |
-| Tauri 配置核查（199） | 通过+1 决策 | 三处版本一致（均 0.1.1）✓；窗口 1400×900 ✓；**CSP null**——生产加固属用户决策（过严易破坏热重载） |
+| 仓库状态与总账口径（196-200） | 通过+**定性修正** | main 干净；远端 feature 分支=**架构分歧**（产品决策）；主 chunk 1265.7kB 低于基线；**git 总账**：全历史 513 提交（fix 88/feat 26/cleanup 9）——「48+8」为本会话段口径 |
+| Tauri 配置核查（199） | 通过+1 决策 | 三处版本一致（0.1.1）；窗口 ✓；**CSP null**——加固属用户决策 |
 | 渲染器域与竞态守卫（176-181） | **修 3**+test | hitTest 排序键→point.z+5 测；fontResolver 缓存键加 fontPath；layerStyle 7 测；ProjectContext 竞态→cancelled |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
