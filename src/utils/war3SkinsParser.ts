@@ -31,7 +31,7 @@ export function parseWar3Skins(content: string): War3Skins {
     Default: {},
   };
 
-  const lines = content.split('\n');
+  const lines = content.split(/\r?\n/);
   let currentSection: string | null = null;
 
   for (const line of lines) {
@@ -53,7 +53,7 @@ export function parseWar3Skins(content: string): War3Skins {
     if (equalIndex === -1) continue;
 
     const key = trimmed.slice(0, equalIndex).trim();
-    const value = trimmed.slice(equalIndex + 1).trim();
+    const value = unquote(trimmed.slice(equalIndex + 1).trim());
 
     if (currentSection === 'Main') {
       if (key === 'Skins') {
@@ -65,6 +65,16 @@ export function parseWar3Skins(content: string): War3Skins {
   }
 
   return result;
+}
+
+/**
+ * 剥离成对包裹引号（openwar3 仲裁：1.27 的 war3skins.txt 大量值带
+ * `Key="UI\Widgets\..."` 形式引号，不剥离则路径含引号字符、档案中不存在，
+ * 纹理加载全部落空。仅剥成对引号——值本身以引号开头的音乐列表等保留原样）。
+ */
+function unquote(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1);
+  return value;
 }
 
 /**

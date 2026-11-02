@@ -186,3 +186,15 @@ describe('replaceRaceInPath', () => {
     expect(replaceRaceInPath('', 'Human')).toBe('');
   });
 });
+
+describe('unquote 语义（openwar3 仲裁：1.27 值常带成对引号）', () => {
+  it('剥离成对包裹引号（CampaignButtonHighlight="UI\\..." 形式）', () => {
+    const skins = parseWar3Skins('[Default]\nCampaignButtonHighlight="UI\\Widgets\\x.blp"\n');
+    expect(skins.Default['CampaignButtonHighlight']).toBe('UI\\Widgets\\x.blp');
+  });
+
+  it('不成对的引号保留（值本身以引号开头的音乐列表等）', () => {
+    const skins = parseWar3Skins('[Default]\nKey="a;b\n');
+    expect(skins.Default['Key']).toBe('"a;b');
+  });
+});

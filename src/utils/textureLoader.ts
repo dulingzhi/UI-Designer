@@ -31,29 +31,50 @@ let WC3_BUILTIN_TEXTURES: Record<string, string> = {};
  */
 function parseWar3Skins(content: string): Record<string, string> {
   const textures: Record<string, string> = {};
-  const lines = content.split('\n');
-  
+  const raceSections = new Set(['Human', 'Orc', 'NightElf', 'Undead']);
+  let currentSection: string | null = null;
+  const lines = content.split(/\r?\n/);
+
   for (const line of lines) {
     // 跳过注释和空行
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('[')) {
+    if (!trimmed || trimmed.startsWith('//')) {
       continue;
     }
-    
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      currentSection = trimmed.slice(1, -1);
+      continue;
+    }
+
     // 解析 key=value 格式
     const match = trimmed.match(/^([^=]+)=(.+)$/);
     if (match) {
       const key = match[1].trim();
-      const value = match[2].trim();
-      
+      // 先剥引号再验后缀（1.27 带引号值的结尾是 `"`，直接验后缀会全部误过滤）
+      const value = unquote(match[2].trim());
+
       // 只保留图片文件路径(以 .blp, .mdl 等结尾)
       if (value.match(/\.(blp|tga|png|jpg|mdl)$/i)) {
+        // 段落感知（openwar3 仲裁）：[Default] 是全表、种族段只是少量 override。
+        // 种族段不得覆盖已有值（防种族 override 冒充全局路径）。
+        if (currentSection && raceSections.has(currentSection) && textures[key] !== undefined) {
+          continue;
+        }
         textures[key] = value;
       }
     }
   }
-  
+
   return textures;
+}
+
+/**
+ * 剥离成对包裹引号（openwar3 仲裁：1.27 的 war3skins.txt 大量值带
+ * `Key="UI\Widgets\..."` 形式引号，不剥离则路径含引号字符、档案中不存在）。
+ */
+function unquote(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1);
+  return value;
 }
 
 /**

@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `134 passed | 2 skipped` 测试文件，`2115 passed | 5 skipped` 测试
+- `134 passed | 2 skipped` 测试文件，`2119 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -147,6 +147,7 @@
 | war3ProcessManager | **修 1 耦合** | isCurrentProcessRunning 只查内存，漏 localStorage 恢复——隐式依赖调用方先调 getCurrentPid；已统一 |
 | mpqManager.ts | **修 1 竞态** | setWar3Path 无并发防护（WC3TextureBrowser:55 fire-and-forget + 用户改路径并发）→ **两路径档案混合加载**；已加代际守卫（loadGeneration 过期中止剩余档案），58 测 |
 | blpDecoder.ts | 通过+1 改进项 | JPEG 静默占位是设计决策（Rust 后端优先、灰图不断链）；URL 三路 revoke 完整；mip 越界已有抛错守卫。低危项：空/短缓冲的 RangeError 信息不友好（Rust 前置遮蔽） |
+| war3SkinsParser+textureLoader | **修 2 缺陷** | openwar3 仲裁：1.27 war3skins.txt 值大量带成对引号（`Key="UI\..."`），两 parser 均无 unquote → **路径含引号字符全部失效**。已加 unquote（两处）；textureLoader 扁平映射改段落感知（[Default] 全表优先，种族段 override 不冒充全局；且旧实现"后缀过滤在 unquote 前"会全部误过滤带引号值——测试红抓出）。textureLoader.parseWar3Skins 与 war3SkinsParser.parseWar3Skins 是双实现（扁平 vs 结构化，语义不同故并存） |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）

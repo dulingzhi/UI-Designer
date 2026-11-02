@@ -512,6 +512,56 @@ describe('TextureLoader.getTextureInfo / hasTexture / preloadTextures', () => {
     expect(ds.exists).not.toHaveBeenCalled(); // l uses its own makeDS(), mapped path normally checked on l's DS
   });
 
+  it('unquote 语义：成对引号剥离（openwar3 仲裁 1.27 值带引号）', async () => {
+    const ds = makeDS({
+      read: vi.fn(async () =>
+        new TextEncoder().encode('[Default]\nCampaignButtonHighlight.blp="UI\\Widgets\\X.blp"').buffer),
+      exists: vi.fn(async () => true),
+    });
+    mocks.getCachedDataSource.mockReturnValue(ds);
+    await loadWar3Skins();
+    const l = new TextureLoader(makeDS());
+    expect(l.getTextureType('CampaignButtonHighlight.blp')).toBe(TextureType.WC3_BUILTIN);
+    // 用独立探针 Loader 验证映射值已剥离引号（exists 收到真实路径而非带引号字符串）
+    const probeExists = vi.fn(async (p: string) => p === 'UI\\Widgets\\X.blp');
+    const probe = new TextureLoader(makeDS({ exists: probeExists }));
+    expect(await probe.hasTexture('CampaignButtonHighlight.blp')).toBe(true);
+    expect(probeExists.mock.calls[0][0]).toBe('UI\\Widgets\\X.blp');
+  });
+
+  it('段落感知：种族段不覆盖已有映射（防 override 冒充全局路径）', async () => {
+    const content = [
+      '[Default]',
+      'SharedTexture.blp=Textures\\DefaultShared.blp',
+      'HumanOnly.blp=Textures\\HumanOnly.blp',
+      '[Human]',
+      'SharedTexture.blp=Textures\\HumanShared.blp', // 种族 override 不得覆盖 Default
+      '[Orc]',
+      'SharedTexture.blp=Textures\\OrcShared.blp',
+    ].join('\n');
+    const ds = makeDS({
+      read: vi.fn(async () => new TextEncoder().encode(content).buffer),
+      exists: vi.fn(async (p: string) => p === 'Textures\\DefaultShared.blp'),
+    });
+    mocks.getCachedDataSource.mockReturnValue(ds);
+    await loadWar3Skins();
+    const l = new TextureLoader(makeDS());
+    // SharedTexture 解析到 Default 段的值（第一个生效，种族段被跳过）——
+    // 用独立探针 Loader 记录 exists 收到的路径
+    const probedPaths: string[] = [];
+    const probeExists = vi.fn(async (p: string) => {
+      probedPaths.push(p);
+      return p === 'Textures\\DefaultShared.blp' || p === 'Textures\\HumanOnly.blp';
+    });
+    const probe = new TextureLoader(makeDS({ exists: probeExists }));
+    expect(await probe.hasTexture('SharedTexture.blp')).toBe(true);
+    expect(await probe.hasTexture('HumanOnly.blp')).toBe(true);
+    expect(probedPaths).toContain('Textures\\DefaultShared.blp');
+    expect(probedPaths).toContain('Textures\\HumanOnly.blp');
+    // 种族段 override 路径不得出现（HumanShared/OrcShared 被段落守卫跳过）
+    expect(probedPaths.some((p) => p.includes('HumanShared') || p.includes('OrcShared'))).toBe(false);
+  });
+
   it('preloadTextures returns map and logs failures', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const ds = makeDS({
