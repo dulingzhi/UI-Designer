@@ -175,6 +175,7 @@
 | 导出域防御收口（rounds 155/157 归并） | 通过+防御 2 | ①Toolbar handleExport 防重入（exportingRef，同 isLaunching 模式）②主画布 id=main-canvas 锚定（querySelector 裸查询改 getElementById） |
 | 滚轮锚定缩放（round 159） | feat 补 1 UX 特性 | Alt+滚轮原为原点缩放（computeWheelScale 只改 scale）——偏离 README「类似 VS Code 体验」。实现 computeWheelZoomAt（数学：offset'=offset+w(scale-scale')，w 为鼠标下世界点，保持屏幕位置不动）+ref 镜像接线（effect 依赖[]只挂一次监听，ref 永远最新）+3 测（锚定数学/钳制继承/原点退化）。computeWheelScale 现为 zoomAt 内部步进函数（r161 后无独立原点缩放入口）；coverage 复验 100×4 |
 | 缩放入口全量收口（round 161） | feat 收口 | 右下角 ±/重置按钮直调 useCanvasPan 原始 setScale 绕过 r160 锚定接口——抽出局部 zoomTo（锚定视口中心+钳制），handle setScale 与按钮统一走 zoomTo（重置=zoomTo(1)+offset 0）。3 入口（滚轮/接口/按钮）行为一致；2126 测全绿 |
+| 热重载 rAF 卸载清理（round 165） | 修 1 生命周期缺陷 | useHotReloadSync 的 project 变化 effect 调度 rAF 后无卸载清理——组件卸载时 pending rAF 仍触发 sendUpdate（闭包引用已卸载组件状态）。加 return 清理 cancelAnimationFrame+置 null。Tauri listen 清理核verified ✓；README 技术栈版本对账全一致（React 19.1/Tauri ^2/Zustand 5/Vite 7.0.4/TS 5.8） |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 

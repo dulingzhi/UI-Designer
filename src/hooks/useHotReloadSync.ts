@@ -88,7 +88,21 @@ export function useHotReloadSync() {
         }
       });
     }
-  }, [project, status]);
+  
+  return () => {
+
+    // round 165：卸载清理 pending rAF（否则卸载后仍触发 sendUpdate）
+
+    if (rafIdRef.current) {
+
+      cancelAnimationFrame(rafIdRef.current);
+
+      rafIdRef.current = null;
+
+    }
+
+  };
+}, [project, status]);
 
   return { status, startServer };
 }
