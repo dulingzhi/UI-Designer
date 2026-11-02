@@ -350,6 +350,14 @@ function generateFrameFDF(
     lines.push(`${indentStr}    ButtonPushedTextOffset ${frame.buttonPushedTextOffset[0]} ${frame.buttonPushedTextOffset[1]},`);
   }
 
+  // EditBox 系（真实 FDF 实证）：EditCursorColor 为三数值（语法无 alpha，第四分量丢弃）。
+  // editTextColor / editBorderColor 在真实 FDF 中无对应模板属性（边框实为 EditBorderSize
+  // 数值而非颜色），如实不输出，不臆造。
+  if (frame.editCursorColor) {
+    const [r, g, b] = frame.editCursorColor;
+    lines.push(`${indentStr}    EditCursorColor ${r} ${g} ${b},`);
+  }
+
   // 递归处理子控件
   if (frame.children && frame.children.length > 0) {
     lines.push('');

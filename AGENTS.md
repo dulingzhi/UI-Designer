@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1972 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1974 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -365,6 +365,21 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 需嵌套定义）、`cameraYaw/Pitch/Distance`（相机字段非 FDF 属性）。
 
 **测试**：`exportControlProps.test.ts`（11 测，先 10/11 红）。
+
+### EditBox 颜色系查证（本轮，续）
+
+同款真实语法扫描（放宽 Edit*/TextColor 模式），实证结果**与编辑器字段语义有出入**：
+
+- `EditCursorColor` 4 次：**三数值**（`1.0 1.0 1.0`，语法无 alpha）→ 已接入，
+  `editCursorColor` 第 4 分量（alpha）按语法丢弃（如实记录）
+- 真实语法是 `EditBorderSize`（数值，如 0.009）而**非颜色**——编辑器的
+  `editBorderColor` 字段没有对应模板属性，**如实不输出**；若要支持需先加
+  `editBorderSize` 字段 + UI（另行决策，本轮不加）
+- `editTextColor`：真实 FDF **无 EditTextColor** 属性（EditBox 文本颜色由子
+  TEXT 帧字体处理），**如实不输出**
+
+**测试**：`exportControlProps.test.ts` 扩到 13 测（先 1/13 红；
+editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确）。
 
 ### luaGenerator 导出链路补齐（本轮）
 

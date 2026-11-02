@@ -116,6 +116,21 @@ describe('按钮文本偏移', () => {
   });
 });
 
+describe('EditBox 系（真实语法实证）', () => {
+  it('editCursorColor → EditCursorColor 三数值（真实语法无 alpha）', async () => {
+    const f = mkFrame({ id: 'ec', name: 'EC', type: FrameType.EDITBOX, editCursorColor: [1, 0.5, 0, 1] });
+    expect(await content([f])).toContain('EditCursorColor 1 0.5 0,');
+  });
+
+  it('editTextColor / editBorderColor：真实 FDF 无对应模板属性，不输出（不臆造）', async () => {
+    const f = mkFrame({ id: 'et', name: 'ET', type: FrameType.EDITBOX,
+      editTextColor: [1, 1, 1, 1], editBorderColor: [0, 0, 0, 1] });
+    const c = await content([f]);
+    expect(c).not.toContain('EditTextColor');
+    expect(c).not.toContain('EditBorderColor');
+  });
+});
+
 describe('未设置时不输出（不产生空属性）', () => {
   it('无 control/highlight/font 字段的帧不输出这些属性', async () => {
     const f = mkFrame({ id: 'n', name: 'N' });
