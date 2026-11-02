@@ -21,14 +21,16 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // 当文件路径变化时，更新项目目录
   useEffect(() => {
+    let cancelled = false;
     const updateProjectDir = async () => {
       if (currentFilePath) {
         try {
           const dir = await dirname(currentFilePath);
-          setProjectDir(dir);
+          // round 181：代际守卫——快速连续切换路径时陈旧 resolve 晚到不覆盖新值
+          if (!cancelled) setProjectDir(dir);
         } catch (error) {
           console.error('Failed to get project directory:', error);
-          setProjectDir(null);
+          if (!cancelled) setProjectDir(null);
         }
       } else {
         setProjectDir(null);
@@ -36,6 +38,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     updateProjectDir();
+    return () => { cancelled = true; };
   }, [currentFilePath]);
 
   return (
