@@ -498,7 +498,7 @@ undo 后新 execute 清空 redo（分支语义）✓、空栈 no-op ✓——语
 **已修 1 缺陷**：undoStack **无上限**——长期编辑无限增长（命令闭包持有旧 state，
 泄漏风险）。已加 `MAX_UNDO_HISTORY = 100`，最旧出栈（行业标准量级）。
 
-**测试**：`src/store/commandStore.test.ts`（7 测，先 1/7 红）——含分支语义、
+**测试**：`src/store/commandStore.test.ts`（实测 12 测，后续+5 未同步，先 1/7 红）——含分支语义、
 往返恢复、上限三条此前无覆盖的行为。commandStore 是纯 zustand store，
 不依赖 projectStore/hotReloadExporter，**无需** uiStore.test.ts 那套 mock 头部。
 
