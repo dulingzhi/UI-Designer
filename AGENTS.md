@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `111 passed | 2 skipped` 测试文件，`1961 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1972 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -343,6 +343,28 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 
 **测试**：`fdfImportText.test.ts` 扩到 11 测（先 3/11 红）；
 `fullRoundtrip.test.ts` 扩到 **6 测**（新增按钮文本穿透）。
+
+### Control/Highlight/Font 系导出（本轮，真实语法实证接入）
+
+系统性反向审计：属性面板可编辑的 **25 个字段**在 FDF/JASS 导出中零引用——"能设但导不出"
+的同款断裂，规模比 backdrop 更大。按 §4.1 查证：对 war3.mpq 全量 FDF 属性名扫描，
+**实证拿到真实语法**（出现次数即真实写法）：
+
+- `ControlBackdrop` 89 次、`ControlDisabledBackdrop` 48、`ControlPushedBackdrop` 26、
+  `ControlMouseOverHighlight` 18、`ControlDisabledPushedBackdrop` 2、`ControlStyle` 19
+  —— 值为**模板名**（如 "AdvancedPopupMenuBackdrop"），非文件路径
+- `HighlightType` 40、`HighlightAlphaFile` 36、`HighlightAlphaMode` 36
+- `FontShadowColor` 34、`FontShadowOffset` 34、`FontHighlightColor` 31、`FontDisabledColor` 28
+  —— 颜色为**四数值空格分隔**（`0.0 0.0 0.0 0.9`）
+- `ButtonPushedTextOffset` 10（双数值）
+- `EditCursorColor` 4（本轮未接，留待下轮查参数格式）
+
+已接入其中 **13 个字段**的 FDF 导出（通用属性段，对所有帧类型生效）。
+**如实记录未接入项**（真实 FDF 中无对应模板属性，不臆造）：`tooltip`（运行时
+`DzFrameSetTooltip`）、`listBoxItems`、`multiline`、`maxChars`、`backgroundArt`（模型子帧，
+需嵌套定义）、`cameraYaw/Pitch/Distance`（相机字段非 FDF 属性）。
+
+**测试**：`exportControlProps.test.ts`（11 测，先 10/11 红）。
 
 ### luaGenerator 导出链路补齐（本轮）
 

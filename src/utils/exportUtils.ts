@@ -304,6 +304,52 @@ function generateFrameFDF(
     lines.push(`${indentStr}    DecorateFileNames,`);
   }
 
+  // Control 系（真实 FDF 实证：属性值为模板名，非文件路径；见 FrameDef 全量扫描）
+  if (frame.controlBackdrop) {
+    lines.push(`${indentStr}    ControlBackdrop "${frame.controlBackdrop}",`);
+  }
+  if (frame.controlPushedBackdrop) {
+    lines.push(`${indentStr}    ControlPushedBackdrop "${frame.controlPushedBackdrop}",`);
+  }
+  if (frame.controlDisabledBackdrop) {
+    lines.push(`${indentStr}    ControlDisabledBackdrop "${frame.controlDisabledBackdrop}",`);
+  }
+  if (frame.controlMouseOverHighlight) {
+    lines.push(`${indentStr}    ControlMouseOverHighlight "${frame.controlMouseOverHighlight}",`);
+  }
+  if (frame.controlStyle) {
+    lines.push(`${indentStr}    ControlStyle "${frame.controlStyle}",`);
+  }
+
+  // Highlight 系
+  if (frame.highlightType) {
+    lines.push(`${indentStr}    HighlightType "${frame.highlightType}",`);
+  }
+  if (frame.highlightAlphaFile) {
+    lines.push(`${indentStr}    HighlightAlphaFile "${frame.highlightAlphaFile}",`);
+  }
+  if (frame.highlightAlphaMode) {
+    lines.push(`${indentStr}    HighlightAlphaMode "${frame.highlightAlphaMode}",`);
+  }
+
+  // Font 系（颜色为四数值 0..1，与真实 FDF 的空格分隔格式一致）
+  const color4 = (c: [number, number, number, number]) => `${c[0]} ${c[1]} ${c[2]} ${c[3]}`;
+  if (frame.fontHighlightColor) {
+    lines.push(`${indentStr}    FontHighlightColor ${color4(frame.fontHighlightColor)},`);
+  }
+  if (frame.fontDisabledColor) {
+    lines.push(`${indentStr}    FontDisabledColor ${color4(frame.fontDisabledColor)},`);
+  }
+  if (frame.fontShadowColor) {
+    lines.push(`${indentStr}    FontShadowColor ${color4(frame.fontShadowColor)},`);
+  }
+  if (frame.fontShadowOffset) {
+    lines.push(`${indentStr}    FontShadowOffset ${frame.fontShadowOffset[0]} ${frame.fontShadowOffset[1]},`);
+  }
+  if (frame.buttonPushedTextOffset) {
+    lines.push(`${indentStr}    ButtonPushedTextOffset ${frame.buttonPushedTextOffset[0]} ${frame.buttonPushedTextOffset[1]},`);
+  }
+
   // 递归处理子控件
   if (frame.children && frame.children.length > 0) {
     lines.push('');
