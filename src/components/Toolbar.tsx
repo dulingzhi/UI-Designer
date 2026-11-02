@@ -122,8 +122,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       showAlert({ title: '错误', message: '加载失败: ' + error, type: 'danger' });
     }
   };
+  const exportingRef = React.useRef(false);
+  // round 155：导出防重入标志
 
   const handleExport = async (language: ExportLanguage) => {
+    // round 155：防重入（导出对话框打开期间再点其他导出按钮会交错触发）
+    if (exportingRef.current) return;
+    exportingRef.current = true;
     try {
       const code = exportProject(project, language);
       const path = await exportCode(code, language);
@@ -132,6 +137,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       }
     } catch (error) {
       showAlert({ title: '错误', message: '导出失败: ' + error, type: 'danger' });
+    } finally {
+      exportingRef.current = false;
     }
   };
 
