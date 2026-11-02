@@ -127,7 +127,7 @@ export class UILib {
 ## 🎯 当前项目状态
 
 ### ✅ 已完成功能
-1. ✅ 完整的类型系统（19 种 Frame 类型）
+1. ✅ 完整的类型系统（38 种 Frame 类型）
 2. ✅ Zustand 全局状态管理
 3. ✅ 命令模式（5 种命令，完整撤销/重做）
 4. ✅ 4 个主要 UI 组件（Canvas, Toolbar, Tree, Properties）
