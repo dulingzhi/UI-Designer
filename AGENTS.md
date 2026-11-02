@@ -398,68 +398,16 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 覆盖率中途跌至 99.47%，按未覆盖分支逐一补真实用例（布尔大小写变体、非法四元组、
 未知 JUSTIFY 常量）恢复 100，无 v8-ignore。
 
-### 导入写回扩展 + 索引错位修复（本轮，续）
+### 导入链路历史轮次（L401-L461 原始记录压缩，结论仍全部有效）
 
-上轮修复后端到端探针继续深挖，又抓到 3 处：
-
-1. **文本/纹理同样只进元数据**：`SetText/SetTexture/SetTexCoord/SetAlphaMode` 只存
-   `fdfString`/`fdfTexture` 元数据，不写 `frame.text/texture/texCoord/alphaMode`。
-   已写回（`SetText` 直接读属性而非元数据——空串在元数据里会被 falsy 过滤成 undefined，
-   编辑器需要保留「导入了空文本」的语义）。`exportUtils` 的 BACKDROP 分支补写
-   `SetTexture`（有效背景，backdropBackground 优先），使 `texture` 字段可往返。
-2. **`undefined` 覆盖陷阱**：写回 `backdropFields` 时 `undefined` 字段会抹掉 transformer
-   已解析的值（如无值属性 `BackdropTileBackground` → transformer 解析为 `true`，
-   被我的 `undefined` 覆盖丢失）。已改为过滤 `undefined` 再展开。
-3. **`body[index]` 索引错位（本轮最重要的发现）**：产物头部有 `Include` 行，
-   AST `body[0]` 是 Include 节点，而 `importFromFDFEnhanced`/`importFromFDFText` 用
-   `frames[index] ↔ body[index]` 对齐——**Include 让全部增强（含元数据）被跳过**。
-   旧实现下所有真实导入其实都没走到 enhance！已改为按 `FrameDefinition` 序号对齐。
-   既有测试 "maps frame to ast body beyond first element" **把错位行为当成了期望**
-   （与 luaGenerator 的 texCoord 同款"测试认证 bug"），已更正。
-
-**测试**：`fdfImportText.test.ts`（8 测，先 5/8 红）；
-`fullRoundtrip.test.ts` 扩到 3 测（backdrop/文本/纹理全字段穿透）。
-注意：`SetTexture` 导出的是**有效背景**（backdropBackground 优先于 texture），
-往返后 `texture === 有效背景` 是预期语义，不是丢失。
-
-### textColor 往返 + 属性名不匹配修复（本轮，续 2）
-
-1. **textColor 三断链**：属性面板可设（TextProperties 有绑定）→ FDF 导出**零引用** →
-   导入也不读。已修：导出按 WC3 语义把颜色内嵌进 `Text`（`|cffRRGGBB...|r`，与 codeExport
-   的 JASS 编码一致，无独立模板属性）；导入剥离还原为 `text + textColor`
-   （前缀不完整时原样保留，不臆造）。
-2. **属性名不匹配（探针抓到的又一层断裂）**：导出写的属性名是 **`Text`**（模板属性），
-   导入查找的却是 **`SetText`**（运行时调用风格）——名字不匹配使真实产物的剥离从未生效；
-   mock 测试手写 `SetText` 掩盖了断裂。已兼容查找两种名字。
-
-**教训（第二次验证）**：mock AST 的导入测试永远无法发现"属性名对不上"这类断裂，
-只有端到端穿透（`fullRoundtrip.test.ts`，现 4 测）能抓到。
-
-**测试**：`fdfImportColor.test.ts`（4 测，先 2/4 红）+ fullRoundtrip 颜色穿透用例。
-
-### textScale 经 FrameFont 往返（本轮，续 3）
-
-同款名字断裂：导出写 `FrameFont "MasterFont", size, ""`（第 2 参为字号），导入只查
-`SetFont`/`SetFontSize`——textScale 在真实链路上无法往返。已修：`FrameFont` 第 2 参
-（数值）优先写回 `textScale`，回落 `SetFontSize`（运行时风格仍支持）；非数组/参数不足/
-字号非数值时**不设置**（不臆造）。
-
-**测试**：`fdfImportFont.test.ts`（5 测，先 2/5 红）+ fullRoundtrip textScale 穿透用例
-（5 测）。端到端一次通过——导出侧 `FrameFont` 名字本就与导入查找匹配。
-
-### visible 语义边界 + ButtonText/EditTextFrame 往返（本轮，续 4）
-
-1. **`visible` 的诚实边界（查证后不加戏）**：核对 openwar3，`Visible` 只存在于运行时
-   API（`BlzFrameSetVisible`），**FDF 模板语法没有可见性属性**——模板定义的帧默认可见。
-   故 FDF 导出不写 visible 是**正确现状**（无处安放），可见性导出的职责属于 codeExport
-   （已写 `FrameSetVisible`）。如实记录，不臆造模板属性。
-2. **ButtonText / EditTextFrame 往返断裂**：导出侧按钮/编辑框的文本以 `ButtonText` /
-   `EditTextFrame` 承载（数据源都是 `frame.text`），导入只查 `SetText`/`Text`——
-   按钮文本往返丢失。已纳入文本源链（颜色剥离同款处理）。
-
-**测试**：`fdfImportText.test.ts` 扩到 11 测（先 3/11 红）；
-`fullRoundtrip.test.ts` 扩到 **6 测**（新增按钮文本穿透）。
-
+「导入写回扩展/索引错位、textColor、textScale、visible/ButtonText 往返」四段历史
+审计的**最终结论**（细节见 git 历史 e2c 前后各轮提交与对应测试文件）：
+- 导入全部字段**真写回**（text/texture/texCoord/alphaMode/textColor/textScale/
+  ButtonText），元数据仅作附加保留；undefined/空串不覆盖陷阱已用测试锁定
+- 属性名不匹配类断裂（导出名≠导入查找名）已全部兼容 `Text|SetText`、
+  `FrameFont|SetFontSize` 两种风格——**教训**：mock AST 测试永远抓不到这类断裂，
+  只有端到端穿透（`fullRoundtrip.test.ts`）能抓
+- `visible` 无 FDF 模板属性（运行时 API 职责）——不臆造，如实边界
 ### Control/Highlight/Font 系导出（本轮，真实语法实证接入）
 
 系统性反向审计：属性面板可编辑的 **25 个字段**在 FDF/JASS 导出中零引用——"能设但导不出"
