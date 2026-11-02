@@ -192,9 +192,46 @@ function generateFrameFDF(
   // 根据类型添加特定属性
   switch (frame.type) {
     case FrameType.BACKDROP:
-      if (frame.texture) {
-        lines.push(`${indentStr}    BackdropBackground "${frame.texture}",`);
-        lines.push(`${indentStr}    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",`);
+      // 背景纹理：优先 `backdropBackground`（正确字段），兼容旧的 `texture`
+      if (frame.backdropBackground || frame.texture) {
+        const bg = frame.backdropBackground || frame.texture;
+        lines.push(`${indentStr}    BackdropBackground "${bg}",`);
+      }
+      // 九宫格边框：全部为 FDF 模板属性（dzapi 无任何运行时 backdrop API）
+      if (frame.backdropEdgeFile) {
+        lines.push(`${indentStr}    BackdropEdgeFile "${frame.backdropEdgeFile}",`);
+      }
+      if (frame.backdropCornerFile) {
+        lines.push(`${indentStr}    BackdropCornerFile "${frame.backdropCornerFile}",`);
+      }
+      if (frame.backdropTopFile) {
+        lines.push(`${indentStr}    BackdropTopFile "${frame.backdropTopFile}",`);
+      }
+      if (frame.backdropBottomFile) {
+        lines.push(`${indentStr}    BackdropBottomFile "${frame.backdropBottomFile}",`);
+      }
+      if (frame.backdropLeftFile) {
+        lines.push(`${indentStr}    BackdropLeftFile "${frame.backdropLeftFile}",`);
+      }
+      if (frame.backdropRightFile) {
+        lines.push(`${indentStr}    BackdropRightFile "${frame.backdropRightFile}",`);
+      }
+      // 角标志：如实导出用户配置（旧实现硬编码全标志，会覆盖用户设置）
+      if (frame.backdropCornerFlags) {
+        lines.push(`${indentStr}    BackdropCornerFlags "${frame.backdropCornerFlags}",`);
+      }
+      if (frame.backdropCornerSize !== undefined) {
+        lines.push(`${indentStr}    BackdropCornerSize ${frame.backdropCornerSize},`);
+      }
+      if (frame.backdropBackgroundSize !== undefined) {
+        lines.push(`${indentStr}    BackdropBackgroundSize ${frame.backdropBackgroundSize},`);
+      }
+      if (frame.backdropBackgroundInsets) {
+        const [l, t, r, b] = frame.backdropBackgroundInsets;
+        lines.push(`${indentStr}    BackdropBackgroundInsets ${l} ${t} ${r} ${b},`);
+      }
+      if (frame.backdropTileBackground) {
+        lines.push(`${indentStr}    BackdropTileBackground,`);
       }
       break;
 

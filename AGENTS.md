@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `99 passed | 2 skipped` 测试文件，`1837 passed | 5 skipped` 测试
+- `100 passed | 2 skipped` 测试文件，`1847 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -192,6 +192,32 @@ hideButtonBar / hidePortrait / hideChat / originMode / appInterface`（只有 `h
 
 **测试**：`src/utils/codegen/exportVisual.test.ts`（12 测，先写成 5 个失败用例再修复转绿）。
 **端到端**：真实 `BattleNetTemplates.fdf`(83 帧) 与 `CampaignMenu.fdf`(104 帧) × 三语言全部 OK。
+
+### FDF 导出九宫格边框补齐（本轮）
+
+上面的 `backdropTileBackground` 之所以"未接入"，查证后确认原因：**WC3 根本没有运行时 backdrop API**。
+核对 openwar3 的 60 个 Dz 函数清单，其中**没有任何** `FrameSetBackdrop/EdgeFile/CornerFile` 类函数——
+backdrop 的边框（EdgeFile/CornerFile/四边/CornerFlags/CornerSize/背景尺寸/内边距/平铺）**全部是 FDF 模板属性**，
+只能在 FDF 里声明，运行时改不了。
+
+由此转向修 **FDF 导出**（`src/utils/exportUtils.ts` 的 `generateFrameFDF`）：此前 BACKDROP 分支只输出 2 行且**硬编码**：
+
+```
+BackdropBackground "${frame.texture}"          // 字段错（应为 backdropBackground）
+BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
+```
+
+后果：① 背景读错字段；② **编辑器里设的角标志被硬编码值静默覆盖，永远导不出去**。
+现已改为按字段如实导出：`BackdropBackground`(优先 backdropBackground，回落 texture)、
+`BackdropEdgeFile`、`BackdropCornerFile`、`BackdropTopFile`/`BottomFile`/`LeftFile`/`RightFile`、
+`BackdropCornerFlags`、`BackdropCornerSize`、`BackdropBackgroundSize`、`BackdropBackgroundInsets`、
+`BackdropTileBackground`。
+
+**测试**：`exportBackdrop.test.ts`（9 测，先 9/9 全红再修复转绿）；
+`exportBackdropRoundtrip.test.ts`（1 测）做**回读验证**——导出的 FDF 交给内核 `parseFdf` 重新解析，
+断言字段值一致（不是只看字符串包含）。
+
+> 注意：`exportToFDF` 默认分支会调 `alert()`，在 node 测试环境不存在；测试须传 `onShowAlert` 回调绕过。
 
 ### 渲染器单测缺口补齐（本轮）
 
