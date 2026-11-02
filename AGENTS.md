@@ -148,6 +148,22 @@
   二进制 payload（`ArrayBuffer`/`Uint8Array` 直接传输），但需 Rust 端命令签名
   同步改为 `Vec<u8>`——**跨端联动改造，属性能优化决策项，行为正确，本轮不动**
 
+### textureLoader 纹理管线审计（本轮，抓到 LRU 淘汰方向反转缺陷）
+
+纹理加载器（598 行，49 测）审计发现 **1 处真实算法缺陷**：
+`evictLRU` 评分公式 `acc*1000 + age` 淘汰 score **最小**者 = acc 低且
+age **小**（刚加载）——**与 LRU 语义完全相反**：刚加载的 entry 立即被逐、
+最旧的反而保留。既有测试「evictLRU takes the false path...」的注释推理把
+timestamp 当 age 用错（a 先加载 → timestamp_a 小 → age_a 大 → score_a 大），
+且只断言 revoke+size 不断言淘汰对象——**测试认证 bug 模式再现**。
+
+**修复**：公式改 `acc * maxCacheAge - age`（同 acc 下淘汰更旧者 ✓、
+acc 低者优先 ✓、热门项受保护 ✓），并用 fake-timer 方向性测试 2 测锁定：
+①同 acc 淘汰最旧而非最新；②热门项（acc 高）即使更旧也不被逐。
+
+其余审计结论：并发去重（loadingPromises）正确、失败不缓存允许重试 ✓、
+Blob URL 生命周期完整（过期/LRU/clear/remove 四路 revoke）✓、
+`getMimeType` 的 blp 分支 v8-ignore 理由复核成立（.blp 均提前路由到解码器）。
 ### KKWE/进程链路审计（本轮：kkweDetector + Rust launch/is_process——通过，边界记录）
 
 **`kkweDetector.ts`（139 行）+ `src-tauri/lib.rs` 联动审计——无高置信缺陷**：

@@ -369,6 +369,42 @@ describe('TextureLoader cache internals', () => {
     expect(l.getCacheStatus().size).toBe(2);
   });
 
+  it('evictLRU evicts the OLDEST entry (not the newest) when access counts are equal', async () => {
+    // 方向性修复锁定：旧公式 acc*1000+age 淘汰 score 最小 = 刚加载项（age 小），
+    // 与 LRU 相反。正确行为：同 acc 下淘汰更旧者。
+    mocks.readFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
+    vi.useFakeTimers();
+    const l = new TextureLoader(makeDS());
+    l.setCacheOptions({ maxSize: 2 });
+    vi.setSystemTime(1000);
+    await l.loadTexture('C:\\old.png');
+    vi.setSystemTime(5000);
+    await l.loadTexture('C:\\new.png');
+    await l.loadTexture('C:\\third.png'); // over capacity -> evict oldest (old.png)
+    const paths = l.getCacheStatus().entries.map((e) => e.path);
+    expect(paths).toContain('C:\\new.png');
+    expect(paths).not.toContain('C:\\old.png');
+    vi.useRealTimers();
+  });
+
+  it('evictLRU protects frequently-accessed entries over single-access ones', async () => {
+    // acc 权重语义：热门项（acc 高）即使更旧也不被逐
+    mocks.readFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
+    vi.useFakeTimers();
+    const l = new TextureLoader(makeDS());
+    l.setCacheOptions({ maxSize: 2 });
+    vi.setSystemTime(1000);
+    await l.loadTexture('C:\\hot.png');
+    await l.loadTexture('C:\\hot.png'); // acc 2
+    vi.setSystemTime(60000);
+    await l.loadTexture('C:\\cold.png'); // acc 1, newer
+    await l.loadTexture('C:\\third.png');
+    const paths = l.getCacheStatus().entries.map((e) => e.path);
+    expect(paths).toContain('C:\\hot.png');
+    expect(paths).not.toContain('C:\\cold.png');
+    vi.useRealTimers();
+  });
+
   it('evictLRU revokes blob urls when over capacity', async () => {
     mocks.readFile.mockResolvedValue(new Uint8Array([1]));
     const l = new TextureLoader(makeDS());

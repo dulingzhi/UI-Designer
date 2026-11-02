@@ -406,9 +406,12 @@ export class TextureLoader {
     let lruPath: string | null = null;
     let lruScore = Infinity;
     
-    // 找到访问次数最少且最久未访问的项
+    // 找到访问次数最少且最久未访问的项。
+    // 修复（实证）：旧公式 `acc*1000 + age` 淘汰 score 最小者 = acc 低且 age 小
+    // （刚加载）——与 LRU 语义相反，刚加载的 entry 立即被逐、最旧的反而保留。
+    // 正确方向：同 acc 下淘汰更旧者，age 项应为负贡献。
     for (const [path, entry] of this.cache.entries()) {
-      const score = entry.accessCount * 1000 + (Date.now() - entry.timestamp);
+      const score = entry.accessCount * this.maxCacheAge - (Date.now() - entry.timestamp);
       if (score < lruScore) {
         lruScore = score;
         lruPath = path;
