@@ -174,8 +174,8 @@
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
 | 生命周期清理域（rounds 165-166 收口） | 修 1+横向排查通过 | useHotReloadSync 的 project effect rAF 无卸载清理（卸载后仍触发 sendUpdate）——加 return cancelAnimationFrame；横向排查 hooks+组件层全部成对（App×4/MenuBar×3/HotReloadPanel×2/Toolbar×1/hooks×2），r165 是唯一缺陷；Tauri listen 清理核查通过 |
 | 夹具与接线核查域（rounds 168-173 归并） | test 补强+核查通过 3 | ①fullProject 夹具数组恒空——填非空条目+5 断言②模板加载链完整（MenuBar→importFDFFolder）③QUICKSTART 控件级对账（父级下拉/isRelative/horAlign/库名+Origin 全真实）；门禁复验 2126/444/100×4 |
-| DebugPanel 定性（round 174） | 通过 | 86 行纯展示组件：WC3 坐标走 coordinateService 生产路径，无死信息，域收口 |
-| SidePanel 组装层定性（round 175） | 通过 | 274 行：templates/history 双 Tab+分类筛选+CreateFrameCommand 接线（r114 命令族）；App 布局四区（Toolbar/ProjectTree/PropertiesPanel/SidePanel）显隐切换完整；组件级核查全域收口 |
+| 组件定性域（174-175） | 通过 | DebugPanel 纯展示（坐标走生产路径）+SidePanel 双 Tab 组装+App 四区显隐——组件级核查收口 |
+| hitTest 排序键修复（176） | **修 1（认证 bug 第 6 例）** | 排序键=子网格装饰偏移（帧层级 z 在 group 不参与）→重叠帧选错；改世界交点 point.z；旧测试锁旧键→更新+5 测 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
