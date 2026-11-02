@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `120 passed | 2 skipped` 测试文件，`2061 passed | 5 skipped` 测试
+- `121 passed | 2 skipped` 测试文件，`2066 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -161,6 +161,16 @@ CreateCircleArray，均可 undo）+ 删除确认框（含子帧计数提示）+ 
 
 **测试**：`src/components/projectTreeWiring.test.ts`（8 测，8/8 一次通过）。
 组件层接线守卫现共 **43 测**。
+
+### HotReloadPanel 接线守卫（本轮，续）
+
+热重载面板（编辑器↔War3 的配置与手动导出入口）守卫锁定：
+配置 localStorage 往返（重开面板不丢）、手动导出走 `getHotReloadExporter(config).export`
+（与自动热重载同链路）、war3Path 未配置时导出按钮 disabled（防导到无效路径）、
+outputPath 显示给用户可核对、enabled 开关受控。
+
+**测试**：`src/components/hotReloadPanelWiring.test.ts`（5 测，5/5 一次通过）。
+组件层接线守卫现共 **48 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
