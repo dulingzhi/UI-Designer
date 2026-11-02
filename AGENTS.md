@@ -188,6 +188,7 @@
 | DebugPanel 核查（round 101） | 通过 | 纯只读展示面板（85 行无交互元素）接线完整：App:300 挂载/mousePosition 经 canvasRef.getMousePosition 实时更新/scale=canvasScale/isVisible=showDebugPanel（Ctrl+Shift+D）/selectedFrame 全部真实传入。编辑器全部面板至此核查完毕 |
 | tcp_server 单测补齐（round 102） | test 补齐 | round 87 is_running 复位修复当时仅编译验证（cargo 被阻塞）——现补 4 测：State::new 初始 not_running/broadcast 无订阅者 send=Err（锁定命令层 Err 语义）/有订阅者消息可达/HotReloadMessage 序列化 wire 契约。bind 失败复位逻辑仍内嵌 tauri command（依赖 AppHandle），抽函数收益低如实记录 |
 | get_username 单测补齐（round 103） | test 补齐+1 改进 | resolve_username 抽纯函数（避免 env 全局态并行竞态）+4 测：USERNAME 优先/USER 回退/双无 Err/**空 USERNAME 视同缺失回退**（原实现 Ok(\"\") 拼出 C:\\Users\\\\ 坏路径——行为改进如实记录）。Rust 19/19 |
+| Rust 测试面收官核实+参考线闭环（round 104） | 通过 | mpq_io 6 测自包含全部通过（19 总数对账 6mpq+4tcp+4username+5mdx）——Rust 可测面完全无缺口；参考线闭环：addGuide(Canvas:257)→渲染(:916 guides.map 条件渲染)→removeGuide→clearGuides(Ctrl+;)，store 已有 guides||[] 防御 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
