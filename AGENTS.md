@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `99 passed | 2 skipped` 测试文件，`1825 passed | 5 skipped` 测试
+- `99 passed | 2 skipped` 测试文件，`1837 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -169,6 +169,29 @@ hideButtonBar / hidePortrait / hideChat / originMode / appInterface`（只有 `h
 
 **端到端验证**：真实 war3.mpq 两个屏幕 × 三语言（含 104 帧 CampaignMenu）全部通过——
 引号/括号成对、无 StepSize 错名、7 个隐藏项全部落地。
+
+### 代码导出「视觉属性」补齐（本轮）
+
+继续补**背景/纹理/可见性/对齐**。审计发现的缺口（全部先写成失败用例确认）：
+
+1. **BACKDROP 背景纹理读错字段**：代码读 `frame.texture`，但 BACKDROP 的背景字段是
+   `backdropBackground`——**带背景的 backdrop 全部落到默认值，背景永远不生效**。
+   已改 `backdropTextureOf()`（优先 `backdropBackground`，回落 `texture`），三语言同步。
+2. **`texCoord` 从未导出**：`DzFrameSetTexCoord(f, left, right, top, bottom)` 收四个数值
+   （openwar3 dzapi 确认），此前完全丢弃 → 多纹理 atlas 帧指错区域。已加 `FrameSetTexCoord`。
+3. **`visible: false` 从未导出**：编辑器里隐藏的帧在游戏里仍可见。已加 `FrameSetVisible(..., false)`。
+4. **`horAlign` / `verAlign` 从未导出**：已映射为 `FrameSetTextAlignment(f, TEXTALIGN_*, TEXTALIGN_*)`
+   （left→LEFT / right→RIGHT / start→TOP / flex-end→BOTTOM / 其余→CENTER/MIDDLE）。
+5. **三语言行为不一致（端到端发现）**：同一真实 FDF，JASS/LUA 产出 42 个 `FrameSetTexture`，
+   而 **TS 产出 0**——TS 用 `if (tex) {...}` 条件包裹，JASS/LUA 则"无纹理回落默认背景"。
+   已统一为同一语义（三语言均 42），并加回归用例锁定"三语言数量必须相等"。
+
+**注意（口径澄清）**：`FrameSetTexture` 的第 4 参（fixed-scale）恒为 `true`，**不是平铺开关**；
+`backdropTileBackground` 的正解需要不同的 API，本轮**未接入**（未见权威依据，不臆造），
+测试只锁定纹理/texCoord/可见性/对齐四项。
+
+**测试**：`src/utils/codegen/exportVisual.test.ts`（12 测，先写成 5 个失败用例再修复转绿）。
+**端到端**：真实 `BattleNetTemplates.fdf`(83 帧) 与 `CampaignMenu.fdf`(104 帧) × 三语言全部 OK。
 
 ### 渲染器单测缺口补齐（本轮）
 

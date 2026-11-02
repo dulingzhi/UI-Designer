@@ -101,6 +101,28 @@ function buildHideStatements(
   return statements;
 }
 
+/** BACKDROP 背景纹理来源：优先 `backdropBackground`（正确字段），回落 `texture`。 */
+function backdropTextureOf(frame: FrameData): string | undefined {
+  return frame.backdropBackground || frame.texture || undefined;
+}
+
+/**
+ * 文本对齐 → 对齐常量（FrameSetTextAlignment 收 TEXTALIGN_*）。
+ * 编辑器侧 horAlign=left/center/right、verAlign=start/center/flex-end。
+ */
+function textAlignArgs(frame: FrameData): [string, string] | undefined {
+  if (frame.horAlign === undefined && frame.verAlign === undefined) return undefined;
+  const hor =
+    frame.horAlign === 'left' ? 'TEXTALIGN_LEFT'
+      : frame.horAlign === 'right' ? 'TEXTALIGN_RIGHT'
+        : 'TEXTALIGN_CENTER';
+  const ver =
+    frame.verAlign === 'start' ? 'TEXTALIGN_TOP'
+      : frame.verAlign === 'flex-end' ? 'TEXTALIGN_BOTTOM'
+        : 'TEXTALIGN_MIDDLE';
+  return [hor, ver];
+}
+
 /**
  * 建立 frame id → 唯一变量名映射，并返回**父先子后**的拓扑序帧列表。
  *
@@ -415,6 +437,9 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
   const frameSetSize = getAPIFunction(version, 'FrameSetSize');
   const frameSetTexture = getAPIFunction(version, 'FrameSetTexture');
   const frameSetText = getAPIFunction(version, 'FrameSetText');
+  const frameSetTexCoord = getAPIFunction(version, 'FrameSetTexCoord');
+  const frameSetVisible = getAPIFunction(version, 'FrameSetVisible');
+  const frameSetTextAlignment = getAPIFunction(version, 'FrameSetTextAlignment');
   const frameSetScale = getAPIFunction(version, 'FrameSetScale');
   const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
   const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
@@ -428,7 +453,11 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
       code += `    set ${varName} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
       code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
       code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    call ${frameSetTexture}(${varName}, "${escapeJassString(frame.texture || 'UI\\Widgets\\EscMenu\\Human\\background.blp')}", 0, true)\n`;
+      code += `    call ${frameSetTexture}(${varName}, "${escapeJassString(backdropTextureOf(frame) || 'UI\\Widgets\\EscMenu\\Human\\background.blp')}", 0, true)\n`;
+      if (frame.texCoord) {
+        const [l, r, t, b] = frame.texCoord;
+        code += `    call ${frameSetTexCoord}(${varName}, ${l.toFixed(5)}, ${r.toFixed(5)}, ${t.toFixed(5)}, ${b.toFixed(5)})\n`;
+      }
       break;
     
     case FrameType.BUTTON:
@@ -551,7 +580,16 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
       code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
   }
-  
+
+  // 通用属性（对所有类型生效）：隐藏帧必须显式隐藏，文本对齐按 horAlign/verAlign 落地
+  if (frame.visible === false) {
+    code += `    call ${frameSetVisible}(${varName}, false)\n`;
+  }
+  const align = textAlignArgs(frame);
+  if (align) {
+    code += `    call ${frameSetTextAlignment}(${varName}, ${align[0]}, ${align[1]})\n`;
+  }
+
   code += '\n';
   return code;
 }
@@ -573,6 +611,9 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
   const frameSetSize = getAPIFunction(version, 'FrameSetSize');
   const frameSetTexture = getAPIFunction(version, 'FrameSetTexture');
   const frameSetText = getAPIFunction(version, 'FrameSetText');
+  const frameSetTexCoord = getAPIFunction(version, 'FrameSetTexCoord');
+  const frameSetVisible = getAPIFunction(version, 'FrameSetVisible');
+  const frameSetTextAlignment = getAPIFunction(version, 'FrameSetTextAlignment');
   const frameSetScale = getAPIFunction(version, 'FrameSetScale');
   const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
   const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
@@ -586,7 +627,11 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
       code += `    ${varName} = ${createFrame}("BACKDROP", ${parent}, 0, 0)\n`;
       code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
-      code += `    ${frameSetTexture}(${varName}, "${escapeLuaString(frame.texture || 'UI\\Widgets\\EscMenu\\Human\\background.blp')}", 0, true)\n`;
+      code += `    ${frameSetTexture}(${varName}, "${escapeLuaString(backdropTextureOf(frame) || 'UI\\Widgets\\EscMenu\\Human\\background.blp')}", 0, true)\n`;
+      if (frame.texCoord) {
+        const [l, r, t, b] = frame.texCoord;
+        code += `    ${frameSetTexCoord}(${varName}, ${l.toFixed(5)}, ${r.toFixed(5)}, ${t.toFixed(5)}, ${b.toFixed(5)})\n`;
+      }
       break;
     
     case FrameType.BUTTON:
@@ -709,7 +754,16 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
       code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       break;
   }
-  
+
+  // 通用属性（对所有类型生效）
+  if (frame.visible === false) {
+    code += `    ${frameSetVisible}(${varName}, false)\n`;
+  }
+  const align = textAlignArgs(frame);
+  if (align) {
+    code += `    ${frameSetTextAlignment}(${varName}, ${align[0]}, ${align[1]})\n`;
+  }
+
   code += '\n';
   return code;
 }
@@ -789,6 +843,9 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
   const frameSetSize = getAPIFunction(version, 'FrameSetSize');
   const frameSetTexture = getAPIFunction(version, 'FrameSetTexture');
   const frameSetText = getAPIFunction(version, 'FrameSetText');
+  const frameSetTexCoord = getAPIFunction(version, 'FrameSetTexCoord');
+  const frameSetVisible = getAPIFunction(version, 'FrameSetVisible');
+  const frameSetTextAlignment = getAPIFunction(version, 'FrameSetTextAlignment');
   const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
   const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
   const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
@@ -801,8 +858,11 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       code += `    this.${varName} = ${createFrame}("BACKDROP", ${parent}, 0, 0);\n`;
       code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
-      if (frame.texture) {
-        code += `    ${frameSetTexture}(this.${varName}, "${frame.texture}", 0, true);\n`;
+      const bdTex = backdropTextureOf(frame) || 'UI\\Widgets\\EscMenu\\Human\\background.blp';
+      code += `    ${frameSetTexture}(this.${varName}, "${bdTex}", 0, true);\n`;
+      if (frame.texCoord) {
+        const [l, r, t, b] = frame.texCoord;
+        code += `    ${frameSetTexCoord}(this.${varName}, ${l.toFixed(5)}, ${r.toFixed(5)}, ${t.toFixed(5)}, ${b.toFixed(5)});\n`;
       }
       break;
     
@@ -926,7 +986,16 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
   }
-  
+
+  // 通用属性（对所有类型生效）
+  if (frame.visible === false) {
+    code += `    ${frameSetVisible}(this.${varName}, false);\n`;
+  }
+  const align = textAlignArgs(frame);
+  if (align) {
+    code += `    ${frameSetTextAlignment}(this.${varName}, ${align[0]}, ${align[1]});\n`;
+  }
+
   return code;
 }
 
