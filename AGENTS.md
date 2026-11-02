@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `110 passed | 2 skipped` 测试文件，`1951 passed | 5 skipped` 测试
+- `111 passed | 2 skipped` 测试文件，`1957 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -320,6 +320,16 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 只有端到端穿透（`fullRoundtrip.test.ts`，现 4 测）能抓到。
 
 **测试**：`fdfImportColor.test.ts`（4 测，先 2/4 红）+ fullRoundtrip 颜色穿透用例。
+
+### textScale 经 FrameFont 往返（本轮，续 3）
+
+同款名字断裂：导出写 `FrameFont "MasterFont", size, ""`（第 2 参为字号），导入只查
+`SetFont`/`SetFontSize`——textScale 在真实链路上无法往返。已修：`FrameFont` 第 2 参
+（数值）优先写回 `textScale`，回落 `SetFontSize`（运行时风格仍支持）；非数组/参数不足/
+字号非数值时**不设置**（不臆造）。
+
+**测试**：`fdfImportFont.test.ts`（5 测，先 2/5 红）+ fullRoundtrip textScale 穿透用例
+（5 测）。端到端一次通过——导出侧 `FrameFont` 名字本就与导入查找匹配。
 
 ### luaGenerator 导出链路补齐（本轮）
 

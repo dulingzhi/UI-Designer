@@ -112,6 +112,21 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     expect(back.textColor).toBe('#FF8800');
   });
 
+  it('textScale 经 FrameFont 往返', async () => {
+    const src = mkFrame({
+      id: 's1', name: 'Scaled', type: FrameType.TEXT_FRAME,
+      text: 'big', textScale: 0.02,
+    });
+
+    dialogMocks.save.mockResolvedValue('/out/rt.fdf');
+    fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+    await exportToFDF(proj([src]), false, () => {});
+    const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
+
+    const [back] = importFromFDFText(fdf);
+    expect(back.textScale).toBeCloseTo(0.02, 9);
+  });
+
   it('纹理属性原样往返', async () => {
     const src = mkFrame({
       id: 'tx1', name: 'Tx', type: FrameType.BACKDROP,

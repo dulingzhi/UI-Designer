@@ -194,6 +194,20 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
     if (fdfTexture.alphaMode) textureFields.alphaMode = fdfTexture.alphaMode;
   }
 
+  // 字号写回 textScale：FrameFont（模板属性，第 2 参为字号）优先，
+  // 回落 SetFontSize（运行时风格）。名字不匹配曾使 textScale 真实往返断裂。
+  const frameFont = findProperty(properties, 'FrameFont');
+  const setFontSize = findProperty(properties, 'SetFontSize');
+  const fontScale =
+    Array.isArray(frameFont) && typeof Number(frameFont[1]) === 'number' && !isNaN(Number(frameFont[1]))
+      ? Number(frameFont[1])
+      : setFontSize !== null && !isNaN(Number(setFontSize))
+        ? Number(setFontSize)
+        : undefined;
+  if (fontScale !== undefined) {
+    textureFields.textScale = fontScale;
+  }
+
   return {
     ...frame,
     ...backdropFields,
