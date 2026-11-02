@@ -101,12 +101,22 @@ fn parse_mdx_from_file(file_path: String) -> Result<String, String> {
     parse_mdx_file(mdx_data)
 }
 
+/// 用户名解析纯逻辑（可单测）：USERNAME 优先，USER 回退，双无报错。
+/// 抽离自 get_username——直接测 command 会依赖进程级环境变量（并行测试竞态）。
+fn resolve_username(username: Option<String>, user: Option<String>) -> Result<String, String> {
+    username
+        .filter(|s| !s.is_empty())
+        .or_else(|| user.filter(|s| !s.is_empty()))
+        .ok_or_else(|| "无法获取用户名: USERNAME/USER 均未设置".to_string())
+}
+
 /// 获取当前用户名 (用于 KKWE 路径检测)
 #[tauri::command]
 fn get_username() -> Result<String, String> {
-    std::env::var("USERNAME")
-        .or_else(|_| std::env::var("USER"))
-        .map_err(|e| format!("无法获取用户名: {}", e))
+    resolve_username(
+        std::env::var("USERNAME").ok(),
+        std::env::var("USER").ok(),
+    )
 }
 
 /// 使用 KKWE 启动器启动 War3 地图
@@ -338,4 +348,36 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_username;
+
+    #[test]
+    fn username_takes_priority_over_user() {
+        let r = resolve_username(Some("alice".into()), Some("bob".into()));
+        assert_eq!(r.expect("USERNAME 优先"), "alice");
+    }
+
+    #[test]
+    fn user_used_when_username_missing() {
+        let r = resolve_username(None, Some("bob".into()));
+        assert_eq!(r.expect("回退 USER"), "bob");
+    }
+
+    #[test]
+    fn empty_username_falls_back_to_user() {
+        // 行为改进：原实现对 USERNAME="" 返回 Ok("")（空拼出坏路径
+        // C:\Users\\...），现视同缺失回退 USER
+        let r = resolve_username(Some("".into()), Some("bob".into()));
+        assert_eq!(r.expect("空 USERNAME 回退"), "bob");
+    }
+
+    #[test]
+    fn both_missing_is_error() {
+        let r = resolve_username(None, None);
+        assert!(r.is_err(), "双无应报错（命令层映射给前端）");
+        assert!(r.unwrap_err().contains("无法获取用户名"));
+    }
 }
