@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `135 passed | 2 skipped` 测试文件，`2091 passed | 5 skipped` 测试
+- `136 passed | 2 skipped` 测试文件，`2094 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -173,6 +173,7 @@
 | useHotReloadSync 纯逻辑抽取（round 84） | test 抽取+1 防御 | buildHotReloadLua 抽到 hotReloadLua.ts +5 测（空串/toFixed 6/多帧/id 双引号转义 escapeLuaString——原内联实现 id 直插无转义，抽取时加防御）；hook 保留 rAF 节流/状态机。2088 测全绿 |
 | 热重载 Lua 补文本/纹理同步（round 85） | feat 补齐 | buildHotReloadLua 原只发位置/大小（原实现注释"可以按需追加"）——补 SetText（仅 text 帧）/SetTexture（仅 texture 帧，fixedScale 0 与 luaGenerator 同参），均 escapeLuaString。8 测全绿 |
 | useKeyboardShortcuts 修复（round 87） | **修 1 死功能** | 方向键微调的 Shift 精细步长(0.001)判断放在 !e.shiftKey 分支内——恒 false，Shift+方向键落入 Ctrl+Shift 分支尾静默无操作（注释宣称的精调功能从未生效）；已加独立 Shift+方向键分支（0.001 步长）。2091 测全绿+src 0 报错 |
+| 修饰键反模式横向排查（round 88） | 通过+守卫 | useCanvasResize shiftKey 在 mousemove 直接读（正确）/useCanvasPan altKey 在 wheel 内（正确）/useCanvasDrag 无修饰键——反模式仅 shortcuts 特有（全局 keydown 大分支链）。静态守卫 3 测锁定修复（无修饰分支不含 shiftKey 判断/Shift 分支 0.001 四方向走命令层/六分支互斥链完整） |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
