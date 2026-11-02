@@ -182,10 +182,10 @@
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，结论）
 
-因未装 jsdom，21 个 *Wiring.test.ts 文件（123 测）用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
+因未装 jsdom，19 个 *Wiring.test.ts 文件（112 测）用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
 properties(13)/anchorEditor(6)/propertyEditors(5)/batchEdit(5)/arrayDialogs(6)/projectTree(8)/hotReloadPanel(5)/
-textureBrowser(6)/templatePanel(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/
-historyPanel(5)/utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7)/anchorVizHandles(4)/miscPanels(5)。
+textureBrowser(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/
+utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7)/anchorVizHandles(4)/miscPanels(5)。
 **wiringExtra.test.ts（4 测）**补齐 StylePresetPanel/FrameGroupPanel/UpdateChecker 三组件边界。
 **教训**：多行字符串断言过脆——用 indexOf 顺序断言（语义等价抗格式化）。
 
