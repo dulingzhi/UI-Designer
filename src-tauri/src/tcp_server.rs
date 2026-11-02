@@ -124,3 +124,42 @@ pub fn send_hot_reload_update(
         Err(_) => Err("没有活跃的客户端连接".into()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// TcpServerState::new 的初始契约：is_running=false（未启动）、
+    /// broadcast 通道容量 100。
+    #[test]
+    fn new_state_starts_not_running() {
+        let state = TcpServerState::new();
+        assert!(!*state.is_running.lock().unwrap());
+    }
+
+    /// broadcast 语义锁定 send_hot_reload_update 的底层保证：
+    /// 无订阅者时 send 返回 Err(0)，命令层据此返回 "没有活跃的客户端连接"。
+    #[test]
+    fn send_without_subscribers_is_expected_error_path() {
+        let state = TcpServerState::new();
+        let err = state.tx.send("payload".to_string());
+        assert!(err.is_err(), "无订阅者时 send 必须失败（命令层映射为 Err）");
+    }
+
+    /// 有订阅者时消息可达（客户端已连接的正常路径）。
+    #[tokio::test]
+    async fn send_reaches_subscriber() {
+        let state = TcpServerState::new();
+        let mut rx = state.tx.subscribe();
+        state.tx.send("hello".to_string()).expect("有订阅者应成功");
+        assert_eq!(rx.recv().await.expect("通道开放"), "hello");
+    }
+
+    /// HotReloadMessage 序列化契约（TCP wire 格式依赖 Serialize）。
+    #[test]
+    fn hot_reload_message_serializes_with_payload_field() {
+        let msg = HotReloadMessage { payload: "abc".into() };
+        let json = serde_json::to_string(&msg).expect("序列化");
+        assert!(json.contains("\"payload\":\"abc\""));
+    }
+}
