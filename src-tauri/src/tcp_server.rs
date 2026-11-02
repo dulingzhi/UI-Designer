@@ -1,4 +1,4 @@
-use tauri::{AppHandle, State, Manager, Emitter};
+use tauri::{AppHandle, State, Emitter};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -66,7 +66,7 @@ pub async fn start_hot_reload_server(
                     let mut rx = tx.subscribe();
                     
                     tauri::async_runtime::spawn(async move {
-                        let (read_half, write_half) = socket.split();
+                        let (_read_half, write_half) = socket.split();
                         // For MVP, we only write to the client
                         // Using BufWriter for better line writing performance
                         let mut writer = BufWriter::new(write_half);

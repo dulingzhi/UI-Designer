@@ -186,6 +186,7 @@
 | CreateFrame/重命名核查（round 114） | 通过 | CreateFrame 构造期快照（redo id 稳定）；MoveFrame redo 重新捕获经分析安全（undo 后新 execute 清空 redo 栈——重捕获值=正确旧值）；ProjectTree 重命名走 UpdateFrameCommand 可撤销。命令族 20 类全部核查完毕 |
 | 生产构建修复（round 120） | **修 1 P1 交付缺陷** | npm run build（tsc && vite build）被 95 个测试文件 TS 报错阻塞——生产构建从未绿过（门禁"测试侧可暂缓"与 build 全量编译矛盾，无法发布）。修复：新增 tsconfig.build.json（exclude *.test.ts/__test_helpers__），build 脚本改用之。vite build 4.72s 绿；主 chunk 1.87MB 警告=分割优化项 |
 | 数据完整性与持久化收口（rounds 115-119 归并） | 通过+修 5 | 存档序列化保真 2 测（全字段往返/JSON 转义）；损坏容错：存档 frames 缺失归一化空项目（+2 测）、recentFiles 非数组回落空列表、hotReloadConfig 自动导出订阅 try-catch（**损坏 JSON 异步未捕获 rejection 曾使自动导出静默死亡**）；undo 旁路：useCanvasDrag/Resize 手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪（拖拽最频繁操作栈无限增长）——commandStore 加 pushCommand 统一 3 处旁路（+3 测） |
+| Rust 发布构建验证（round 121） | 通过+清理 | cargo build --release 2m35s 绿（首次 release 验证）——3 warnings 中 2 个死代码已清（unused import Manager/read_half→_read_half），LNK4098 链接器提示与 num-bigint-dig future-incompat 为工具链/外部依赖如实记录。cargo test 19/19 复绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
