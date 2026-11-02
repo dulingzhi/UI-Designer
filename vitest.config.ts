@@ -9,9 +9,6 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      'tests/blp-decoder.test.ts',
-      'tests/mpq-manager.test.ts',
-      'tests/texture-loader.test.ts',
       'tests/fdf-import.test.ts',
     ],
     coverage: {
