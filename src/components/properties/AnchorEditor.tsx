@@ -101,8 +101,10 @@ export const AnchorEditor: React.FC<AnchorEditorProps> = ({
                   value={anchor.x}
                   onWheel={handleNumberInputWheel}
                   onChange={(e) => {
+                    const ax = parseFloat(e.target.value);
+                    if (isNaN(ax)) return; // round 135：NaN 防御
                     const newAnchors = [...(selectedFrame.anchors || [])];
-                    newAnchors[index] = { ...anchor, x: parseFloat(e.target.value) };
+                    newAnchors[index] = { ...anchor, x: ax };
                     handleChange('anchors', newAnchors);
                   }}
                   style={{ borderColor: isConflicting ? '#f44336' : undefined }}
@@ -116,8 +118,10 @@ export const AnchorEditor: React.FC<AnchorEditorProps> = ({
                   value={anchor.y}
                   onWheel={handleNumberInputWheel}
                   onChange={(e) => {
+                    const ay = parseFloat(e.target.value);
+                    if (isNaN(ay)) return; // round 135：NaN 防御
                     const newAnchors = [...(selectedFrame.anchors || [])];
-                    newAnchors[index] = { ...anchor, y: parseFloat(e.target.value) };
+                    newAnchors[index] = { ...anchor, y: ay };
                     handleChange('anchors', newAnchors);
                   }}
                   style={{ borderColor: isConflicting ? '#f44336' : undefined }}

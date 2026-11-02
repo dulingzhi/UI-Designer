@@ -271,6 +271,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const newX = parseFloat(e.target.value);
+                if (isNaN(newX)) return; // round 135：NaN 防御（含 anchors 更新整体跳过）
                 handleChange('x', newX);
                 handleChange('anchors', updateAnchorsFromBounds(
                   selectedFrame.anchors || createDefaultAnchors(selectedFrame.x, selectedFrame.y, selectedFrame.width, selectedFrame.height),
@@ -293,6 +294,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onClose }) => 
               onWheel={handleNumberInputWheel}
               onChange={(e) => {
                 const newY = parseFloat(e.target.value);
+                if (isNaN(newY)) return; // round 135：NaN 防御（含 anchors 更新整体跳过）
                 handleChange('y', newY);
                 handleChange('anchors', updateAnchorsFromBounds(
                   selectedFrame.anchors || createDefaultAnchors(selectedFrame.x, selectedFrame.y, selectedFrame.width, selectedFrame.height),
