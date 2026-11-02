@@ -179,6 +179,7 @@
 | 帮助面板反向对账（round 91） | docs 补全 | 已实现但未列：Ctrl+A 全选/Ctrl+Shift+A 反选/Ctrl+; 清参考线/Ctrl+, 偏好设置——补入 ShortcutHelp 编辑操作类。双向对账完成（宣称≠实现 r90 + 实现≠宣称 r91），帮助面板与 hook 全量一致 |
 | MenuBar 虚标收敛（round 92） | **修 1 误判+补 4 快捷键** | 初判 Ctrl+3/4/5/Shift+D 虚标——**误判**：App.tsx 有独立键盘监听器（不在 hook 内）已实现；真正虚标仅 Ctrl+1/2（面板）、Ctrl+9（适应窗口）、Ctrl+/（帮助）——App handleViewToggle 补 case 1/2/9//（canvasRef.centerCanvas 同 MenuBar 款）。教训：跨文件键盘监听器并存，虚标判定须扫全仓而非单 hook |
 | 画布交互宣称核查（round 93） | 通过 | 帮助面板画布交互 4 项全属实：Ctrl+点击多选（Canvas.tsx:788 toggleSelectFrame）/Shift+左键框选（:290 isBoxSelecting）/Alt+中键平移（:287 startPan）/空白点击清选且修饰键豁免（:798） |
+| Toolbar 启动链路核查（round 94） | 通过 | "自动导出Lua并启动"宣称属实：handleLaunchWar3 完整链路 = getCurrentPid 检测→kill 重启→getHotReloadExporter().export(project,true) 静默导出→extract_template_map 模板地图→launchMapWithKKWE→setProcess PID。**教训**：grep exportCode|exportProject 漏了 exporter.export 模式——假阴性，链路核查搜索词须穷举导出形态 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
