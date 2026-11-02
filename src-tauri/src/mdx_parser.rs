@@ -252,10 +252,15 @@ impl MdxParser {
                         .read_u32::<LittleEndian>()
                         .map_err(|e| format!("Failed to read vertex count: {}", e))?;
 
+                    // 传播读取错误而非 unwrap_or(0.0)：截断/损坏文件使 count 巨大时，
+                    // EOF 后静默产 0 会循环数十亿次 push（内存爆炸/假死）。
                     for _ in 0..count {
-                        let x = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
-                        let y = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
-                        let z = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
+                        let x = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read vertex: {}", e))?;
+                        let y = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read vertex: {}", e))?;
+                        let z = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read vertex: {}", e))?;
                         model.vertices.push(Vertex { x, y, z });
                     }
                 }
@@ -263,9 +268,12 @@ impl MdxParser {
                     // Normals
                     let count = self.cursor.read_u32::<LittleEndian>().unwrap_or(0);
                     for _ in 0..count {
-                        let x = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
-                        let y = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
-                        let z = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
+                        let x = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read normal: {}", e))?;
+                        let y = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read normal: {}", e))?;
+                        let z = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read normal: {}", e))?;
                         model.normals.push(Normal { x, y, z });
                     }
                 }
@@ -273,8 +281,10 @@ impl MdxParser {
                     // UV coordinates (texture coordinates)
                     let count = self.cursor.read_u32::<LittleEndian>().unwrap_or(0);
                     for _ in 0..count {
-                        let u = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
-                        let v = self.cursor.read_f32::<LittleEndian>().unwrap_or(0.0);
+                        let u = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read uv: {}", e))?;
+                        let v = self.cursor.read_f32::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read uv: {}", e))?;
                         model.uvs.push(UV { u, v });
                     }
                 }
@@ -293,12 +303,16 @@ impl MdxParser {
                 b"PVTX" => {
                     // Primitive vertex indices (faces)
                     let count = self.cursor.read_u32::<LittleEndian>().unwrap_or(0);
-                    
+
                     // PVTX 包含三角形索引，每3个u16组成一个面
+                    // 同 VRTX：读取错误传播（防截断文件死循环膨胀）
                     for _ in 0..(count / 3) {
-                        let i0 = self.cursor.read_u16::<LittleEndian>().unwrap_or(0);
-                        let i1 = self.cursor.read_u16::<LittleEndian>().unwrap_or(0);
-                        let i2 = self.cursor.read_u16::<LittleEndian>().unwrap_or(0);
+                        let i0 = self.cursor.read_u16::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read face index: {}", e))?;
+                        let i1 = self.cursor.read_u16::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read face index: {}", e))?;
+                        let i2 = self.cursor.read_u16::<LittleEndian>()
+                            .map_err(|e| format!("Failed to read face index: {}", e))?;
                         model.faces.push(Face {
                             indices: [i0, i1, i2],
                         });

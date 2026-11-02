@@ -164,6 +164,7 @@
 | BackdropEdge.tsx+useTextureLoader | **删除死代码链** | 组件无任何 JSX 渲染点（WebGL 路径 SceneGraphManager.syncBackdropEdges 用 textureAtlas 取代）；useTextureLoader 唯一消费者是该孤儿、useTextureLoaderBatch 零消费。canvasHelpersWiring 相应用例随删（守卫 6 测）；useCanvasPan/useHotReloadSync 有活消费方（Canvas/HotReloadPanel）确认非死代码 |
 | constants.ts+App.tsx 接线 | 通过 | constants 6 值消费方 11 处；renderer/kernelScene 无硬编码绕过（kernel 用自身 UI_WIDTH/UI_HEIGHT，与编辑器 constants 的等价性由 5760 组穷举守卫锁定）；CANVAS_POINT 中心点 0.4/0.3 是 WC3 标准系自洽值非 magic number。App.tsx 快捷键/删除确认/面板切换接线已被 utilityPanelsWiring/canvasWiring/projectStore.test 覆盖 |
 | mpq_io.rs+tcp_server.rs | **修 1 缺陷**+1 缺口 | mpq_io：句柄缓存+listfile 缺失降级+has_file 快速路径+测试自包含 ✓；换路径清池链完整（setWar3Path→unloadAll→clear_mpq_cache→pool.clear）无泄漏。tcp_server：**bind 失败 is_running 卡 true**（后续 start 返回假成功，热重载静默失效）——已修 Arc<Mutex> 供 spawn 内复位。**环境缺口**：cargo check 被本机缺失 libturbojpeg（blp 必选依赖 turbojpeg-sys 需 cmake）阻塞从未跑通——Rust 改动均为代码级验证，本轮修复自检类型正确但未经编译，环境修复属产品决策 |
+| mdx_parser.rs 全文 | **修 1 DoS 缺陷** | VRTX/NRMS/UVBS/PVTX 数据循环用 read_f32().unwrap_or(0.0)——截断/损坏文件 count 巨大时 EOF 后静默产 0 循环数十亿次 push（内存爆炸/假死）；已改 ? 传播错误（12 处），损坏文件报错给前端而非假死。skip 类分支（GNDX/PTYP）保持 .ok()（seek 兜底无膨胀风险）。编译验证仍被 turbojpeg 环境阻塞（同上条缺口），花括号配对+残留扫描自检通过 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
