@@ -126,10 +126,11 @@ export function UpdateChecker({ onUpdateAvailable, checkOnMount = false }: Updat
     }
   }, [checkOnMount]);
 
-  // 暴露 checkForUpdates 方法给父组件
+  // 暴露 checkForUpdates 方法给父组件。round 124：无依赖数组——每次渲染重新暴露最新闭包。
+  // 原 [] 只暴露首次版本，stale closure 捕获恒 false 的 checking/downloading，防重入失效。
   useEffect(() => {
     (window as any).checkForUpdates = () => checkForUpdates(true);
-  }, []);
+  });
 
   return (
     <>
