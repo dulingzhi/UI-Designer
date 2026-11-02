@@ -189,6 +189,7 @@
 | Rust 发布构建验证（round 121） | 通过+清理 | cargo build --release 2m35s 绿（首次 release 验证）——3 warnings 中 2 个死代码已清（unused import Manager/read_half→_read_half），LNK4098 链接器提示与 num-bigint-dig future-incompat 为工具链/外部依赖如实记录。cargo test 19/19 复绿 |
 | 主 chunk 代码分割（round 122） | perf 补齐 | vite manualChunks 分离 three/react vendor——主 chunk 1.87→1.29MB（-31%），vendor 内容稳定可长缓存；业务模块强耦合不细分（误拆有循环 chunk 风险）。build 3.2s 绿 |
 | UpdateChecker 核查（round 124） | **修 1 stale closure** | 网络/下载容错全健康（check/downloadAndInstall 均 catch+对话框；dev 跳过；挂载 3s 静默检查）——唯 window.checkForUpdates 暴露用 [] 依赖数组，闭包捕获恒 false 的 checking/downloading，防重入失效可并发检查。改无依赖数组每渲染重暴露（setState 引用稳定无副作用） |
+| stale closure 同族排查（round 125） | 通过 | 全仓 useEffect([]) 扫描：App 偏好恢复用 getState()（稳定引用）、MenuBar/Toolbar 事件监听只调 setState 引用——均无 stale closure。r124 修复为唯一一例 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
