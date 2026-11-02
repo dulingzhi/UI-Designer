@@ -354,6 +354,8 @@ export const useKeyboardShortcuts = (
     };
 
     const handleOpen = async () => {
+      // round 142：加载前未保存确认（与 MenuBar 同款）
+      if (useUIStore.getState().dirty && !confirm('当前项目有未保存的修改，加载将覆盖。确定继续？')) return;
       try {
         const result = await loadProject();
         if (result) {

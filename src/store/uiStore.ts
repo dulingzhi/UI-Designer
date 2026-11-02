@@ -23,6 +23,9 @@ export const STYLE_PROPERTIES: (keyof FrameData)[] = [
 ];
 
 interface UIState {
+  // round 142：未保存修改标志（加载/新建前确认用；beforeunload 也读此值）
+  dirty: boolean;
+    setDirty: (dirty: boolean) => void;
   // 选择状态
   selectedFrameId: string | null;
   selectedFrameIds: string[];
@@ -73,6 +76,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
+  dirty: false,
   selectedFrameId: null,
   selectedFrameIds: [],
   clipboard: null,
@@ -116,6 +120,7 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   clearHighlightedFrames: () => set({ highlightedFrameIds: [] }),
 
+  setDirty: (dirty) => set({ dirty }),
   setShowGrid: (v) => set({ showGrid: v }),
   setShowAnchors: (v) => set({ showAnchors: v }),
   setShowRulers: (v) => set({ showRulers: v }),

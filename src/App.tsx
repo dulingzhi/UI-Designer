@@ -99,20 +99,19 @@ function AppContent() {
 
   // round 131：未保存修改防护——project 变化置 dirty（load/save/new 由 MenuBar 广播 project-state-reset 清除）。
   // beforeunload 在 dirty 时拦截关闭/刷新，防未保存修改静默丢失（编辑器经典缺口）。
-  const dirtyRef = React.useRef(false);
   const firstProjectRef = React.useRef(true);
   React.useEffect(() => {
     if (firstProjectRef.current) { firstProjectRef.current = false; return; }
-    dirtyRef.current = true;
+    useUIStore.getState().setDirty(true);
   }, [project]);
   React.useEffect(() => {
-    const onReset = () => { dirtyRef.current = false; };
+    const onReset = () => { useUIStore.getState().setDirty(false); };
     window.addEventListener('project-state-reset', onReset);
     return () => window.removeEventListener('project-state-reset', onReset);
   }, []);
   React.useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!dirtyRef.current) return;
+      if (!useUIStore.getState().dirty) return;
       e.preventDefault();
       e.returnValue = ''; // Chrome 要求 returnValue 才弹原生确认
     };

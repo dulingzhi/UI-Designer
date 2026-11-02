@@ -232,6 +232,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   const handleOpenRecent = async (filePath: string) => {
+    // round 142：加载前未保存确认（r131 只做了关窗防护，加载前同样丢修改）
+    if (useUIStore.getState().dirty && !confirm('当前项目有未保存的修改，加载将覆盖。确定继续？')) return;
     try {
       const result = await loadProjectFromPath(filePath);
       // round 131：加载成功后清除 dirty（App 的 project 变化 effect 会先置 true，此事件随后清除）
@@ -291,6 +293,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   const handleOpen = async () => {
+    // round 142：加载前未保存确认
+    if (useUIStore.getState().dirty && !confirm('当前项目有未保存的修改，加载将覆盖。确定继续？')) return;
     try {
       const result = await loadProject();
       if (result) {
