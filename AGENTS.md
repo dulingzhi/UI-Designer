@@ -174,8 +174,7 @@
 | PNG 导出宣称恢复（round 156） | **修 1 误删** | r147 删「图片导出」宣称关键字 exportPNG 漏匹配 exportToPNG——该功能真实（save 对话框+toBlob+MenuBar 入口），恢复宣称。教训：虚标判定先穷尽同义关键字（r148 同款） |
 | 导出域防御收口（rounds 155/157 归并） | 通过+防御 2 | ①Toolbar handleExport 防重入（exportingRef，同 isLaunching 模式）②主画布 id=main-canvas 锚定（querySelector 裸查询改 getElementById） |
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
-| 热重载 rAF 卸载清理（round 165） | 修 1 生命周期缺陷 | useHotReloadSync 的 project 变化 effect 调度 rAF 后无卸载清理——组件卸载时 pending rAF 仍触发 sendUpdate（闭包引用已卸载组件状态）。加 return 清理 cancelAnimationFrame+置 null。Tauri listen 清理核查通过 ✓；README 技术栈版本对账全一致（React 19.1/Tauri ^2/Zustand 5/Vite 7.0.4/TS 5.8） |
-| 生命周期清理横向排查（round 166） | 通过 | hooks 层（useCanvasPan/useKeyboardShortcuts listener 成对）+组件层（App×4/Toolbar×1/MenuBar×3/HotReloadPanel×2 全成对）全绿——r165 的 rAF 是本域唯一缺陷已修，域收口 |
+| 生命周期清理域（rounds 165-166 收口） | 修 1+横向排查通过 | useHotReloadSync 的 project effect rAF 无卸载清理（卸载后仍触发 sendUpdate）——加 return cancelAnimationFrame；横向排查 hooks+组件层全部成对（App×4/MenuBar×3/HotReloadPanel×2/Toolbar×1/hooks×2），r165 是唯一缺陷；Tauri listen 清理核查通过 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
