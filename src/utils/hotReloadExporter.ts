@@ -58,6 +58,8 @@ export class HotReloadExporter {
   private config: HotReloadConfig;
   private debounceTimer: number | null = null;
   private isExporting = false;
+  // 导出期间收到的新版本（防抖触发被 isExporting 跳过时暂存，完成后补充导出）
+  private pendingProject: ProjectData | null = null;
   
   constructor(config: HotReloadConfig) {
     this.config = config;
@@ -83,7 +85,8 @@ export class HotReloadExporter {
     }
     
     if (this.isExporting) {
-      console.log('[热重载] 正在导出，跳过重复请求');
+      console.log('[热重载] 正在导出，跳过重复请求（记录最新版本，待当前导出完成后补充导出）');
+      this.pendingProject = project;
       return;
     }
     
@@ -148,6 +151,15 @@ export class HotReloadExporter {
       throw error;
     } finally {
       this.isExporting = false;
+      // 导出期间收到过新版本：补充导出一次（不递归暂存——补充导出期间的更新由下一次防抖触发承接）
+      const pending = this.pendingProject;
+      if (pending) {
+        this.pendingProject = null;
+        console.log('[热重载] 补充导出导出期间的新版本...');
+        this.export(pending).catch(error => {
+          console.error('[热重载] 补充导出失败:', error);
+        });
+      }
     }
   }
   

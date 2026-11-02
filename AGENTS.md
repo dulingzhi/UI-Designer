@@ -110,11 +110,29 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `135 passed | 2 skipped` 测试文件，`2143 passed | 5 skipped` 测试
+- `135 passed | 2 skipped` 测试文件，`2145 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
-### fileOperations 存档链路审计（本轮，抓到悬空引用缺陷）
+### hotReloadExporter 热重载链路审计（本轮，抓到防抖竞态数据丢失）
+
+热重载链路（200 行，既有 20 测）审计发现 **1 处真实竞态缺陷**：
+导出进行中（`isExporting=true`）新触发的导出被跳过且**不重排**——
+编辑 → 防抖导出开始 → 期间再编辑 → 防抖再次触发 → 被 `isExporting` 跳过 →
+**最新版本静默丢失**，且后续无编辑则永远不落盘。
+既有测试「second call while isExporting」把跳过行为锁为期望
+（同款"测试认证 bug"模式：跳过本身合理，不重排导致丢失是缺陷）。
+
+**修复**：跳过时记录 `pendingProject`，`finally` 中补充导出一次
+（不递归暂存——补充导出期间的更新由下一次防抖承接；补充导出失败
+捕获记日志不冒泡）。测试扩到 22 测（pending 补充导出 + 失败不冒泡）。
+
+**如实记录（产品决策项）**：`getDefaultHotReloadConfig` 的 Reforged 回退路径
+硬编码个人用户名 `'81468'`（`system_username` 缺失时）。修复需接 Tauri
+`documentDir()` 异步 API 并调整模块级常量初始化时序，涉及启动时序重构，
+本轮不动代码、如实记录。
+
+### fileOperations 存档链路审计（上轮，抓到悬空引用缺陷）
 
 保存/加载链路（177 行，此前仅覆盖率门覆盖、无语义审计）审计发现 **1 处真实缺陷**：
 `migrateProjectData` 重建 children 时跳过悬空 parentId（`migratedFrames[frame.parentId]`

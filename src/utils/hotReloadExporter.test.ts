@@ -292,4 +292,47 @@ describe('hotReloadExporter', () => {
       expect(() => e.cancelPendingExport()).not.toThrow();
     });
   });
+
+  describe('导出竞态：跳过时记录 pending 并补充导出', () => {
+    it('导出期间触发的导出记录为 pending，完成后补充导出最新版本', async () => {
+      let release!: () => void;
+      fsMocks.mkdir.mockImplementation(() => new Promise<void>((r) => { release = r; }));
+      fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+      const e = new HotReloadExporter(config());
+
+      // 第一次导出：挂在 mkdir
+      const p1 = e.export(makeProject());
+      await idle();
+      // 导出期间的"新编辑"触发第二次导出 → 被 isExporting 跳过但记录 pending
+      await e.export(makeProject());
+      expect(fsMocks.writeTextFile).not.toHaveBeenCalled();
+      // 放行第一次导出 → 完成后应补充导出
+      release!();
+      await p1;
+      await new Promise((r) => setTimeout(r, 0));
+      // 补充导出走完整链路：写 UI + 写 loader
+      expect(fsMocks.writeTextFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('补充导出失败不冒泡（记录日志）', async () => {
+      let release!: () => void;
+      fsMocks.mkdir
+        .mockImplementationOnce(() => new Promise<void>((r) => { release = r; }))
+        .mockRejectedValueOnce(new Error('dir gone'));
+      fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+      const e = new HotReloadExporter(config());
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const p1 = e.export(makeProject());
+      await idle();
+      await e.export(makeProject()); // 记录 pending
+      release!();
+      await p1;
+      await new Promise((r) => setTimeout(r, 0));
+      // 补充导出在 mkdir 失败被捕获：p1 自身写 2 次（UI+loader），补充导出未追加第三次
+      expect(fsMocks.writeTextFile).toHaveBeenCalledTimes(2);
+      expect(err).toHaveBeenCalled();
+      err.mockRestore();
+    });
+  });
 });
