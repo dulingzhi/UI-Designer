@@ -81,7 +81,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
                 value={alpha}
                 onChange={(e) => {
                   const newAlpha = parseFloat(e.target.value);
-                  onChange([value[0], value[1], value[2], newAlpha]);
+                  if (!isNaN(newAlpha)) onChange([value[0], value[1], value[2], newAlpha]); // round 136：NaN 防御
                 }}
                 disabled={disabled}
               />
