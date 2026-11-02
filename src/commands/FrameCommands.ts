@@ -290,8 +290,30 @@ export class BatchRemoveFrameCommand implements Command {
 
   undo(): void {
     const store = useProjectStore.getState();
-    // 恢复所有删除的控件
-    this.framesData.forEach((frame) => {
+    // 恢复所有删除的控件——按拓扑序（父先于子）。
+    // round 108 后 addFrame 会把"父不存在"的帧归一化为根帧；若按用户选择序
+    // 恢复（子先于父），子帧会被错误升级为根帧，与后续恢复的父 children 快照
+    // 形成树断裂。父先恢复则子帧正常挂回。
+    const restored = new Set<string>();
+    const pending = [...this.framesData.values()];
+    // 依赖排序：父在本批恢复集中的帧排后（迭代至无进展，防御异常环）
+    const ordered: FrameData[] = [];
+    while (pending.length > 0) {
+      const before = pending.length;
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const f = pending[i];
+        if (!f.parentId || restored.has(f.parentId) || !this.framesData.has(f.parentId)) {
+          ordered.push(f);
+          restored.add(f.id);
+          pending.splice(i, 1);
+        }
+      }
+      if (pending.length === before) {
+        // 环（异常数据）：剩余帧按原序直接恢复，避免死循环
+        ordered.push(...pending.splice(0));
+      }
+    }
+    ordered.forEach(frame => {
       store.addFrame(frame);
     });
     useUIStore.getState().selectFrame(this.previousSelection);
