@@ -124,6 +124,69 @@ describe('导入必须写回可编辑字段：文本对齐', () => {
   });
 });
 
+describe('导入写回可编辑字段：Control/Font 系', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  const stringCases: Array<[string, string]> = [
+    ['ControlBackdrop', 'controlBackdrop'],
+    ['ControlPushedBackdrop', 'controlPushedBackdrop'],
+    ['ControlDisabledBackdrop', 'controlDisabledBackdrop'],
+    ['ControlMouseOverHighlight', 'controlMouseOverHighlight'],
+    ['ControlStyle', 'controlStyle'],
+    ['HighlightType', 'highlightType'],
+    ['HighlightAlphaFile', 'highlightAlphaFile'],
+    ['HighlightAlphaMode', 'highlightAlphaMode'],
+  ];
+  for (const [fdfProp, frameField] of stringCases) {
+    it(`${fdfProp} → frame.${frameField}`, async () => {
+      const frames = await importWithProps([prop(fdfProp, stringValue('X'))]);
+      expect((frames[0] as any)[frameField], `${frameField} 未写回`).toBe('X');
+    });
+  }
+
+  it('FontShadowColor 四数值 → fontShadowColor', async () => {
+    const frames = await importWithProps([
+      prop('FontShadowColor', arrayValue([numberValue(0), numberValue(0), numberValue(0), numberValue(0.9)])),
+    ]);
+    expect((frames[0] as any).fontShadowColor).toEqual([0, 0, 0, 0.9]);
+  });
+
+  it('FontShadowOffset 双数值 → fontShadowOffset', async () => {
+    const frames = await importWithProps([
+      prop('FontShadowOffset', arrayValue([numberValue(0.001), numberValue(-0.001)])),
+    ]);
+    expect((frames[0] as any).fontShadowOffset).toEqual([0.001, -0.001]);
+  });
+
+  it('ButtonPushedTextOffset 双数值 → buttonPushedTextOffset', async () => {
+    const frames = await importWithProps([
+      prop('ButtonPushedTextOffset', arrayValue([numberValue(-0.002), numberValue(-0.003)])),
+    ]);
+    expect((frames[0] as any).buttonPushedTextOffset).toEqual([-0.002, -0.003]);
+  });
+
+  it('EditCursorColor 三数值 → editCursorColor', async () => {
+    const frames = await importWithProps([
+      prop('EditCursorColor', arrayValue([numberValue(1), numberValue(0.5), numberValue(0)])),
+    ]);
+    expect((frames[0] as any).editCursorColor).toEqual([1, 0.5, 0]);
+  });
+
+  it('数值属性非法输入 → 不设置（不臆造）', async () => {
+    const frames = await importWithProps([
+      prop('FontShadowColor', stringValue('not an array')),
+      prop('FontShadowOffset', arrayValue([numberValue(1)])), // 长度不足
+    ]);
+    expect((frames[0] as any).fontShadowColor).toBeUndefined();
+    expect((frames[0] as any).fontShadowOffset).toBeUndefined();
+  });
+
+  it('元数据仍保留（rawProperties 不受影响）', async () => {
+    const frames = await importWithProps([prop('ControlBackdrop', stringValue('Tpl'))]);
+    expect((frames[0] as any).fdfMetadata.rawProperties.ControlBackdrop).toBe('Tpl');
+  });
+});
+
 describe('不破坏既有元数据行为', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 

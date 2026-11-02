@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1975 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1989 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -381,14 +381,20 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 **测试**：`exportControlProps.test.ts` 扩到 13 测（先 1/13 红；
 editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确）。
 
-### Control/Font 系端到端穿透（本轮，续）
+### Control/Font 系导入写回（本轮，收口）
 
-按此前教训（导出侧单测全绿 ≠ 链路通），给新导出的 Control/Font 系加穿透用例
-（`fullRoundtrip.test.ts` 扩到 **7 测**）：带 controlBackdrop/controlStyle/
-fontShadowColor/buttonPushedTextOffset 的帧导出 → 真 parser 导入 → 断言保留在
-`rawProperties` 元数据（实测行为，诚实口径——导入侧对这些属性**未写回可编辑字段**，
-与 backdrop/text 系不同；如需编辑器内可视化编辑导入值，需另行接入 import 侧映射）。
-7/7 一次通过，无新断裂。
+上轮如实记录的"只进元数据"口径升级为**真写回**（backdrop 同款处理）：
+`enhanceFrameWithFDF` 新增 `controlFields` 映射——
+
+- 8 个字符串字段（ControlBackdrop/Pushed/Disabled/MouseOver/Style、Highlight 三系）直写
+- 6 个数值数组字段（FontHighlightColor/DisabledColor/ShadowColor 四元、
+  FontShadowOffset/ButtonPushedTextOffset 二元、EditCursorColor 三元）经 `asNumArray`
+  形状校验（长度不符/非数值不设置，不臆造）
+- undefined/空串不覆盖（陷阱同前）；`rawProperties` 元数据同时保留
+
+**测试**：`fdfImportRoundtrip.test.ts` 扩到 39 测（先 12/39 红）；
+`fullRoundtrip.test.ts` Control/Font 穿透用例口径**升级为断言真写回**
+（text/数值往返值逐项比对），7/7 通过。属性面板现可显示这批属性的导入值。
 
 ### luaGenerator 导出链路补齐（本轮）
 

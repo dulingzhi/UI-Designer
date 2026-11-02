@@ -212,11 +212,51 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
     textureFields.textScale = fontScale;
   }
 
+  // Control/Highlight/Font 系写回可编辑字段（与导出侧 13+1 字段互逆）。
+  // 数值数组需形状校验；非法输入不设置（不臆造）。
+  const find = (name: string) => findProperty(properties, name);
+  const asNumArray = (v: any): number[] | undefined =>
+    Array.isArray(v) && v.every((x) => typeof Number(x) === 'number' && !isNaN(Number(x)))
+      ? v.map(Number)
+      : undefined;
+  const controlFields: Partial<FrameData> = {};
+  const stringAssigns: Array<[string, keyof FrameData]> = [
+    ['ControlBackdrop', 'controlBackdrop'],
+    ['ControlPushedBackdrop', 'controlPushedBackdrop'],
+    ['ControlDisabledBackdrop', 'controlDisabledBackdrop'],
+    ['ControlMouseOverHighlight', 'controlMouseOverHighlight'],
+    ['ControlStyle', 'controlStyle'],
+    ['HighlightType', 'highlightType'],
+    ['HighlightAlphaFile', 'highlightAlphaFile'],
+    ['HighlightAlphaMode', 'highlightAlphaMode'],
+  ];
+  for (const [name, field] of stringAssigns) {
+    const v = find(name);
+    if (v !== null && v !== undefined && String(v) !== '') {
+      (controlFields as Record<string, unknown>)[field] = String(v);
+    }
+  }
+  const numAssigns: Array<[string, keyof FrameData, number]> = [
+    ['FontHighlightColor', 'fontHighlightColor', 4],
+    ['FontDisabledColor', 'fontDisabledColor', 4],
+    ['FontShadowColor', 'fontShadowColor', 4],
+    ['FontShadowOffset', 'fontShadowOffset', 2],
+    ['ButtonPushedTextOffset', 'buttonPushedTextOffset', 2],
+    ['EditCursorColor', 'editCursorColor', 3],
+  ];
+  for (const [name, field, len] of numAssigns) {
+    const nums = asNumArray(find(name));
+    if (nums && nums.length === len) {
+      (controlFields as Record<string, unknown>)[field] = nums;
+    }
+  }
+
   return {
     ...frame,
     ...backdropFields,
     ...alignFields,
     ...textureFields,
+    ...controlFields,
     fdfMetadata,
     fdfTexture,
     fdfString,
