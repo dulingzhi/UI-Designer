@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `118 passed | 2 skipped` 测试文件，`2047 passed | 5 skipped` 测试
+- `119 passed | 2 skipped` 测试文件，`2053 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -141,6 +141,16 @@ handleBatchChange 单出口；另锁数字输入滚轮 `stopPropagation`。
 
 **测试**：`src/components/properties/batchEditPanelWiring.test.ts`（5 测，5/5 一次通过）。
 组件层接线守卫现共 **29 测**（TypeSpecific 13 + Anchor 6 + PropertyEditors 5 + BatchEdit 5）。
+
+### 数组创建对话框接线守卫（本轮，续）
+
+`TableArrayDialog`/`CircleArrayDialog`（批量生成帧的参数入口）守卫锁定：
+数值解析 NaN 防护（`|| 1`/`|| 0` 默认值）、行×列超 100 告警、二次确认
+（ConfirmDialog）、半径最小 0.01（防 0 半径退化）、count 最小 2、
+世界坐标输入 0..0.8 钳制。
+
+**测试**：`src/components/arrayDialogsWiring.test.ts`（6 测，6/6 一次通过）。
+组件层接线守卫现共 **35 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
