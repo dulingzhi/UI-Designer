@@ -160,6 +160,7 @@
 | fdfIncludeResolver.ts | **删除死代码** | Node-only（fs/path import，浏览器/Tauri webview 不可用）+ 生产零引用；真实模板继承走 fdfTemplates.templateManager 路径。191 行+14 测清除 |
 | fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | mapFrameType FT 0-28 全覆盖（+100/101 别名）；exportTexture 的 TexCoord 顺序/AlphaMode/DecorateFileNames 与 exportUtils 一致；escapeString 数组多元素空格连接。fdfTemplates：循环继承 visited 防护、多级继承合并顺序正确（子覆盖父）。**边界**：applyTemplate 继承属性只进 fdfMetadata.rawProperties（不写可编辑字段）——导入带 INHERITS 的帧其继承 backdrop 在属性面板不可见，lossless 导出靠 rawProperties 保真，改动需产品决策 |
 | fdfImport.test mock 补齐 | test 侧修复 | mock templateManager 缺 loadTemplatesFromFile 致 tsc 测试侧 2 报错（生产无碍）；补 mock 后清零 |
+| 命令层 src/commands（9 文件全类） | 通过+1 边界 | 20 命令类全部有测试实例化（Frame 10/Align 3/AlignToCanvas/Size/ZIndex/Duplicate 2/Array 2）——无缺口。ZIndexCommand 语义：moveUp/Down 找相邻 z、边界 no-op 不写、bringToFront max+1/sendToBack min-1、undo/redo 存 old/new。**边界**：no-op 命令（已最高层再上移）仍入栈并清空 redo 栈——commandStore"新 execute 清 redo"设计语义的自然结果（类比 git empty commit），UX 细节记录不改。13 条 console.log 在用户操作路径非渲染热路径，保留 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
