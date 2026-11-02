@@ -159,7 +159,12 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       try {
         const stored = localStorage.getItem('recentFiles');
         if (stored) {
-          setRecentFiles(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          // round 117：类型验证——手编辑损坏成非数组（如合法 JSON 字符串）时，
+          // 后续 filter 会抛 TypeError。非数组一律回落空列表。
+          if (Array.isArray(parsed)) {
+            setRecentFiles(parsed);
+          }
         }
       } catch (error) {
         console.error('Failed to load recent files:', error);
