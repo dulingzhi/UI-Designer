@@ -176,7 +176,8 @@
 | 夹具与接线核查域（168-173） | 补强+核查 | 夹具填非空；模板链完整；QUICKSTART 控件全真实 |
 | 组件定性域（174-190） | 通过+**修 3**+**清除 3** | 纯展示收口；UpdateChecker+NaN 收尾；WC3Browser/LazyPreview 修 key={idx}→path key；索引 key 13 处+IO 横扫；**孤儿清除 3**（LazyImage/HistoryPanel/TemplatePanel，-386 行，wiring 认证死代码）；基线→2126 |
 | 技术债普查（195） | 通过 | TODO 全仓仅 1 处（textureAtlas P1 已记录）；console 235/41——热路径 spot check 无每帧残留 |
-| 渲染器域与竞态守卫（176-181） | **修 3**+test | hitTest 排序键→point.z+5 测（认证第 6 例）；fontResolver 缓存键加 fontPath；layerStyle 7 测；ProjectContext 异步 dirname 竞态→cancelled cleanup（代际族第 3 例） |
+| 仓库状态核查（196） | 通过 | 本地 main/scripts 干净；远端 feature 分支 +10 提交（TS ModelRenderer，用户决策） |
+| 渲染器域与竞态守卫（176-181） | **修 3**+test | hitTest 排序键→point.z+5 测；fontResolver 缓存键加 fontPath；layerStyle 7 测；ProjectContext 竞态→cancelled |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
