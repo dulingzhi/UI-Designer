@@ -146,6 +146,7 @@
 | textureLoader.ts | **修 1 缺陷** | evictLRU 公式 `acc*1000+age` 淘汰 score 最小=刚加载项——**与 LRU 相反**；已改 `acc*maxCacheAge-age` + fake-timer 方向性 2 测。**测试认证 bug 第 4 例**（旧测试注释把 timestamp 当 age、不断言淘汰对象） |
 | war3ProcessManager | **修 1 耦合** | isCurrentProcessRunning 只查内存，漏 localStorage 恢复——隐式依赖调用方先调 getCurrentPid；已统一 |
 | mpqManager.ts | **修 1 竞态** | setWar3Path 无并发防护（WC3TextureBrowser:55 fire-and-forget + 用户改路径并发）→ **两路径档案混合加载**；已加代际守卫（loadGeneration 过期中止剩余档案），58 测 |
+| blpDecoder.ts | 通过+1 改进项 | JPEG 静默占位是设计决策（Rust 后端优先、灰图不断链）；URL 三路 revoke 完整；mip 越界已有抛错守卫。低危项：空/短缓冲的 RangeError 信息不友好（Rust 前置遮蔽） |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
