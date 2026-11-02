@@ -31,6 +31,77 @@ function framePointToString(point: FramePoint): string {
 }
 
 /**
+ * 顶层帧的父级根，由 `project.originMode` 决定。
+ *
+ * 依据（openwar3 `compat/lua/japi/dzapi/frame.ts`）：
+ * - `DzGetGameUI` → `GetOriginFrame(0, 0)`（ORIGIN_FRAME_GAME_UI）
+ * - `DzGetSimpleUIParent` → `GetOriginFrame(18, 0)`（SIMPLE_UI 父级，世界 UI 的常见挂载点）
+ * - consoleui 在环境中没有独立的 origin 类型常量；`HideOriginFrames` 的作用对象即控制台本身，
+ *   故 consoleui 仍以 GAME_UI 为根（它的差异体现在隐藏策略上，见 buildHideStatements）。
+ *
+ * 注意：本仓库此前从未使用 `originMode`（全仓库零引用），本实现把它接入为**父级根选择**；
+ * `worldframe` 用 SIMPLE_UI 父级，其余用 GAME_UI。
+ */
+function originFrameExpr(project: ProjectData, version: ExportVersion): string {
+  const getOrigin = getAPIFunction(version, 'GetOriginFrame');
+  const mode = project.originMode ?? 'gameui';
+  const type = mode === 'worldframe' ? 'ORIGIN_FRAME_SIMPLE_UI' : 'ORIGIN_FRAME_GAME_UI';
+  return `${getOrigin}(${type}, 0)`;
+}
+
+/**
+ * 隐藏原生 UI 组件。
+ *
+ * 依据（openwar3 `compat/lua/japi/dzapi/frame.ts` + `compat/frames.ts`）：
+ * - 原生 UI 通过 `GetOriginFrame(ORIGIN_FRAME_<TYPE>, index)` 取得，再用 `FrameSetVisible(frame, false)` 隐藏。
+ * - 类型编号（来自 dzapi）：3=HERO_BUTTON、8=MINIMAP、10=SIMPLE_BUTTON(上按钮栏)、
+ *   13=CHAT_MSG、16=PORTRAIT。
+ * - `HideOriginFrames(true)` **只隐藏一部分**（命令卡/英雄栏/物品栏/小地图及其按钮/头像/系统按钮/工具提示），
+ *   **不含**控制台美术、资源栏与黑色 `ConsoleUIBackdrop`——后者只能按名字隐藏，
+ *   故 hideResources 走 `GetFrameByName("ResourceBar"/"ConsoleUIBackdrop")`。
+ * - 英雄栏有 7 个按钮（index 0..6），需逐个隐藏。
+ */
+const HIDDEN_ORIGIN_TYPES = [
+  { flag: 'hideMiniMap', type: 'ORIGIN_FRAME_MINIMAP', count: 1 },
+  { flag: 'hideHeroBar', type: 'ORIGIN_FRAME_HERO_BUTTON', count: 7 },
+  { flag: 'hideButtonBar', type: 'ORIGIN_FRAME_SIMPLE_BUTTON', count: 1 },
+  { flag: 'hidePortrait', type: 'ORIGIN_FRAME_PORTRAIT', count: 1 },
+  { flag: 'hideChat', type: 'ORIGIN_FRAME_CHAT_MSG', count: 1 },
+] as const;
+
+/** 生成"隐藏某个 origin frame"的语句块（语言无关的语义，由调用方包裹成 JASS/LUA）。 */
+function buildHideStatements(
+  project: ProjectData,
+  version: ExportVersion,
+  style: 'jass' | 'lua' | 'ts',
+): string[] {
+  const getOrigin = getAPIFunction(version, 'GetOriginFrame');
+  const getByName = getAPIFunction(version, 'GetFrameByName');
+  const setVisible = getAPIFunction(version, 'FrameSetVisible');
+  const statements: string[] = [];
+  const isJass = style === 'jass';
+  const wrap = (call: string) => (isJass ? `    call ${call}\n` : `    ${call}${style === 'ts' ? ';' : ''}\n`);
+  const prefix = style === 'ts' ? 'this.' : '';
+
+  for (const item of HIDDEN_ORIGIN_TYPES) {
+    if ((project as unknown as Record<string, unknown>)[item.flag] !== true) continue;
+    for (let i = 0; i < item.count; i += 1) {
+      statements.push(
+        wrap(`${setVisible}(${getOrigin}(${item.type}, ${i}), false)`),
+      );
+    }
+  }
+  if (project.hideResources === true) {
+    // 资源栏/控制台美术只能按名字取（HideOriginFrames 不覆盖）
+    for (const nm of ['ResourceBar', 'ConsoleUIBackdrop']) {
+      statements.push(wrap(`${setVisible}(${getByName}("${nm}", 0), false)`));
+    }
+  }
+  void prefix;
+  return statements;
+}
+
+/**
  * 建立 frame id → 唯一变量名映射，并返回**父先子后**的拓扑序帧列表。
  *
  * 修复两个缺陷：
@@ -85,7 +156,7 @@ function resolveParentExpr(
   version: ExportVersion,
   idToVar: Map<string, string>,
 ): string {
-  const origin = `${getAPIFunction(version, 'GetOriginFrame')}(ORIGIN_FRAME_GAME_UI, 0)`;
+  const origin = originFrameExpr(project, version);
   const pid = frame.parentId;
   if (!pid) return origin;
   const parentFrame = project.frames[pid];
@@ -280,6 +351,8 @@ export function generateJASSCode(project: ProjectData): string {
     code += `    call ${enableAutoPos}(false)\n`;
     code += `    call ${hideOriginFrames}(true)\n`;
   }
+  // 逐组件隐藏（hideMiniMap / hideHeroBar / hideButtonBar / hidePortrait / hideChat / hideResources）
+  for (const line of buildHideStatements(project, version, 'jass')) code += line;
 
   code += JASS_TEMPLATES.footer(libName);
 
@@ -317,10 +390,11 @@ export function generateLUACode(project: ProjectData): string {
     code += `    ${enableAutoPos}(false)\n`;
     code += `    ${hideOriginFrames}(true)\n`;
   }
-  
+  for (const line of buildHideStatements(project, version, 'lua')) code += line;
+
   code += 'end\n\n';
   code += 'CreateFrames()\n';
-  
+
   return code;
 }
 
@@ -345,7 +419,7 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
   const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
   const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
   const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
-  const frameSetStepSize = getAPIFunction(version, 'FrameSetStepSize');
+  const frameSetStepValue = getAPIFunction(version, 'FrameSetStepValue');
   
   let code = '';
   
@@ -386,7 +460,7 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
       code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
       code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       code += `    call ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    call ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    call ${frameSetStepValue}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.CHECKBOX:
@@ -430,7 +504,7 @@ function generateFrameJASS(frame: FrameData, project: ProjectData, version: Expo
       code += generateAnchorsJASS(varName, anchors, version, idToVar, project);
       code += `    call ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       code += `    call ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    call ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    call ${frameSetStepValue}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.LISTBOX:
@@ -503,7 +577,7 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
   const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
   const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
   const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
-  const frameSetStepSize = getAPIFunction(version, 'FrameSetStepSize');
+  const frameSetStepValue = getAPIFunction(version, 'FrameSetStepValue');
   
   let code = '';
   
@@ -544,7 +618,7 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
       code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       code += `    ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    ${frameSetStepValue}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.CHECKBOX:
@@ -588,7 +662,7 @@ function generateFrameLUA(frame: FrameData, project: ProjectData, version: Expor
       code += generateAnchorsLUA(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)})\n`;
       code += `    ${frameSetMinMaxValue}(${varName}, ${(frame.minValue || 0).toFixed(2)}, ${(frame.maxValue || 100).toFixed(2)})\n`;
-      code += `    ${frameSetStepSize}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
+      code += `    ${frameSetStepValue}(${varName}, ${(frame.stepSize || 1).toFixed(2)})\n`;
       break;
     
     case FrameType.LISTBOX:
@@ -677,7 +751,16 @@ export class ${libName} {
   for (const frame of ordered) {
     code += generateFrameTypeScript(frame, project, version, idToVar);
   }
-  
+
+  // 隐藏原生 UI（与 JASS/LUA 同语义）
+  if (project.hideGameUI) {
+    const enableAutoPos = getAPIFunction(version, 'EnableUIAutoPosition');
+    const hideOriginFrames = getAPIFunction(version, 'HideOriginFrames');
+    code += `    ${enableAutoPos}(false);\n`;
+    code += `    ${hideOriginFrames}(true);\n`;
+  }
+  for (const line of buildHideStatements(project, version, 'ts')) code += line;
+
   code += `  }\n`;
   code += `}\n\n`;
   code += `// 初始化\n`;
@@ -709,7 +792,7 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
   const frameSetEnable = getAPIFunction(version, 'FrameSetEnable');
   const frameSetFocus = getAPIFunction(version, 'FrameSetFocus');
   const frameSetMinMaxValue = getAPIFunction(version, 'FrameSetMinMaxValue');
-  const frameSetStepSize = getAPIFunction(version, 'FrameSetStepSize');
+  const frameSetStepValue = getAPIFunction(version, 'FrameSetStepValue');
   
   let code = `\n    // ${frame.name}\n`;
   
@@ -753,7 +836,7 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       code += `    ${frameSetMinMaxValue}(this.${varName}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
-      code += `    ${frameSetStepSize}(this.${varName}, ${frame.stepSize || 1});\n`;
+      code += `    ${frameSetStepValue}(this.${varName}, ${frame.stepSize || 1});\n`;
       break;
     
     case FrameType.CHECKBOX:
@@ -797,7 +880,7 @@ function generateFrameTypeScript(frame: FrameData, project: ProjectData, version
       code += generateAnchorsTypeScript(varName, anchors, version, idToVar, project);
       code += `    ${frameSetSize}(this.${varName}, ${frame.width.toFixed(5)}, ${frame.height.toFixed(5)});\n`;
       code += `    ${frameSetMinMaxValue}(this.${varName}, ${frame.minValue || 0}, ${frame.maxValue || 100});\n`;
-      code += `    ${frameSetStepSize}(this.${varName}, ${frame.stepSize || 1});\n`;
+      code += `    ${frameSetStepValue}(this.${varName}, ${frame.stepSize || 1});\n`;
       break;
     
     case FrameType.LISTBOX:

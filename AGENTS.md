@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `98 passed | 2 skipped` 测试文件，`1809 passed | 5 skipped` 测试
+- `99 passed | 2 skipped` 测试文件，`1825 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -139,6 +139,36 @@
 
 **注意（行为变更）**：修正了 `codeExport.test.ts` 两处过时断言——LUA 默认纹理现为转义后的
 `UI\\Widgets\\...`；TS 相对锚点现为 `this.parent`（原为裸 `parent`，IDE 会报未定义）。
+
+### 代码导出「功能完整性」补齐（本轮）
+
+上一轮修的是"产物不合法"；本轮修的是"**功能没导出**"。审计发现 `ProjectData` 有 **8 个字段
+在导出中零引用**（用户在编辑器勾选后导出即静默丢失）：`hideHeroBar / hideMiniMap / hideResources /
+hideButtonBar / hidePortrait / hideChat / originMode / appInterface`（只有 `hideGameUI` 被用到）。
+
+**已修 1 处 API 错名（会导致编译失败）**：
+- `FrameSetStepSize` → **`FrameSetStepValue`**。依据 openwar3 `compat/lua/japi/dzapi/frame.ts`
+  与 Blz 原生 API，只有 `FrameSetStepValue`；本仓库的错名会让每个 SLIDER/SCROLLBAR 的步长调用
+  编译失败。三语言（JASS/LUA/TS）同步。
+
+**已接入 6 个隐藏开关 + originMode（`buildHideStatements` / `originFrameExpr`）**：
+- 依据 openwar3 `compat/lua/japi/dzapi/frame.ts` 的 origin frame 类型编号：
+  `3=HERO_BUTTON`、`8=MINIMAP`、`10=SIMPLE_BUTTON`（上按钮栏）、`13=CHAT_MSG`、`16=PORTRAIT`。
+  隐藏方式为 `GetOriginFrame(TYPE, i)` + `FrameSetVisible(..., false)`；英雄栏有 7 个按钮（index 0..6）。
+- **`hideResources` 必须按名字隐藏**：openwar3 `compat/frames.ts` 明确注释 `HideOriginFrames(true)`
+  **不含**控制台美术、资源栏与黑色 `ConsoleUIBackdrop`（这些只能 `BlzGetFrameByName` 取），
+  故走 `GetFrameByName("ResourceBar"/"ConsoleUIBackdrop", 0)`。
+- `originMode`：本轮**首次接入**（此前全仓库零引用）。`worldframe` → `ORIGIN_FRAME_SIMPLE_UI`
+  （对应 `DzGetSimpleUIParent` 的 `GetOriginFrame(18,0)`），其余 → `ORIGIN_FRAME_GAME_UI`。
+  **如实说明**：openwar3 的 dzapi **没有为 consoleui 提供独立的 origin 类型常量**，
+  故 `consoleui` 仍以 GAME_UI 为根，其差异只体现在隐藏策略上——这一点已写进测试注释。
+- `appInterface`：仍**未接入**（导出语义不明，未见权威依据，不臆造）。
+
+**测试**：`src/utils/codegen/exportFeatures.test.ts`（16 测，先写成 12 个失败用例再修复转绿），
+覆盖 API 正确名、6 个隐藏开关在 JASS/LUA/TS 三语言、originMode 三种模式。
+
+**端到端验证**：真实 war3.mpq 两个屏幕 × 三语言（含 104 帧 CampaignMenu）全部通过——
+引号/括号成对、无 StepSize 错名、7 个隐藏项全部落地。
 
 ### 渲染器单测缺口补齐（本轮）
 
