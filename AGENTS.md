@@ -149,6 +149,7 @@
 | blpDecoder.ts | 通过+1 改进项 | JPEG 静默占位是设计决策（Rust 后端优先、灰图不断链）；URL 三路 revoke 完整；mip 越界已有抛错守卫。低危项：空/短缓冲的 RangeError 信息不友好（Rust 前置遮蔽） |
 | war3SkinsParser+textureLoader | **修 2 缺陷** | openwar3 仲裁：1.27 war3skins.txt 值大量带成对引号（`Key="UI\..."`），两 parser 均无 unquote → **路径含引号字符全部失效**。已加 unquote（两处）；textureLoader 扁平映射改段落感知（[Default] 全表优先，种族段 override 不冒充全局；且旧实现"后缀过滤在 unquote 前"会全部误过滤带引号值——测试红抓出）。textureLoader.parseWar3Skins 与 war3SkinsParser.parseWar3Skins 是双实现（扁平 vs 结构化，语义不同故并存） |
 | Rust lib.rs（20 命令） | 通过 | extract_template_map 白名单+include_bytes!（无路径注入）；parse_mdx ? 错误链显式；BLP 三命令 map_err 完整；get_username USERNAME→USER 环境变量回退。与此前 kkwe/MPQ/BLP 分项审计合并后 Rust 侧全面收口 |
+| codeExport 数值格式化 | 通过 | 全部数值插值有 toFixed(2/5) 保护（锚点/尺寸/MinMax/Step）——无 JASS/LUA 不支持的科学计数法（1e-7）风险；maxValue=0→100、stepSize=0→1 是无意义输入的防御兜底，与 SLIDER 导入侧 minValue=0 合法值不冲突（minValue||0 对 0 处理正确） |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
