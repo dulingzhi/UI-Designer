@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `113 passed | 2 skipped` 测试文件，`2002 passed | 5 skipped` 测试
+- `114 passed | 2 skipped` 测试文件，`2009 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -610,6 +610,18 @@ pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `Shade
   `vi.mock('../utils/war3ProcessManager')` + `vi.stubGlobal('localStorage', ...)`（projectStore 底部 subscribe
   在 setTimeout 里访问 localStorage/进程管理器）。
 - `beforeEach` 顺序须为「先 reset UI 状态，再 seed project」，否则 seed 的 project 会被 reset 覆盖（已踩坑修正）。
+
+### commandStore 审计（本轮）
+
+`src/store/commandStore.ts`（undo/redo 栈）逻辑核查：execute 先执行后入栈 ✓、
+undo 后新 execute 清空 redo（分支语义）✓、空栈 no-op ✓——语义正确。
+
+**已修 1 缺陷**：undoStack **无上限**——长期编辑无限增长（命令闭包持有旧 state，
+泄漏风险）。已加 `MAX_UNDO_HISTORY = 100`，最旧出栈（行业标准量级）。
+
+**测试**：`src/store/commandStore.test.ts`（7 测，先 1/7 红）——含分支语义、
+往返恢复、上限三条此前无覆盖的行为。commandStore 是纯 zustand store，
+不依赖 projectStore/hotReloadExporter，**无需** uiStore.test.ts 那套 mock 头部。
 
 ---
 

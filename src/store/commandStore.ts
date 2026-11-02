@@ -19,16 +19,23 @@ interface CommandState {
   clearHistory: () => void;
 }
 
+// undo 栈上限：防止长期编辑无限增长（命令闭包持有旧 state，泄漏风险）。
+// 最旧出栈——100 步覆盖常规编辑会话（行业标准量级）。
+const MAX_UNDO_HISTORY = 100;
+
 export const useCommandStore = create<CommandState>((set, get) => ({
   undoStack: [],
   redoStack: [],
 
   executeCommand: (command) => {
     command.execute();
-    set((state) => ({
-      undoStack: [...state.undoStack, command],
-      redoStack: [], // 清空重做栈
-    }));
+    set((state) => {
+      const next = [...state.undoStack, command];
+      return {
+        undoStack: next.length > MAX_UNDO_HISTORY ? next.slice(next.length - MAX_UNDO_HISTORY) : next,
+        redoStack: [], // 清空重做栈
+      };
+    });
   },
 
   undo: () => {
