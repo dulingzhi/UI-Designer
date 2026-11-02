@@ -89,11 +89,33 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
 
     const [back] = importFromFDFText(fdf);
-    // 导入侧 Text 进 fdfString 元数据（既有行为）；对齐必须回可编辑字段
+    // 对齐必须回可编辑字段
     expect(back.horAlign).toBe('right');
     expect(back.verAlign).toBe('center');
-    // 文本不被截断（引号转义在导入侧可还原完整内容）
-    const text = (back.fdfString?.content ?? '') + (back.text ?? '');
-    expect(text).toContain('hi');
+    // 文本写回可编辑字段且不被截断（引号转义在真实 lexer 往返下还原完整内容）
+    expect(back.text).toBe('He said "hi"');
+  });
+
+  it('纹理属性原样往返', async () => {
+    const src = mkFrame({
+      id: 'tx1', name: 'Tx', type: FrameType.BACKDROP,
+      backdropBackground: 'UI\\Bg.blp',
+      texture: 'UI\\Atlas.blp',
+      texCoord: [0.25, 0.5, 0.1, 0.9],
+      alphaMode: 'ALPHAKEY',
+    });
+
+    dialogMocks.save.mockResolvedValue('/out/rt.fdf');
+    fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+    await exportToFDF(proj([src]), false, () => {});
+    const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
+
+    const [back] = importFromFDFText(fdf);
+    expect(back.backdropBackground).toBe('UI\\Bg.blp');
+    // SetTexture 导出的是"有效背景"（backdropBackground 优先于 texture，与导出语义一致），
+    // 故往返后 texture 应等于有效背景值而非原 texture 字段值。
+    expect(back.texture).toBe('UI\\Bg.blp');
+    expect(back.texCoord).toEqual([0.25, 0.5, 0.1, 0.9]);
+    expect(back.alphaMode).toBe('ALPHAKEY');
   });
 });

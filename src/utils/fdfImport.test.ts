@@ -99,10 +99,11 @@ describe('importFromFDFEnhanced', () => {
     mocks.parseFDFToAST.mockReturnValue(ast);
     mocks.transform.mockReturnValue([makeFrame('f1', 'F'), makeFrame('f2', 'Ignore')]);
     const frames = await importFromFDFEnhanced();
-    // frame at index0 has no FrameDefinition ast node -> left as-is
-    expect(frames[0].fdfMetadata).toBeUndefined();
-    // frame at index1 enhanced
-    expect(frames[1].fdfMetadata!.rawProperties.SetText).toBe('x');
+    // 旧实现用 body[index] 对齐：TextureDefinition 占据 body[0]，导致 frames[0] 错位跳过、
+    // frames[1] 拿到 'F' 的属性——错位被当成了期望。真实语义：frames[i] 对应第 i 个
+    // FrameDefinition（非 Frame 节点不占位），故 frames[0] 增强自 'F'，frames[1] 无对应原样返回。
+    expect(frames[0].fdfMetadata!.rawProperties.SetText).toBe('x');
+    expect(frames[1].fdfMetadata).toBeUndefined();
   });
 
   it('rethrows on failure', async () => {

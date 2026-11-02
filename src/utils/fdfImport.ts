@@ -43,16 +43,19 @@ export async function importFromFDFEnhanced(): Promise<FrameData[]> {
     // 转换为 FrameData（基础转换）
     const transformer = new FDFTransformer();
     const frames = transformer.transform(ast);
-    
+
     // 增强 FrameData（添加 FDF 元数据）
+    // 注意：body 里可能混有 Include 等非 Frame 节点（exportUtils 头部会写 Include），
+    // 必须按 FrameDefinition 序号对齐——曾因 body[index] 错位导致 enhance 全被跳过。
+    const frameDefs = ast.body.filter((n: any) => n?.type === 'FrameDefinition');
     const enhancedFrames = frames.map((frame: FrameData, index: number) => {
-      const astNode = ast.body[index];
-      if (astNode?.type === 'FrameDefinition') {
+      const astNode = frameDefs[index];
+      if (astNode) {
         return enhanceFrameWithFDF(frame, astNode as FDFFrameDefinition);
       }
       return frame;
     });
-    
+
     console.log(`[FDF Import] 成功导入 ${enhancedFrames.length} 个控件`);
     return enhancedFrames;
   } catch (error) {
@@ -130,7 +133,9 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
 
   // 把 backdrop / 对齐**同时写回可编辑字段**（修复往返断裂：
   // 旧实现只进 fdfMetadata 元数据，属性面板读到空，再导出即丢失）。
-  const backdropFields: Partial<FrameData> = fdfBackdrop
+  // 注意：undefined 字段不得覆盖——transformer 可能已解析出值（如无值属性
+  // BackdropTileBackground → true），undefined 覆盖会把它抹掉。
+  const backdropSrc: Partial<FrameData> = fdfBackdrop
     ? {
       backdropBackground: fdfBackdrop.background,
       backdropEdgeFile: fdfBackdrop.edgeFile,
@@ -147,6 +152,9 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
       backdropBlendAll: fdfBackdrop.blendAll,
     }
     : {};
+  const backdropFields = Object.fromEntries(
+    Object.entries(backdropSrc).filter(([, v]) => v !== undefined),
+  ) as Partial<FrameData>;
 
   // 文本对齐（导出侧 FontJustificationH/V 的逆映射； JUSTIFY* 常量由 name 提供）
   const justifyH = findProperty(properties, 'FontJustificationH');
@@ -161,10 +169,25 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
     if (v) alignFields.verAlign = v;
   }
 
+  // 文本/纹理写回可编辑字段（修复与 backdrop 同款的往返断裂）。
+  // SetText 直接读属性而非 fdfString 元数据：空串在元数据里会被 falsy 过滤成 undefined，
+  // 而编辑器需要保留「导入了空文本」的语义。
+  const setText = findProperty(properties, 'SetText');
+  const textureFields: Partial<FrameData> = {};
+  if (setText !== null) {
+    textureFields.text = String(setText);
+  }
+  if (fdfTexture) {
+    if (fdfTexture.file) textureFields.texture = fdfTexture.file;
+    if (fdfTexture.texCoord) textureFields.texCoord = fdfTexture.texCoord;
+    if (fdfTexture.alphaMode) textureFields.alphaMode = fdfTexture.alphaMode;
+  }
+
   return {
     ...frame,
     ...backdropFields,
     ...alignFields,
+    ...textureFields,
     fdfMetadata,
     fdfTexture,
     fdfString,
@@ -373,15 +396,17 @@ export function importFromFDFText(fdfText: string): FrameData[] {
     const ast = parseFDFToAST(fdfText);
     const transformer = new FDFTransformer();
     const frames = transformer.transform(ast);
-    
+
+    // 按 FrameDefinition 序号对齐（body 里可能混有 Include 等节点，见上方说明）
+    const frameDefs = ast.body.filter((n: any) => n?.type === 'FrameDefinition');
     const enhancedFrames = frames.map((frame: FrameData, index: number) => {
-      const astNode = ast.body[index];
-      if (astNode?.type === 'FrameDefinition') {
+      const astNode = frameDefs[index];
+      if (astNode) {
         return enhanceFrameWithFDF(frame, astNode as FDFFrameDefinition);
       }
       return frame;
     });
-    
+
     return enhancedFrames;
   } catch (error) {
     console.error('[FDF Import] 从文本导入失败', error);

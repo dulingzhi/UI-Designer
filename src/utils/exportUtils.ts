@@ -213,6 +213,8 @@ function generateFrameFDF(
       if (frame.backdropBackground || frame.texture) {
         const bg = frame.backdropBackground || frame.texture;
         lines.push(`${indentStr}    BackdropBackground "${bg}",`);
+        // SetTexture 让 frame.texture 在导入往返中不丢失（与 codeExport 语义一致）
+        lines.push(`${indentStr}    SetTexture "${bg}",`);
       }
       // 九宫格边框：全部为 FDF 模板属性（dzapi 无任何运行时 backdrop API）
       if (frame.backdropEdgeFile) {

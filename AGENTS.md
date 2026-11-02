@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `108 passed | 2 skipped` 测试文件，`1937 passed | 5 skipped` 测试
+- `109 passed | 2 skipped` 测试文件，`1946 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -281,6 +281,30 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 **测试**：`fdfImportRoundtrip.test.ts`（27 测，先 15/16 红）+ `fullRoundtrip.test.ts`（2 测）。
 覆盖率中途跌至 99.47%，按未覆盖分支逐一补真实用例（布尔大小写变体、非法四元组、
 未知 JUSTIFY 常量）恢复 100，无 v8-ignore。
+
+### 导入写回扩展 + 索引错位修复（本轮，续）
+
+上轮修复后端到端探针继续深挖，又抓到 3 处：
+
+1. **文本/纹理同样只进元数据**：`SetText/SetTexture/SetTexCoord/SetAlphaMode` 只存
+   `fdfString`/`fdfTexture` 元数据，不写 `frame.text/texture/texCoord/alphaMode`。
+   已写回（`SetText` 直接读属性而非元数据——空串在元数据里会被 falsy 过滤成 undefined，
+   编辑器需要保留「导入了空文本」的语义）。`exportUtils` 的 BACKDROP 分支补写
+   `SetTexture`（有效背景，backdropBackground 优先），使 `texture` 字段可往返。
+2. **`undefined` 覆盖陷阱**：写回 `backdropFields` 时 `undefined` 字段会抹掉 transformer
+   已解析的值（如无值属性 `BackdropTileBackground` → transformer 解析为 `true`，
+   被我的 `undefined` 覆盖丢失）。已改为过滤 `undefined` 再展开。
+3. **`body[index]` 索引错位（本轮最重要的发现）**：产物头部有 `Include` 行，
+   AST `body[0]` 是 Include 节点，而 `importFromFDFEnhanced`/`importFromFDFText` 用
+   `frames[index] ↔ body[index]` 对齐——**Include 让全部增强（含元数据）被跳过**。
+   旧实现下所有真实导入其实都没走到 enhance！已改为按 `FrameDefinition` 序号对齐。
+   既有测试 "maps frame to ast body beyond first element" **把错位行为当成了期望**
+   （与 luaGenerator 的 texCoord 同款"测试认证 bug"），已更正。
+
+**测试**：`fdfImportText.test.ts`（8 测，先 5/8 红）；
+`fullRoundtrip.test.ts` 扩到 3 测（backdrop/文本/纹理全字段穿透）。
+注意：`SetTexture` 导出的是**有效背景**（backdropBackground 优先于 texture），
+往返后 `texture === 有效背景` 是预期语义，不是丢失。
 
 ### luaGenerator 导出链路补齐（本轮）
 
