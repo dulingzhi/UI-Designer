@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-- `142 passed | 2 skipped` 测试文件，`2138 passed | 5 skipped` 测试
+- `142 passed | 2 skipped` 测试文件，`2137 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -174,7 +174,7 @@
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
 | 生命周期清理域（165-166） | 修 1+排查通过 | hotReloadSync rAF 无卸载清理→cancelled；全 hooks+组件成对；Tauri listen ✓ |
 | 夹具与接线核查域（168-173） | 补强+核查 3 | 夹具数组填非空+5 断言；模板加载链完整；QUICKSTART 控件全真实；门禁复验 2126/444/100×4 |
-| 组件定性域（174-186） | 通过+**修 3**+横扫 2 | 纯展示组件收口；UpdateChecker+NaN 收尾；WC3Browser/LazyPreview 修 key={idx} 复用懒加载实例→path key；索引 key 13 处横扫（唯一有状态组合已修）；IO 横扫 2 处（LazyImage 零消费死代码保留，cleanup ✓）；基线→2138 对账 |
+| 组件定性域（174-188） | 通过+**修 3**+清除 1 | 纯展示组件收口；UpdateChecker+NaN 收尾；WC3Browser/LazyPreview 修 key={idx} 复用懒加载实例→path key；索引 key 13 处横扫；IO 横扫 2 处——**LazyImage 生产零引用死代码清除**（81 行+wiring 断言随删，与 snapUtils 同纪律）；基线→2137 对账 |
 | 渲染器域（176/178/180） | **修 2**+test | hitTest 排序键→point.z（认证第 6 例）；fontResolver 缓存键加 fontPath；layerStyle 7 测 |
 | ProjectContext 竞态守卫（181） | **修 1** | 异步 dirname 无取消→快速 saveAs 陈旧 resolve 覆盖新 projectDir（代际族第 3 例）；cancelled cleanup |
 
