@@ -9,8 +9,6 @@ import {
   pixelToWc3Y,
   pixelDeltaToWc3X,
   pixelDeltaToWc3Y,
-  clampWc3,
-  clampWc3Size,
 } from './coordinateService';
 import {
   CANVAS_WIDTH,
@@ -113,42 +111,5 @@ describe('coordinateService', () => {
       expect(pixelDeltaToWc3Y(CANVAS_HEIGHT)).toBeCloseTo(0.6);
     });
   });
-
-  describe('clampWc3', () => {
-    it('clamps negative x/y to 0', () => {
-      const result = clampWc3(-0.1, -0.2, 0.1, 0.1);
-      expect(result.x).toBe(0);
-      expect(result.y).toBe(0);
-    });
-
-    it('clamps x+w > 0.8', () => {
-      const result = clampWc3(0.75, 0.3, 0.1, 0.1);
-      expect(result.x).toBeCloseTo(0.7); // 0.8 - 0.1
-    });
-
-    it('clamps y+h > 0.6', () => {
-      const result = clampWc3(0.3, 0.55, 0.1, 0.1);
-      expect(result.y).toBe(0.5); // 0.6 - 0.1
-    });
-
-    it('passes through valid values', () => {
-      const result = clampWc3(0.2, 0.2, 0.1, 0.1);
-      expect(result.x).toBe(0.2);
-      expect(result.y).toBe(0.2);
-    });
-  });
-
-  describe('clampWc3Size', () => {
-    it('enforces minimum size', () => {
-      const result = clampWc3Size(0.2, 0.2, 0, 0);
-      expect(result.w).toBe(0.01);
-      expect(result.h).toBe(0.01);
-    });
-
-    it('clamps width to available space', () => {
-      const result = clampWc3Size(0.7, 0.5, 0.5, 0.5);
-      expect(result.w).toBeCloseTo(0.1); // 0.8 - 0.7
-      expect(result.h).toBeCloseTo(0.1); // 0.6 - 0.5
-    });
-  });
 });
+

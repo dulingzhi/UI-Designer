@@ -54,19 +54,3 @@ export function pixelDeltaToWc3X(deltaPixel: number): number {
 export function pixelDeltaToWc3Y(deltaPixel: number): number {
   return (deltaPixel / CANVAS_HEIGHT) * WC3_MAX_Y;
 }
-
-/** 将 WC3 坐标限制在画布范围内 */
-export function clampWc3(x: number, y: number, w: number, h: number): { x: number; y: number } {
-  return {
-    x: Math.max(0, Math.min(WC3_MAX_X - w, x)),
-    y: Math.max(0, Math.min(WC3_MAX_Y - h, y)),
-  };
-}
-
-/** 将 WC3 尺寸限制在画布范围内 */
-export function clampWc3Size(x: number, y: number, w: number, h: number): { w: number; h: number } {
-  return {
-    w: Math.max(0.01, Math.min(WC3_MAX_X - x, w)),
-    h: Math.max(0.01, Math.min(WC3_MAX_Y - y, h)),
-  };
-}
