@@ -2,7 +2,7 @@ use tauri::{AppHandle, State, Manager, Emitter};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -12,7 +12,9 @@ pub struct HotReloadMessage {
 
 pub struct TcpServerState {
     pub tx: broadcast::Sender<String>,
-    pub is_running: Mutex<bool>,
+    /// Arc 包装：bind 失败路径需在 spawn 的异步任务内复位，
+    /// State<'_> 借用无法 move 进 'static 闭包，故用 Arc 共享所有权。
+    pub is_running: Arc<Mutex<bool>>,
 }
 
 impl TcpServerState {
@@ -20,7 +22,7 @@ impl TcpServerState {
         let (tx, _) = broadcast::channel(100);
         Self {
             tx,
-            is_running: Mutex::new(false),
+            is_running: Arc::new(Mutex::new(false)),
         }
     }
 }
@@ -34,10 +36,11 @@ pub async fn start_hot_reload_server(
     if *is_running {
         return Ok(19999); // Hardcoded standard port for MVP
     }
-    
+
     *is_running = true;
     let tx = state.tx.clone();
-    
+    let running_flag = state.is_running.clone();
+
     tauri::async_runtime::spawn(async move {
         // TCP 绑定本地环回，防止公网访问，且端口定为 19999
         let listener = match TcpListener::bind("127.0.0.1:19999").await {
@@ -47,6 +50,9 @@ pub async fn start_hot_reload_server(
             }
             Err(e) => {
                 eprintln!("Failed to start TCP server: {}", e);
+                // 复位运行标志：否则端口占用后 is_running 永久卡 true，
+                // 后续 start 调用返回假成功 Ok(19999)，热重载静默失效。
+                *running_flag.lock().unwrap() = false;
                 let _ = app.emit("hot-reload-status", "error");
                 return;
             }
@@ -113,6 +119,8 @@ pub fn send_hot_reload_update(
     // 收到来自于前段的最新帧数据
     match state.tx.send(data) {
         Ok(_) => Ok(()),
-        Err(_) => Err("没有活跃的客户端连接".into()), // 此时暂不报错，静默失败就好
+        // 无订阅者（客户端未连接）时返回 Err——前端 useHotReloadSync 对此静默 catch
+        //（"可能断开了"），属预期路径而非异常。
+        Err(_) => Err("没有活跃的客户端连接".into()),
     }
 }
