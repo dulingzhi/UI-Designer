@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `119 passed | 2 skipped` 测试文件，`2053 passed | 5 skipped` 测试
+- `120 passed | 2 skipped` 测试文件，`2061 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -151,6 +151,16 @@ handleBatchChange 单出口；另锁数字输入滚轮 `stopPropagation`。
 
 **测试**：`src/components/arrayDialogsWiring.test.ts`（6 测，6/6 一次通过）。
 组件层接线守卫现共 **35 测**。
+
+### ProjectTree 接线守卫（本轮，续）
+
+帧树管理入口（32KB：删除/重命名/改父/复制/数组创建）守卫锁定：
+破坏性操作全部走命令层（RemoveFrame/ChangeParent/Duplicate/CreateTableArray/
+CreateCircleArray，均可 undo）+ 删除确认框（含子帧计数提示）+ 锁定帧不可删 +
+重命名空名不生效（trim 校验）+ 命令分发经 executeCommand 单出口。
+
+**测试**：`src/components/projectTreeWiring.test.ts`（8 测，8/8 一次通过）。
+组件层接线守卫现共 **43 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
