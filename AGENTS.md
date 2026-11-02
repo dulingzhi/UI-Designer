@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `105 passed | 2 skipped` 测试文件，`1897 passed | 5 skipped` 测试
+- `106 passed | 2 skipped` 测试文件，`1910 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -239,6 +239,21 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 
 **测试**：`exportText.test.ts`（12 测，先 9/10 红再修复转绿）。
 引号相关用例**从"不抛错"改为断言"回读后文本不被截断"**——前者会假绿（parser 本就容错）。
+
+### 属性面板接线补齐（本轮，UI→FrameData 环节）
+
+导出链路修完后做系统性比对：`FrameData` 的 backdrop 字段清单 vs 属性面板可编辑字段，
+发现 **`backdropCornerFile` / `backdropTopFile` / `backdropBottomFile` / `backdropLeftFile` /
+`backdropRightFile` 五个字段在编辑器里没有任何输入控件**——`FrameData→导出`修好了，
+但 `UI→FrameData` 缺失，用户根本设不了值，导出修好也用不上。
+
+已在 `TypeSpecificProperties.tsx` 的"边框纹理"之后补 5 个 `FilePath` 输入框
+（沿用同 pattern：`value={selectedFrame.X || ''}` + `onChange={handleChange('X', v||undefined)}`）。
+
+**测试**：`src/components/properties/propertiesWiring.test.ts`（13 测）——
+**接线守卫（wiring guard）**：因未装 jsdom 无法渲染组件，改用静态断言锁
+"全部 13 个可导出 backdrop 字段在面板里都有 value 读取 + onChange 回写"。
+这不是行为测试的替代品，而是该约束下的诚实守卫；若将来引入 jsdom，应改为渲染级交互测试。
 
 ### luaGenerator 导出链路补齐（本轮）
 

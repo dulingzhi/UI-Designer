@@ -141,6 +141,56 @@ export const TypeSpecificProperties: React.FC<TypeSpecificPropertiesProps> = ({
             ]}
           />
 
+          <FilePath
+            label="角点纹理"
+            value={selectedFrame.backdropCornerFile || ''}
+            onChange={(value) => handleChange('backdropCornerFile', value || undefined)}
+            placeholder="角点纹理路径（九宫格四角）"
+            suggestions={[
+              'UI/Widgets/Glues/',
+            ]}
+          />
+
+          <FilePath
+            label="上边纹理"
+            value={selectedFrame.backdropTopFile || ''}
+            onChange={(value) => handleChange('backdropTopFile', value || undefined)}
+            placeholder="上边纹理路径"
+            suggestions={[
+              'UI/Widgets/Glues/',
+            ]}
+          />
+
+          <FilePath
+            label="下边纹理"
+            value={selectedFrame.backdropBottomFile || ''}
+            onChange={(value) => handleChange('backdropBottomFile', value || undefined)}
+            placeholder="下边纹理路径"
+            suggestions={[
+              'UI/Widgets/Glues/',
+            ]}
+          />
+
+          <FilePath
+            label="左边纹理"
+            value={selectedFrame.backdropLeftFile || ''}
+            onChange={(value) => handleChange('backdropLeftFile', value || undefined)}
+            placeholder="左边纹理路径"
+            suggestions={[
+              'UI/Widgets/Glues/',
+            ]}
+          />
+
+          <FilePath
+            label="右边纹理"
+            value={selectedFrame.backdropRightFile || ''}
+            onChange={(value) => handleChange('backdropRightFile', value || undefined)}
+            placeholder="右边纹理路径"
+            suggestions={[
+              'UI/Widgets/Glues/',
+            ]}
+          />
+
           <Slider
             label="边角尺寸"
             value={selectedFrame.backdropCornerSize ?? 0.008}
