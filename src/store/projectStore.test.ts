@@ -23,6 +23,23 @@ vi.stubGlobal('localStorage', {
   key: vi.fn(() => null),
 });
 
+// Mock war3SkinsParser（setRace/loadWar3Skins 动态 import 它）
+vi.mock('../utils/war3SkinsParser', () => {
+  const data = {
+    skins: ['Human', 'Orc', 'NightElf', 'Undead', 'Default'],
+    Human: { BTN_Hero: 'Human\\BTN_HumanHero.dds' },
+    Orc: { BTN_Hero: 'Orc\\BTN_OrcHero.dds' },
+    NightElf: {}, Undead: {}, Default: { BTN_Hero: 'Default\\BTN_Hero.dds' },
+  };
+  return {
+    parseWar3Skins: vi.fn(() => data),
+    getTextureForRace: vi.fn((_: unknown, race: string, key: string) => (data as any)[race]?.[key]),
+    findTextureKey: vi.fn((_: unknown, path: string) =>
+      Object.entries((data as any).Default).find(([, v]) => v === path)?.[0] ??
+      Object.entries((data as any).Human).find(([, v]) => v === path)?.[0]),
+  };
+});
+
 import { useProjectStore } from './projectStore';
 import { useUIStore } from './uiStore';
 import type { FrameData, FrameType } from '../types';
@@ -239,5 +256,36 @@ describe('projectStore 数组编辑器', () => {
     expect((useProjectStore.getState().project!.frameGroups![0] as any).name).toBe('G2');
     s.removeGroup(gid);
     expect(useProjectStore.getState().project!.frameGroups).toHaveLength(0);
+  });
+
+  it('loadWar3Skins 解析并存储 skins', async () => {
+    await useProjectStore.getState().loadWar3Skins('[Human]\nBTN_Hero=Human\\BTN_HumanHero.dds');
+    const skins = useProjectStore.getState().project!.war3Skins as unknown;
+    expect(skins).toBeDefined();
+    expect((skins as any).Human.BTN_Hero).toContain('Human');
+  });
+
+  it('setRace 切换种族相关纹理并更新 currentRace', async () => {
+    const s = useProjectStore.getState();
+    await s.loadWar3Skins('x'); // 先加载 skins
+    s.addFrame(makeFrame('r1', { texture: 'Human\\BTN_HumanHero.dds' }));
+    s.addFrame(makeFrame('r2', { texture: 'unrelated.png' }));
+    await s.setRace('Orc');
+    const p = useProjectStore.getState().project!;
+    // r1: Human 路径反查键名 BTN_Hero → Orc 纹理
+    expect(p.frames['r1'].texture).toBe('Orc\\BTN_OrcHero.dds');
+    // r2: 无关纹理不动
+    expect(p.frames['r2'].texture).toBe('unrelated.png');
+    expect(p.currentRace).toBe('Orc');
+  });
+
+  it('setRace 在未加载 skins 时是 no-op', async () => {
+    s_before: {
+      const st = useProjectStore.getState();
+      st.addFrame(makeFrame('z1', { texture: 'Human\\BTN_HumanHero.dds' }));
+      await st.setRace('Orc'); // 无 war3Skins → 直接返回
+    }
+    expect(useProjectStore.getState().project!.frames['z1'].texture).toBe('Human\\BTN_HumanHero.dds');
+    expect(useProjectStore.getState().project!.currentRace).toBeUndefined();
   });
 });

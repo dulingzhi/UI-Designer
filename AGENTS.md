@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `115 passed | 2 skipped` 测试文件，`2028 passed | 5 skipped` 测试
+- `115 passed | 2 skipped` 测试文件，`2031 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -633,8 +633,10 @@ deleteFrame（`.filter`）——**导入 FDF 后任何涉及父子关系的编�
 **数组编辑器补测（续本轮）**：tableArray/circleArray/guide/stylePreset 的
 增改删与清空（6 测，行为全部正常——数组编辑器无 children 同款缺陷）；
 applyStylePreset 样式合并（含"非目标帧不受影响"与"未知 presetId no-op"2 测）；
-saveFrameAsPreset 样式捕获（含未知帧 no-op）；group 增改删与成员去重。
-`projectStore.test.ts` 现共 **19 测**。store 层编辑行为全覆盖。
+saveFrameAsPreset 样式捕获（含未知帧 no-op）；group 增改删与成员去重；
+setRace/loadWar3Skins（种族纹理切换：loadWar3Skins 存储、setRace 按键名/路径反查
+换纹理且无关纹理不动、未加载 skins 时 no-op——mock `war3SkinsParser` 控制动态 import）。
+`projectStore.test.ts` 现共 **22 测**。store 层全部 action 有行为测试。
 
 ### commandStore 审计（本轮）
 
