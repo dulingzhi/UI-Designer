@@ -645,7 +645,17 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '清除参考线',
         shortcut: 'Ctrl+;',
-        action: clearGuides,
+        action: () => {
+        // round 141：清参考线入 undo（Ctrl+; 误按不可恢复的防护；MenuBar 与快捷键同款）
+        const proj = useProjectStore.getState();
+        const snapshot = { ...proj.project };
+        clearGuides();
+        useCommandStore.getState().pushCommand({
+          execute: () => useProjectStore.getState().clearGuides(),
+          undo: () => useProjectStore.getState().setProject(snapshot),
+          redo: () => useProjectStore.getState().clearGuides(),
+        });
+      },
         disabled: !project.guides || project.guides.length === 0
       },
       { separator: true },

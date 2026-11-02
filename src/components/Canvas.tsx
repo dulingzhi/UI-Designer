@@ -255,11 +255,13 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
     if (orientation === 'horizontal' && position > CANVAS_HEIGHT) return;
     
     const guideId = `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    addGuide({
-      id: guideId,
-      orientation,
-      position,
-      color: '#00aaff',
+    const guide = { id: guideId, orientation, position, color: '#00aaff' };
+    addGuide(guide);
+    // round 141：参考线添加入 undo 栈（原直调 store 不可撤销）
+    useCommandStore.getState().pushCommand({
+      execute: () => useProjectStore.getState().addGuide(guide),
+      undo: () => useProjectStore.getState().removeGuide(guideId),
+      redo: () => useProjectStore.getState().addGuide(guide),
     });
   };
 

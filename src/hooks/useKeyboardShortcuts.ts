@@ -117,7 +117,17 @@ export const useKeyboardShortcuts = (
             break;
           case ';':
             e.preventDefault();
-            clearGuides();
+            // round 141：Ctrl+; 清参考线入 undo（一键全清不可恢复的防护）
+            {
+              const proj = useProjectStore.getState();
+              const snapshot = { ...proj.project };
+              clearGuides();
+              useCommandStore.getState().pushCommand({
+                execute: () => useProjectStore.getState().clearGuides(),
+                undo: () => useProjectStore.getState().setProject(snapshot),
+                redo: () => useProjectStore.getState().clearGuides(),
+              });
+            }
             break;
           case ',':
             e.preventDefault();
