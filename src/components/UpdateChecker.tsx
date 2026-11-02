@@ -77,7 +77,8 @@ export function UpdateChecker({ onUpdateAvailable, checkOnMount = false }: Updat
             console.log('开始下载更新...');
             break;
           case 'Progress':
-            const progress = Math.round((event.data.downloaded / event.data.contentLength) * 100);
+                        // round 182：contentLength 0/undefined 时进度 NaN%——NaN 防御矩阵收尾（r133-137 漏此 1 处）
+const progress = (event.data.contentLength > 0 ? Math.round((event.data.downloaded / event.data.contentLength) * 100) : 0);
             setDownloadProgress(progress);
             console.log(`下载进度: ${progress}%`);
             break;
