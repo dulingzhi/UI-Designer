@@ -5,7 +5,7 @@
 ### 1. 安装依赖
 
 ```bash
-npm install
+pnpm install
 ```
 
 这将安装以下关键依赖：
@@ -19,10 +19,10 @@ npm install
 
 ```bash
 # 终端 1: 启动 Vite 开发服务器
-npm run dev
+pnpm dev
 
 # 终端 2: 启动 Tauri 应用
-npm run tauri dev
+pnpm tauri dev
 ```
 
 ### 3. 开始使用
@@ -55,11 +55,11 @@ npm run tauri dev
 
 3. **移动 Frame**：
    - 在属性面板中修改 X、Y 坐标
-   - （拖拽功能待实现）
+   - （或直接在画布上拖拽移动；多选时全体同步移动）
 
 4. **调整大小**：
    - 在属性面板中修改宽度、高度
-   - （调整手柄功能待实现）
+   - （或拖拽画布中 Frame 的缩放手柄）
 
 ### 画布操作
 
@@ -78,7 +78,7 @@ npm run tauri dev
 
 - **撤销**：点击工具栏的 "↶ 撤销" 按钮
 - **重做**：点击工具栏的 "↷ 重做" 按钮
-- 快捷键（待实现）：Ctrl+Z / Ctrl+Y
+- 快捷键：Ctrl+Z（撤销）/ Ctrl+Y 或 Ctrl+Shift+Z（重做）
 
 ### 组织结构
 
@@ -161,7 +161,7 @@ npm run tauri dev
 - `Delete`：删除选中的 Frame
 - `方向键`：微调 Frame 位置
 
-## 📝 保存和导出（待实现）
+## 📝 保存和导出
 
 ### 保存项目
 1. 点击工具栏的 "💾 保存" 按钮
