@@ -927,8 +927,26 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
                   panY={offset.y}
                   canvasWidth={CANVAS_WIDTH}
                   canvasHeight={CANVAS_HEIGHT}
-                  onUpdate={updateGuide}
-                  onRemove={removeGuide}
+                  onUpdate={(id, updates) => {
+                  // round 143：拖动参考线入 undo（r141 漏的消费点）
+                  const oldPos = useProjectStore.getState().project?.guides?.find(g => g.id === id)?.position;
+                  updateGuide(id, updates);
+                  useCommandStore.getState().pushCommand({
+                    execute: () => useProjectStore.getState().updateGuide(id, updates),
+                    undo: () => useProjectStore.getState().updateGuide(id, { position: oldPos }),
+                    redo: () => useProjectStore.getState().updateGuide(id, updates),
+                  });
+                }}
+                onRemove={(id) => {
+                  // round 143：删除单条参考线入 undo
+                  const removed = useProjectStore.getState().project?.guides?.find(g => g.id === id);
+                  removeGuide(id);
+                  useCommandStore.getState().pushCommand({
+                    execute: () => useProjectStore.getState().removeGuide(id),
+                    undo: () => removed && useProjectStore.getState().addGuide(removed),
+                    redo: () => useProjectStore.getState().removeGuide(id),
+                  });
+                }}
                 />
               ))}
             </div>
