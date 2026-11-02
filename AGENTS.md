@@ -176,19 +176,20 @@
 | 夹具与接线核查域（168-173） | 补强+核查 | 夹具填非空；QUICKSTART 真实 |
 | 组件定性域（174-190） | 通过+**修 3**+**清除 3** | 纯展示收口；key→path 修；**孤儿清除 3** |
 | 技术债普查（195） | 通过 | TODO 仅 1 处；热路径无残留 |
-| CSS 孤儿补齐（208） | **清除+310 行** | 配对扫描抓出；**教训：删组件四件套** |
+| CSS 孤儿补齐（208） | **清除+310 行** | 配对扫描；四件套教训 |
 | CI 配置核查（210） | 通过+1 决策 | pnpm vs bun 双轨（用户决策） |
-| tests 顶层历史面核查（211） | 通过 | dev 脚本定性保留；dataSource.test 活跃 |
-| 旧测试清除（212） | **清除+701 行** | 3 个被取代旧测试删除，exclude 同步 |
-| 产物 fdf 孤儿清除（214） | **清除+632 行** | 3 个零引用孤儿删除，7 个配套保留 |
-| 静态资源孤儿清除（216） | **清除 svg 2** | tauri.svg/react.svg 零引用删除 |
-| 依赖零引用核查（218） | **清除依赖 4** | clsx/immer/react-window/@types/react-window 删除；lockfile 无锁定（用户决策） |
-| Rust 依赖零引用核查（220） | **清除依赖 1** | nom 零 use 删除，cargo 19/19 双验证 |
-| capabilities 权限面核查（222） | 通过+**1 高危发现** | 22 权限/20 命令核对；**fs:scope 全系 ** 全盘读写**——加固 vs 任意路径 MPQ 取舍，**用户决策 12** |
-| .gitignore 完整性核查（223） | 通过 | 43 条目；check-ignore 实测 6 路径全 ignore；lockfile 系有意（用户决策） |
+| tests 顶层核查（211） | 通过 | dev 脚本保留 |
+| 旧测试清除（212） | **-701 行** | 3 个被取代测试删除 |
+| 产物清除（214） | **-632 行** | 3 孤儿删除，7 配套保留 |
+| 静态资源清除（216） | **svg 2** | 零引用图标删除 |
+| TS 依赖清除（218） | **依赖 4** | clsx/immer/react-window 等 |
+| Rust 依赖清除（220） | **依赖 1** | nom 删除，19/19 双验证 |
+| capabilities 核查（222） | 通过+**高危** | fs:scope ** 全盘读写——用户决策 12 |
+| .gitignore 核查（223） | 通过 | 6 路径 ignore ✓ |
+| ShortcutHelp 第三轮对账（224） | 通过 | 32 项宣称零漂移；3 探针 MISS 系正则误报——对账三验通过 |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
-| skipped 明细核查（205） | 通过 | 5 skipped 有据 |
+| skipped（205） | 通过 | 5 skipped 有据 |
 | 渲染器域与竞态守卫（176-181） | **修 3**+test | hitTest→point.z；fontResolver 缓存键；layerStyle 7 测；ProjectContext→cancelled |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
