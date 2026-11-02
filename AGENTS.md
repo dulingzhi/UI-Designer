@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `138 passed | 2 skipped` 测试文件，`2109 passed | 5 skipped` 测试
+- `139 passed | 2 skipped` 测试文件，`2111 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -184,6 +184,7 @@
 | Rust 补测与命令族核查（rounds 102/103/110/111 归并） | 通过 | tcp_server 4 测（State 契约/broadcast Err 语义/wire 序列化）+ resolve_username 抽纯函数 4 测（**空 USERNAME 视同缺失**——原 Ok("") 拼坏路径，行为改进）→ Rust 19/19；DuplicateFrame（redo 稳定快照）与 UpdateFrame（undo 按键精确采样/已删帧安全）核查通过；PasteFrame redo 重新生成 id 定性低危边界不修 |
 | updateFrame 悬空归一化修复（round 112） | **修 1 同族缺陷（第 8 处）** | parentId 变更路径无归一化：拖拽到已删父（悬空）不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧在 updateFrame 路径复发。修复：悬空归一化根帧（与 addFrame r108 统一），rootFrameIds 判定改用归一化值。+3 测（悬空/正常父/拖回根）。2109 测全绿 |
 | CreateFrame/重命名核查（round 114） | 通过 | CreateFrame 构造期快照（redo id 稳定）；MoveFrame redo 重新捕获经分析安全（undo 后新 execute 清空 redo 栈——重捕获值=正确旧值）；ProjectTree 重命名走 UpdateFrameCommand 可撤销。命令族 20 类全部核查完毕 |
+| saveProject 序列化保真测试（round 115） | 通过+守卫 | JSON.stringify 对 ProjectData 语义安全（undefined 丢弃与消费方 X||等价；无循环/Date/Map）。+2 往返保真测（全字段/嵌套 children/组/参考线/转义文本不被破坏）锁定结论。2111 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
