@@ -264,14 +264,17 @@ function generateFrameFDF(
           : frame.text;
         lines.push(`${indentStr}    Text "${escapeJassString(colored)}",`);
       }
-      // 对齐属性（旧实现只在 horAlign 存在时输出 FrameFont，既没输出对齐、又硬编码字体名）
+      // 对齐属性
       const jh = justifyHOf(frame.horAlign);
       if (jh) lines.push(`${indentStr}    FontJustificationH ${jh},`);
       const jv = justifyVOf(frame.verAlign);
       if (jv) lines.push(`${indentStr}    FontJustificationV ${jv},`);
-      if (frame.horAlign !== undefined || frame.verAlign !== undefined || frame.textScale) {
+      // FrameFont：有文本即输出（文本帧无字体声明时引擎不渲染文本）；
+      // 字体名用 frame.font（旧实现硬编码 MasterFont 忽略用户选择）
+      if (frame.text) {
         const fontSize = frame.textScale || 0.012;
-        lines.push(`${indentStr}    FrameFont "MasterFont", ${fontSize}, "",`);
+        const fontName = frame.font || 'MasterFont';
+        lines.push(`${indentStr}    FrameFont "${fontName}", ${fontSize}, "",`);
       }
       break;
     }

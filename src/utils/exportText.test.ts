@@ -140,6 +140,21 @@ describe('纹理属性必须导出', () => {
   });
 });
 
+describe('FrameFont 使用用户字体（不再硬编码 MasterFont）', () => {
+  it('font 字段被采用', async () => {
+    const t = mkFrame({ id: 'f1', name: 'Fnt', type: FrameType.TEXT_FRAME,
+      text: 'x', font: 'MyFont', textScale: 0.02 });
+    const c = await content([t]);
+    expect(c).toContain('FrameFont "MyFont", 0.02,');
+  });
+
+  it('无 font 时回落 MasterFont', async () => {
+    const t = mkFrame({ id: 'f2', name: 'Fnt2', type: FrameType.TEXT_FRAME, text: 'x' });
+    const c = await content([t]);
+    expect(c).toContain('FrameFont "MasterFont",');
+  });
+});
+
 describe('horAlign=left 与 justifyV 的其它分支', () => {
   it('horAlign=left 输出 JUSTIFYLEFT', async () => {
     const t = mkFrame({ id: 'l1', name: 'Left1', type: FrameType.TEXT_FRAME, text: 'x', horAlign: 'left' });

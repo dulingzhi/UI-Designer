@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`2001 passed | 5 skipped` 测试
+- `113 passed | 2 skipped` 测试文件，`2002 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -440,6 +440,29 @@ editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确
 
 **测试**：`exportControlProps.test.ts` 扩到 18 测（先 2/18 红）；
 `fdfImportRoundtrip.test.ts` 扩到 43 测（含三字段写回断言）。
+
+### FrameFont 修复（本轮：字体硬编码 + 输出条件双重缺口）
+
+对账编辑字段全集 vs FDF 导出，发现 `frame.font`（用户选择的字体名）被
+`FrameFont "MasterFont"` **硬编码忽略**。修用例时暴露第二层缺口：
+FrameFont 原输出条件是 `horAlign/textScale 存在`——**只有文本、无对齐的文本帧
+根本没有 FrameFont**，真实引擎可能不渲染文本。
+
+已修：`frame.text` 存在即输出 FrameFont；字体名用 `frame.font || 'MasterFont'`。
+**测试**：`exportText.test.ts` 扩到 14 测（先 2/14 红——两条失败分别锁定两个缺口）。
+
+### 剩余编辑字段的真实语法查证（本轮，收口）
+
+对账后剩余未导出的编辑字段，经 war3.mpq 全量扫描实证：
+- `alpha` / `checked` / `sliderLayoutHorizontal` / `sliderLayoutVertical`：
+  真实 FDF 中**无对应模板属性**（AlphaMode 是纹理属性非帧属性）——运行时 API 职责，
+  如实记录不臆造
+- `locked` / `isRelative` / `layerStyle`：编辑器元数据，非 FDF 属性——合理不导出
+- `fontFlags`：真实语法未见（`SetFontFlags` 是运行时调用），如实记录
+- `textureFile`：与 `texture` 语义重复（导出侧已走 `texture`），非缺口
+
+至此编辑字段 ↔ FDF 导出的对账**全部有结论**：可导出的全部接入，
+无语法依据的如实记录，无遗留"能设但导不出"的未查证项。
 
 ### Control/Font 系导入写回（本轮，收口）
 
