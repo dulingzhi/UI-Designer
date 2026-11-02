@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { pickTopFrameIdFromIntersections } from '../../src/renderer/hitTest';
 
+// round 176：排序键改为世界交点 point.z（含祖先 group 层级 z）。
+// makeHit 同步更新：z 写入 point.z（世界坐标），object.position.z 用装饰偏移模拟真实结构
+// （SceneGraphManager：group.position.z=frame.z，子 mesh z=0.1~0.5 装饰偏移）。
 function makeHit(z: number, frameId?: string, parentFrameId?: string): THREE.Intersection<THREE.Object3D> {
   const obj = new THREE.Object3D();
-  obj.position.z = z;
+  obj.position.z = 0.1; // 装饰偏移（不参与排序）
   if (frameId) obj.userData.frameId = frameId;
 
   if (parentFrameId) {
@@ -15,7 +18,7 @@ function makeHit(z: number, frameId?: string, parentFrameId?: string): THREE.Int
 
   return {
     distance: 0,
-    point: new THREE.Vector3(),
+    point: new THREE.Vector3(0, 0, z),
     object: obj,
   } as THREE.Intersection<THREE.Object3D>;
 }

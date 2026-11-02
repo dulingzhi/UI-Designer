@@ -29,7 +29,9 @@ export function pickTopFrameIdFromIntersections(
   if (intersects.length === 0) return null;
 
   const sorted = intersects.length > 1
-    ? [...intersects].sort((a, b) => b.object.position.z - a.object.position.z)
+    // round 176：排序键改为世界交点 z（含祖先 group 的层级 z）——
+    // 原用 object.position.z 是子网格装饰偏移（0.1~0.5），帧层级 z 在 group.position.z 不参与，重叠帧可选中视觉下层帧
+    ? [...intersects].sort((a, b) => b.point.z - a.point.z)
     : intersects;
 
   for (const hit of sorted) {
