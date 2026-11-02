@@ -110,11 +110,11 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `130 passed | 2 skipped` 测试文件，`2115 passed | 5 skipped` 测试
+- `132 passed | 2 skipped` 测试文件，`2125 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
-### 组件层接线守卫汇总（rounds 27-43，17 文件共 102 测，全部一次或微调通过）
+### 组件层接线守卫汇总（rounds 27-43，18 文件共 107 测，全部一次或微调通过）
 
 因未装 jsdom，均用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
 汇总要点（详细语义见各测试文件头部注释）：
@@ -138,9 +138,11 @@
 | `historyPanelWiring.test.ts` | 5 | 双栈时间轴（undoStack 正序+redoStack 反序）、步进跳转、初始标记 |
 | `utilityPanelsWiring.test.ts` | 5 | 更新检查 dev 跳过、版本双源（Tauri→package.json）、≥20 快捷键 |
 | `propertiesPanelWiring.test.ts` | 5 | handleChange 统一 UpdateFrameCommand、四子编辑器 props 一致、动态尺寸感知 |
+| `sidePanelWiring.test.ts` | 5 | 模板/历史 tab 互斥渲染、active 视觉态、展开收起、空态、命令名中文映射 |
 
 **守卫编写教训**：多行字符串断言对缩进/换行过脆（Canvas 首版 1/6 失败），
 改用 `indexOf` 顺序断言（如 cancelled 判断先于 dispose）——语义等价且抗格式化。
+组件层接线守卫现共 **107 测**（18 文件）。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
