@@ -34,7 +34,7 @@
 ### 📦 导入导出
 - **FDF导入** - 导入官方UI文件作为模板
 - **多格式导出** - JASS/Lua/TypeScript/FDF
-- **图片导出** - PNG截图和预览
+
 - **项目文件** - .w3ui格式完整保存
 
 ### ⚡ 高效工作流
@@ -63,13 +63,13 @@ git clone https://github.com/warcraft-iii/UI-Designer.git
 cd UI-Designer
 
 # 安装依赖
-bun install
+pnpm install
 
 # 开发模式
-bun tauri dev
+pnpm tauri dev
 
 # 构建发布版本
-bun tauri build
+pnpm tauri build
 ```
 
 ### 系统要求
@@ -265,7 +265,7 @@ git push origin feature/amazing-feature
 - ✅ JASS/Lua/TypeScript代码生成
 - ✅ 智能参考线和标尺
 - ✅ 样式预设系统
-- ✅ 60+快捷键支持
+**完整快捷键体系** - 类似VS Code的操作体验（F1 查看帮助面板）
 - ✅ 基于GitHub Release的自动更新功能
 
 查看 [完整更新日志](docs/RELEASE_NOTES_v0.4.md)
