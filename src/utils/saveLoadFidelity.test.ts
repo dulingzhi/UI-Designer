@@ -153,3 +153,27 @@ describe('saveProject/loadProjectFromPath 序列化保真（round 115）', () =>
     expect(project.frames['root1'].texture).toBe('UI\\Widgets\\bg.blp');
   });
 });
+
+describe('损坏但合法的 JSON 存档容错（round 116）', () => {
+  beforeEach(() => {
+    writtenFiles.clear();
+    vi.mocked(save).mockReset();
+    vi.mocked(open).mockReset();
+  });
+
+  it('frames 缺失的合法 JSON → 迁移为空项目而非抛 TypeError', async () => {
+    writtenFiles.set('C:\\tmp\\broken.w3ui', JSON.stringify({ foo: 1 }));
+    vi.mocked(open).mockResolvedValue('C:\\tmp\\broken.w3ui');
+
+    const { project } = await loadProjectFromPath('C:\\tmp\\broken.w3ui');
+    expect(project.frames).toEqual({});
+    expect(project.rootFrameIds).toEqual([]);
+  });
+
+  it('非法 JSON → 抛错冒泡（上层 handleOpen 警告框兜底，不静默失败）', async () => {
+    writtenFiles.set('C:\\tmp\\garbage.w3ui', 'not json at all {{{');
+    vi.mocked(open).mockResolvedValue('C:\\tmp\\garbage.w3ui');
+
+    await expect(loadProjectFromPath('C:\\tmp\\garbage.w3ui')).rejects.toThrow();
+  });
+});

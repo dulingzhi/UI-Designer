@@ -7,7 +7,17 @@ import { parseFDF } from './fdf';  // 使用新的统一入口
 // 数据迁移: 将旧版本的单锚点数据转换为锚点数组
 function migrateProjectData(project: ProjectData): ProjectData {
   const migratedFrames: Record<string, FrameData> = {};
-  
+
+  // round 116：frames 缺失（合法 JSON 但非完整存档，如手编辑残档）→ 视为空项目。
+  // 原实现 Object.entries(undefined) 抛 TypeError——虽被上层 catch 兜住不崩溃，
+  // 但用户看到的是技术性错误信息而非可理解的"空项目已打开"。
+  if (!project.frames || typeof project.frames !== 'object') {
+    project.frames = {};
+  }
+  if (!Array.isArray(project.rootFrameIds)) {
+    project.rootFrameIds = [];
+  }
+
   // 第一步：确保所有控件都有必要的字段
   for (const [id, frame] of Object.entries(project.frames)) {
     // 如果frame没有anchors字段,从x/y/width/height创建默认锚点
