@@ -266,6 +266,19 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
     }
   }
 
+  // 模板引用型写回（与导出互逆；值为模板名字符串）
+  const refAssigns: Array<[string, keyof FrameData]> = [
+    ['SliderThumbButtonFrame', 'sliderThumbButtonFrameRef'],
+    ['ScrollBarIncButtonFrame', 'scrollBarIncButtonFrameRef'],
+    ['ScrollBarDecButtonFrame', 'scrollBarDecButtonFrameRef'],
+  ];
+  for (const [name, field] of refAssigns) {
+    const v = find(name);
+    if (v !== null && v !== undefined && String(v) !== '') {
+      (controlFields as Record<string, unknown>)[field] = String(v);
+    }
+  }
+
   return {
     ...frame,
     ...backdropFields,

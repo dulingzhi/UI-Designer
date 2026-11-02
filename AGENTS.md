@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1995 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1999 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -419,6 +419,16 @@ editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确
 
 **测试**：`fdfImportRoundtrip.test.ts` 扩到 42 测（先 3/42 红，含 0 值用例）；
 `fullRoundtrip.test.ts` 扩到 **8 测**（新增 SLIDER 穿透，断言 `minValue === 0` 原样回来）。
+
+### SLIDER/ScrollBar 模板引用型导出+导入（本轮，闭环）
+
+`SliderThumbButtonFrame` / `ScrollBarIncButtonFrame` / `ScrollBarDecButtonFrame`
+三字段闭环（导出+导入写回）。**修正此前判断**："需模板依赖排序"实属过度谨慎——
+`ControlBackdrop` 也是模板名引用，已照实输出；引用解析由引擎按名处理，
+引用找不到属用户数据问题，导出侧照实输出引用名字符串即可。
+
+**测试**：`exportControlProps.test.ts` 扩到 18 测（先 2/18 红）；
+`fdfImportRoundtrip.test.ts` 扩到 43 测（含三字段写回断言）。
 
 ### Control/Font 系导入写回（本轮，收口）
 

@@ -150,6 +150,28 @@ describe('SLIDER 系（真实语法实证：SliderMin/Max/InitialValue、SliderS
   });
 });
 
+describe('模板引用型（与 ControlBackdrop 同款照实输出）', () => {
+  it('sliderThumbButtonFrameRef → SliderThumbButtonFrame', async () => {
+    const f = mkFrame({ id: 'r1', name: 'R1', type: FrameType.SLIDER,
+      sliderThumbButtonFrameRef: 'MyThumbButton' });
+    expect(await content([f])).toContain('SliderThumbButtonFrame "MyThumbButton",');
+  });
+
+  it('scrollBar 系 Inc/Dec 按钮', async () => {
+    const f = mkFrame({ id: 'r2', name: 'R2', type: FrameType.SCROLLBAR,
+      scrollBarIncButtonFrameRef: 'MyIncBtn', scrollBarDecButtonFrameRef: 'MyDecBtn' });
+    const c = await content([f]);
+    expect(c).toContain('ScrollBarIncButtonFrame "MyIncBtn",');
+    expect(c).toContain('ScrollBarDecButtonFrame "MyDecBtn",');
+  });
+
+  it('未设置时不输出 Ref 属性', async () => {
+    const f = mkFrame({ id: 'r3', name: 'R3', type: FrameType.SLIDER });
+    const c = await content([f]);
+    expect(c).not.toContain('SliderThumbButtonFrame');
+  });
+});
+
 describe('未设置时不输出（不产生空属性）', () => {
   it('无 control/highlight/font 字段的帧不输出这些属性', async () => {
     const f = mkFrame({ id: 'n', name: 'N' });

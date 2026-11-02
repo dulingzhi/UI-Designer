@@ -374,6 +374,18 @@ function generateFrameFDF(
     lines.push(`${indentStr}    SliderStepSize ${frame.stepSize},`);
   }
 
+  // 模板引用型（真实 FDF 实证，与 ControlBackdrop 同款照实输出模板名；
+  // 引用解析由引擎按名处理，找不到属用户数据问题）
+  if (frame.sliderThumbButtonFrameRef) {
+    lines.push(`${indentStr}    SliderThumbButtonFrame "${frame.sliderThumbButtonFrameRef}",`);
+  }
+  if (frame.scrollBarIncButtonFrameRef) {
+    lines.push(`${indentStr}    ScrollBarIncButtonFrame "${frame.scrollBarIncButtonFrameRef}",`);
+  }
+  if (frame.scrollBarDecButtonFrameRef) {
+    lines.push(`${indentStr}    ScrollBarDecButtonFrame "${frame.scrollBarDecButtonFrameRef}",`);
+  }
+
   // 递归处理子控件
   if (frame.children && frame.children.length > 0) {
     lines.push('');

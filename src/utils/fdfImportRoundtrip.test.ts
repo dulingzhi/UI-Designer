@@ -191,6 +191,17 @@ describe('导入写回可编辑字段：Control/Font 系', () => {
     expect((frames[0] as any).stepSize).toBe(1);
   });
 
+  it('SliderThumbButtonFrame / ScrollBar Inc/Dec 模板引用写回', async () => {
+    const frames = await importWithProps([
+      prop('SliderThumbButtonFrame', stringValue('MyThumb')),
+      prop('ScrollBarIncButtonFrame', stringValue('MyInc')),
+      prop('ScrollBarDecButtonFrame', stringValue('MyDec')),
+    ]);
+    expect((frames[0] as any).sliderThumbButtonFrameRef).toBe('MyThumb');
+    expect((frames[0] as any).scrollBarIncButtonFrameRef).toBe('MyInc');
+    expect((frames[0] as any).scrollBarDecButtonFrameRef).toBe('MyDec');
+  });
+
   it('数值属性非法输入 → 不设置（不臆造）', async () => {
     const frames = await importWithProps([
       prop('FontShadowColor', stringValue('not an array')),
