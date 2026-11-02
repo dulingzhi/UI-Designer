@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `134 passed | 2 skipped` 测试文件，`2114 passed | 5 skipped` 测试
+- `134 passed | 2 skipped` 测试文件，`2115 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -132,107 +132,22 @@
 `documentDir()` 异步 API 并调整模块级常量初始化时序，涉及启动时序重构，
 本轮不动代码、如实记录。
 
-### 桥接层审计（本轮：dataSource/rustBridge——通过，无缺陷）
+### 审计轮次结论汇总（bridging/KKWE/fileOperations/snapUtils/textureLoader/process/mpqManager）
 
-继续盲区审计（"覆盖率 100% 但无语义审计"路线）：
+盲区审计（"覆盖率 100% 但无语义审计"路线）累计 8 个模块面，结论压缩如下（细节见 git 历史）：
 
-**`dataSource.ts`（194 行，MPQ 数据源抽象）——审计通过**：
-- `MpqDataSource.loadList` 失败降级为空列表且**允许后续重试**（`listPromise` 置 null）——行为已被既有测试锁定（"falls back to an empty list ... and can recover later"）
-- **路径大小写分层正确（曾疑为缺陷，查证后排除）**：`exists()` 的 `hasFile` 快路径传原始大小写、listfile 降级路径转 lowercase——不一致表面下，Rust 端 `has_mpq_file` → `find_file` 走 MPQ hash 查找（StormLib 语义**大小写不敏感**，Rust 侧测试 `ui\\hello.txt` 小写查询实证）→ 两路径语义一致
-- `LayeredDataSource` 高优先在前、list 合并去重保留高优先层 ✓；`InMemoryDataSource` key lowercase ✓
-- 均为纯前端逻辑可单测（Rust 能力经 `MpqFns` 注入）——设计正确
+| 模块 | 结果 | 核心结论 |
+|---|---|---|
+| dataSource.ts | 通过 | loadList 失败降级可重试；大小写分层正确（Rust has_mpq_file 走 MPQ hash 不敏感，快/降级两路一致） |
+| rustBridge.ts | 通过+1 决策 | `Array.from(blpData)` 大纹理内存膨胀 8 倍——Tauri 2 二进制 payload 需 Rust 端配合，性能决策项 |
+| kkweDetector+Rust | 通过+2 边界 | ①detectKKWE 失败与未安装不可区分（UX 决策）②launch_kkwe 以启动器退出码当 War3 PID（外部约定） |
+| fileOperations.ts | **修 1 缺陷** | 迁移不清理悬空 parentId → 再次保存永久化；已修（清理为 `''`，2 测） |
+| snapUtils.ts | **删除死代码** | 零生产引用（真实路径 frameTransforms.snapRect）；342 行+34 测清除。**教训：零引用检查是盲区审计第一步** |
+| textureLoader.ts | **修 1 缺陷** | evictLRU 公式 `acc*1000+age` 淘汰 score 最小=刚加载项——**与 LRU 相反**；已改 `acc*maxCacheAge-age` + fake-timer 方向性 2 测。**测试认证 bug 第 4 例**（旧测试注释把 timestamp 当 age、不断言淘汰对象） |
+| war3ProcessManager | **修 1 耦合** | isCurrentProcessRunning 只查内存，漏 localStorage 恢复——隐式依赖调用方先调 getCurrentPid；已统一 |
+| mpqManager.ts | **修 1 竞态** | setWar3Path 无并发防护（WC3TextureBrowser:55 fire-and-forget + 用户改路径并发）→ **两路径档案混合加载**；已加代际守卫（loadGeneration 过期中止剩余档案），58 测 |
 
-**`rustBridge.ts`（169 行，Rust 桥接）——通过，1 项优化决策记录**：
-- `Array.from(blpData)`：`Uint8Array` → `number[]` 经 JSON 序列化传给 `invoke`——
-  大纹理（2048×2048 BLP）内存膨胀约 8 倍 + JSON 解析开销。Tauri 2 原生支持
-  二进制 payload（`ArrayBuffer`/`Uint8Array` 直接传输），但需 Rust 端命令签名
-  同步改为 `Vec<u8>`——**跨端联动改造，属性能优化决策项，行为正确，本轮不动**
-
-### mpqManager facade 审计（本轮，抓到并发 setWar3Path 混合加载竞态）
-
-MPQ 管理器 facade（717 行，57 测）审计发现 **1 处真实竞态缺陷**：
-`setWar3Path` 无并发防护——`WC3TextureBrowser:55` 启动恢复路径是
-**fire-and-forget**（`.then()` 不 await），用户随即改路径（L500 await）时
-两次加载并发：A 的剩余档案循环用 `this.war3Path`（已被 B 改写）拼路径，
-**path1 剩余档案与 path2 档案混合加载**，fileListCache 混入两个路径的清单。
-
-**修复（代际守卫）**：`loadGeneration` 每次 setWar3Path 自增；
-`loadStandardArchives` 每个档案加载完成后检查代际，过期即中止剩余档案
-（已发起的单次调用无法撤回，守卫保证的是**完成当前档案后不再继续**）。
-测试扩到 58 测（挂起-切路径-放行时序，断言 old 路径仅出现切换前那一次）。
-
-**实现教训**：跨 CRLF/LF 文本做 pwsh Replace 三次静默未命中（循环内中止
-分支、测试断言两处）——**批量文本替换后必须 grep 验证**，tsc 的
-"参数未使用"报错这次反而帮了忙（守卫缺失使参数真未用）。
-
-其余审计结论：unloadAll 四路清理（archives/fileListCache/cachedDataSource/
-后端缓存）完整 ✓；同路径重试语义正确（失败后 archives.size=0 允许重试）✓。
-### snapUtils 死代码清理（本轮，零生产引用）
-
-几何工具族审计发现 `snapUtils.ts`（342 行，calculateSnap/snapToCanvasEdges，
-像素量级 SNAP_THRESHOLD=5）**在生产代码零引用**——只有其测试文件 import。
-真实吸附路径是 `useCanvasDrag → computeDragRect → frameTransforms.snapRect`
-（WC3 世界坐标 0.8×0.6，被抽纯函数轮确认），snapUtils 是被取代的旧实现遗留。
-
-**处置**：删除 `snapUtils.ts` + `snapUtils.test.ts`（34 测）——死代码及其
-维护负担一并清除。全量 2114 测全绿、覆盖率仍 100×4、守护对拍不受影响。
-
-**审计教训**：零引用检查应成为盲区审计的第一步（`Select-String` 全仓引用
-扫描）——有厚测试的死代码最具迷惑性：测试越"健康"越像活代码。
-### textureLoader 纹理管线审计（本轮，抓到 LRU 淘汰方向反转缺陷）
-
-纹理加载器（598 行，49 测）审计发现 **1 处真实算法缺陷**：
-`evictLRU` 评分公式 `acc*1000 + age` 淘汰 score **最小**者 = acc 低且
-age **小**（刚加载）——**与 LRU 语义完全相反**：刚加载的 entry 立即被逐、
-最旧的反而保留。既有测试「evictLRU takes the false path...」的注释推理把
-timestamp 当 age 用错（a 先加载 → timestamp_a 小 → age_a 大 → score_a 大），
-且只断言 revoke+size 不断言淘汰对象——**测试认证 bug 模式再现**。
-
-**修复**：公式改 `acc * maxCacheAge - age`（同 acc 下淘汰更旧者 ✓、
-acc 低者优先 ✓、热门项受保护 ✓），并用 fake-timer 方向性测试 2 测锁定：
-①同 acc 淘汰最旧而非最新；②热门项（acc 高）即使更旧也不被逐。
-
-其余审计结论：并发去重（loadingPromises）正确、失败不缓存允许重试 ✓、
-Blob URL 生命周期完整（过期/LRU/clear/remove 四路 revoke）✓、
-`getMimeType` 的 blp 分支 v8-ignore 理由复核成立（.blp 均提前路由到解码器）。
-### KKWE/进程链路审计（本轮：kkweDetector + Rust launch/is_process——通过，边界记录）
-
-**`kkweDetector.ts`（139 行）+ `src-tauri/lib.rs` 联动审计——无高置信缺陷**：
-
-- **前端疑点排除**：`launchMapWithKKWE` 未检查 `kkweInfo.war3Path`——查 Rust
-  `launch_kkwe` 实现确认：直接 `Command::new(launcher_path)` spawn，war3 路径由
-  KKWE 启动器自行定位，前端不传、不依赖 ✓
-- **`is_process_running` 安全性确认**：`stdout.contains("\"{pid}")` 表面会匹配
-  前缀 PID（123 匹配 1234），但 tasklist `/FI "PID eq {pid}"` 已精确过滤输出——
-  不存在误报源；无匹配时输出本地化 INFO 文本不含引号+数字 ✓
-- **错误处理策略一致**：查询类（isProcessRunning/isWar3Running）失败返回 false、
-  操作类（kill*）失败抛错——语义合理 ✓
-
-**两项边界如实记录（不动代码）**：
-1. `detectKKWE` 失败（invoke/exists 异常）与"未安装"**不可区分**——都返回
-   `{installed: false}`；调用方显示"KKWE 未安装，跳过自动启动"可能掩盖环境错误。
-   行为安全（不启动），改进需区分错误通道，属 UX 决策
-2. `launch_kkwe` 以**启动器退出码作为 War3 PID** 返回（`child.wait()` 后
-   `exit_code as u32`）——依赖 KKWE 启动器的行为约定（启动 War3 后以 War3 PID
-   退出），无法从本仓库验证；若启动器不符合约定，PID 跟踪/结束进程功能失准。
-   属外部依赖约定，如实记录
-
-### fileOperations 存档链路审计（上轮，抓到悬空引用缺陷）
-
-保存/加载链路（177 行，此前仅覆盖率门覆盖、无语义审计）审计发现 **1 处真实缺陷**：
-`migrateProjectData` 重建 children 时跳过悬空 parentId（`migratedFrames[frame.parentId]`
-不存在），但**不清理**——含悬空引用的存档（手编辑/半途删除产物）加载后悬空原样保留，
-**再次保存即永久化**，下游 ChangeParent/removeFrame 的旧父查找将落空。
-探针实证（`parentId: 'ghost'` 迁移后原样返回）→ 已修：迁移时悬空 parentId
-清理为 `''`（有效父子链不受影响，探针转正为 2 测）。
-
-**探针教训（又一次"先确认探针自身正确"的变体）**：vitest 全量跑会先执行
-全部测试再跑探针文件——探针应单独文件并限定运行；验证后探针转正删除。
-
-其余链路核查结论：JSON 序列化无 Map/Set 陷阱（ProjectData 纯 JSON 结构）、
-损坏文件（缺 frames/非法 JSON）显式抛错不静默、保存对话框取消返回 null、
-FDF 导入走内核 layout（`useKernelLayout: true`）与渲染消费路径一致。
-
+**共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
 
 因未装 jsdom，均用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
