@@ -6,7 +6,7 @@ import { useCommandStore } from '../store/commandStore';
 import { UpdateFrameCommand } from '../commands/FrameCommands';
 import { updateAnchorsFromBounds } from '../utils/anchorUtils';
 import { pixelDeltaToWc3X, pixelDeltaToWc3Y } from '../utils/coordinateService';
-import { WC3_MAX_X, WC3_MAX_Y } from '../constants';
+import { computeResizeRect } from '../utils/frameTransforms';
 
 const UPDATE_THROTTLE_MS = 16;
 
@@ -81,52 +81,20 @@ export function useCanvasResize({
     const deltaWc3X = pixelDeltaToWc3X(deltaX);
     const deltaWc3Y = -pixelDeltaToWc3Y(deltaY);
 
-    let newX = resizeStartSize.x;
-    let newY = resizeStartSize.y;
-    let newWidth = resizeStartSize.width;
-    let newHeight = resizeStartSize.height;
-
     const isShiftPressed = e.shiftKey;
 
-    if (resizeDirection.includes('e')) {
-      newWidth = Math.max(0.01, resizeStartSize.width + deltaWc3X);
-    }
-    if (resizeDirection.includes('w')) {
-      const oldRight = resizeStartSize.x + resizeStartSize.width;
-      newX = Math.max(0, resizeStartSize.x + deltaWc3X);
-      newWidth = oldRight - newX;
-    }
-    if (resizeDirection.includes('n')) {
-      newHeight = Math.max(0.01, resizeStartSize.height + deltaWc3Y);
-    }
-    if (resizeDirection.includes('s')) {
-      const oldTop = resizeStartSize.y + resizeStartSize.height;
-      newY = Math.max(0, resizeStartSize.y + deltaWc3Y);
-      newHeight = Math.max(0.01, oldTop - newY);
-    }
-
-    // Shift 保持纵横比
-    if (isShiftPressed && (resizeDirection === 'ne' || resizeDirection === 'nw' || resizeDirection === 'se' || resizeDirection === 'sw')) {
-      const aspectRatio = resizeStartSize.width / resizeStartSize.height;
-      if (Math.abs(newWidth - resizeStartSize.width) > Math.abs(newHeight - resizeStartSize.height)) {
-        newHeight = newWidth / aspectRatio;
-      } else {
-        newWidth = newHeight * aspectRatio;
-      }
-    }
-
-    // 边界限制
-    newX = Math.max(0, Math.min(WC3_MAX_X - newWidth, newX));
-    newY = Math.max(0, Math.min(WC3_MAX_Y - newHeight, newY));
-    newWidth = Math.max(0.01, Math.min(WC3_MAX_X - newX, newWidth));
-    newHeight = Math.max(0.01, Math.min(WC3_MAX_Y - newY, newHeight));
-
-    if (snapToGrid) {
-      newX = snapValue(newX, gridSize);
-      newY = snapValue(newY, gridSize);
-      newWidth = snapValue(newWidth, gridSize);
-      newHeight = snapValue(newHeight, gridSize);
-    }
+    // 几何计算统一走 frameTransforms（可单测；语义严格对齐原实现）
+    const rect = computeResizeRect(
+      resizeStartSize,
+      resizeDirection,
+      { x: deltaWc3X, y: deltaWc3Y },
+      isShiftPressed,
+      { snapToGrid, gridSize, snapValue },
+    );
+    const newX = rect.x;
+    const newY = rect.y;
+    const newWidth = rect.width;
+    const newHeight = rect.height;
 
     const updatedAnchors = updateAnchorsFromBounds(frame.anchors, newX, newY, newWidth, newHeight);
 

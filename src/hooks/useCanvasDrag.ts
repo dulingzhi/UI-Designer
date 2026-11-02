@@ -5,7 +5,7 @@ import { useCommandStore } from '../store/commandStore';
 import { UpdateFrameCommand } from '../commands/FrameCommands';
 import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
 import { pixelToWc3X, pixelToWc3Y } from '../utils/coordinateService';
-import { WC3_MAX_X, WC3_MAX_Y } from '../constants';
+import { computeDragRect } from '../utils/frameTransforms';
 
 const UPDATE_THROTTLE_MS = 16; // ~60fps
 
@@ -164,13 +164,15 @@ export function useCanvasDrag({
         },
       });
     } else {
-      let newX = Math.max(0, Math.min(WC3_MAX_X - frame.width, mouseWc3X - dragOffset.x));
-      let newY = Math.max(0, Math.min(WC3_MAX_Y - frame.height, mouseWc3Y - dragOffset.y));
-
-      if (snapToGrid) {
-        newX = snapValue(newX, gridSize);
-        newY = snapValue(newY, gridSize);
-      }
+      // 固定尺寸拖拽：几何计算统一走 frameTransforms（可单测，且与 resize 共享钳制/吸附语义）
+      const rect = computeDragRect(
+        { x: mouseWc3X, y: mouseWc3Y },
+        { x: dragOffset.x, y: dragOffset.y },
+        { width: frame.width, height: frame.height },
+        { snapToGrid, gridSize, snapValue },
+      );
+      const newX = rect.x;
+      const newY = rect.y;
 
       const updatedAnchors = updateAnchorsFromBounds(frame.anchors, newX, newY, frame.width, frame.height);
 

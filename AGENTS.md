@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `103 passed | 2 skipped` 测试文件，`1863 passed | 5 skipped` 测试
+- `104 passed | 2 skipped` 测试文件，`1885 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -245,6 +245,30 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 
 **测试**：`luaGenerator.guard.test.ts`（16 测，先 11/12 红再修复转绿）。
 注意 `generate()` 只产出 Frame 创建代码，API 包装在 `generateLoaderScript()` 里——两者需分开断言。
+
+### 画布交互几何抽纯函数（本轮）
+
+审计 `src/hooks/` 发现 **6 个 hook 全部没有测试**（`useCanvasDrag` / `useCanvasPan` /
+`useCanvasResize` / `useHotReloadSync` / `useKeyboardShortcuts` / `useTextureLoader`）。
+它们依赖 React hooks，而本仓库**未安装 jsdom / happy-dom / @testing-library**，
+无法渲染 hook 做单测。
+
+因此把 `useCanvasDrag` / `useCanvasResize` 里重复内联的**纯几何计算**抽到
+`src/utils/frameTransforms.ts`（可单测，两块逻辑合并去重）：
+- `clampRectToCanvas`：钳制到 0..0.8 / 0..0.6，最小尺寸 0.01，且尺寸收紧后起点再钳一次
+- `snapRect` / `computeDragRect` / `computeResizeRect`（含 Shift 保比例）
+
+**关键约束：语义必须严格对齐原 hook，不得反转。** 抽取时我一度把 n/s 方向做成
+"n 改 y+高度、s 只改高度"，与 `useCanvasResize` 现有实现**正好相反**；已按原实现改为
+"n 只改高度、s 改 y+高度（保持上边不动）"，并在测试里钉死这两条。
+
+两个 hook 现分别调用 `computeDragRect` / `computeResizeRect`，行为不变（全量测试 1885 绿）。
+**注意**：`useKeyboardShortcuts` 经核查每个分支都调用了 `preventDefault` 并忽略输入框内按键，
+行为正确，但因其纯属事件分发、无独立几何逻辑，本轮未抽函数。
+
+**测试**：`src/utils/frameTransforms.test.ts`（22 测）。
+`useCanvasPan` / `useHotReloadSync` / `useTextureLoader` 仍无测试——它们以 DOM/IO 副作用为主，
+无 DOM 环境时无法诚实覆盖，如实记录为缺口。
 
 ### 渲染器单测缺口补齐（本轮）
 
