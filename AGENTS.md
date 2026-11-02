@@ -178,11 +178,12 @@
 | 技术债普查（195） | 通过 | TODO 仅 1 处；热路径无残留 |
 | CSS 孤儿补齐（208） | **清除+310 行** | 删组件漏删 CSS——配对扫描抓出；**教训：删组件四件套** |
 | CI 配置核查（210） | 通过+1 决策 | 版本注入链完整；本地 pnpm vs CI bun 双轨（用户决策） |
-| tests 顶层历史面核查（211） | 通过 | dev 脚本定性保留；scripts 引用 3 个活跃；dataSource.test 活跃 ✓ |
+| tests 顶层历史面核查（211） | 通过 | dev 脚本定性保留；dataSource.test 活跃 ✓ |
 | 旧测试清除（212） | **清除+701 行** | 3 个被新版取代的 excluded 旧测试删除，exclude 清单同步 |
 | 产物 fdf 孤儿清除（214） | **清除+632 行** | 3 个零引用孤儿删除，7 个脚本配套保留 |
-| 静态资源孤儿清除（216） | **清除 svg 2** | public+assets 引用全查——背景图/地图/favicon 活跃；tauri.svg/react.svg 零引用删除；**清理面五层闭环**，每层零引用验证为先 |
-| 依赖零引用核查（218） | **清除依赖 4** | clsx/immer/react-window/@types/react-window 零引用删除（脚手架遗留）；plugin-opener 有 Rust+capabilities 配套保留；types/构建工具隐式保留；**发现：pnpm-lock 被 gitignore（无版本锁定）**——lockfile 入库属用户决策 |
+| 静态资源孤儿清除（216） | **清除 svg 2** | tauri.svg/react.svg 零引用删除；活跃资源保留 ✓ |
+| 依赖零引用核查（218） | **清除依赖 4** | clsx/immer/react-window/@types/react-window 删除；lockfile 被 gitignore（无锁定，用户决策） |
+| Rust 依赖零引用核查（220） | **清除依赖 1** | Cargo 14 依赖全扫——nom 零 use 删除，cargo 19/19 双验证；**清理面七层闭环**（每层零引用+门禁实测） |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧（产品决策）；主 chunk 低于基线；**git 总账**：513 提交（fix 88/feat 26/cleanup 9） |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped 明细核查（205） | 通过 | 5 skipped 有据 |
