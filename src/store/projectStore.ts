@@ -268,9 +268,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     
     if (!frame) return state;
 
-    // 更新子元素的父级引用
+    // 更新子元素的父级引用（children 是可选字段：导入 FDF 的帧可能没有）
     const updatedFrames = { ...remainingFrames };
-    frame.children.forEach(childId => {
+    (frame.children ?? []).forEach(childId => {
       if (updatedFrames[childId]) {
         updatedFrames[childId] = {
           ...updatedFrames[childId],

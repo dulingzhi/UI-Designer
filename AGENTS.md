@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `114 passed | 2 skipped` 测试文件，`2009 passed | 5 skipped` 测试
+- `115 passed | 2 skipped` 测试文件，`2017 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -610,6 +610,18 @@ pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `Shade
   `vi.mock('../utils/war3ProcessManager')` + `vi.stubGlobal('localStorage', ...)`（projectStore 底部 subscribe
   在 setTimeout 里访问 localStorage/进程管理器）。
 - `beforeEach` 顺序须为「先 reset UI 状态，再 seed project」，否则 seed 的 project 会被 reset 覆盖（已踩坑修正）。
+
+### projectStore 测试补齐（本轮，抓到真实崩溃缺陷）
+
+`src/store/projectStore.ts`（20KB 编辑器核心）此前**无专属测试**（uiStore.test.ts
+只间接引用）。已补 `projectStore.test.ts`（8 测）：addFrame/addFrames（含 rootFrameIds
+更新）、updateFrame 局部合并、getFrame、toggleFrameLock/Visibility、removeFrame、
+updateGeneralSettings。mock 头部照抄 uiStore.test.ts（stubGlobal 必须在 import 前）。
+
+**已修真实崩溃缺陷**：`removeFrame` 假设 `frame.children` 恒存在（`frame.children.forEach`），
+删除无 `children` 字段的帧（**导入 FDF 的帧常缺该字段**）直接抛 TypeError。
+已改 `(frame.children ?? [])`。既有命令层测试没抓到它，因为 `__test_helpers__` 构造的
+帧都带 children——**只有补齐"最小帧"用例才暴露**（又一次"测试夹具比产品更完整"的教训）。
 
 ### commandStore 审计（本轮）
 
