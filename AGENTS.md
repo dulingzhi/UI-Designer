@@ -398,6 +398,21 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 覆盖率中途跌至 99.47%，按未覆盖分支逐一补真实用例（布尔大小写变体、非法四元组、
 未知 JUSTIFY 常量）恢复 100，无 v8-ignore。
 
+### war3ProcessManager 进程管理审计（本轮，修复恢复策略脆弱耦合）
+
+进程管理器（224 行，27 测）审计发现 **1 处脆弱耦合**：
+`isCurrentProcessRunning` 只查内存 `currentPid`，而 `getCurrentPid` 有
+localStorage 恢复副作用——当前调用链（projectStore 自动导出）恰好**先调
+getCurrentPid** 才正确工作。单独调用 `isCurrentProcessRunning`（如未来新
+调用点）会漏掉 localStorage 中已记录的 PID 而误报"未运行"。
+
+**修复**：`isCurrentProcessRunning` 统一改用 `getCurrentPid()`（内存+存储恢复），
+行为对现有调用链不变，消除隐式时序依赖。测试扩到 28 测（单独调用从
+localStorage 恢复并正确查询）。
+
+其余审计结论：killCurrentProcess 三级降级（普通权限→UAC 提升→进程名兜底）
+语义正确；UAC 取消后清理记录导致后续降级为"结束所有进程"——可用性降级
+非正确性问题，如实记录。
 ### 导入链路历史轮次（L401-L461 原始记录压缩，结论仍全部有效）
 
 「导入写回扩展/索引错位、textColor、textScale、visible/ButtonText 往返」四段历史

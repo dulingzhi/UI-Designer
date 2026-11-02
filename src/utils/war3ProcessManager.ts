@@ -54,14 +54,18 @@ class War3ProcessManager {
    * 检查当前进程是否正在运行
    */
   async isCurrentProcessRunning(): Promise<boolean> {
-    if (!this.currentPid) {
+    // 统一用 getCurrentPid（内存 + localStorage 恢复）：
+    // 若单独调用本方法（未先调 getCurrentPid/restoreFromStorage），旧行为只查内存
+    // 会漏掉 localStorage 中已记录的 PID——隐式依赖调用方先恢复，属脆弱耦合。
+    const pid = this.getCurrentPid();
+    if (pid === null) {
       console.log('[War3进程] 无当前PID，返回false');
       return false;
     }
-    
-    console.log('[War3进程] 检查War3.exe进程状态: PID=', this.currentPid);
-    const running = await isProcessRunning(this.currentPid);
-    console.log('[War3进程] War3.exe运行状态: PID=', this.currentPid, '运行=', running);
+
+    console.log('[War3进程] 检查War3.exe进程状态: PID=', pid);
+    const running = await isProcessRunning(pid);
+    console.log('[War3进程] War3.exe运行状态: PID=', pid, '运行=', running);
     return running;
   }
 

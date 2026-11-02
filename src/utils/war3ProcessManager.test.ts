@@ -304,4 +304,14 @@ describe('war3ProcessManager', () => {
     });
     expect(exporter.export).toHaveBeenCalledWith(project, true);
   });
+
+  it('isCurrentProcessRunning recovers PID from localStorage when memory is empty', async () => {
+    // 单独调用（未先 getCurrentPid/restoreFromStorage）也应从 localStorage 恢复——
+    // 旧行为只查内存，漏恢复属脆弱耦合（依赖调用方先调 getCurrentPid）
+    localStorageMock.setItem('war3_process_pid', '9999');
+    kkweMocks.isProcessRunning.mockResolvedValue(true);
+    const r = await war3ProcessManager.isCurrentProcessRunning();
+    expect(r).toBe(true);
+    expect(kkweMocks.isProcessRunning).toHaveBeenCalledWith(9999);
+  });
 });
