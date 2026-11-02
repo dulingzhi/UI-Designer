@@ -148,6 +148,18 @@
   二进制 payload（`ArrayBuffer`/`Uint8Array` 直接传输），但需 Rust 端命令签名
   同步改为 `Vec<u8>`——**跨端联动改造，属性能优化决策项，行为正确，本轮不动**
 
+### snapUtils 死代码清理（本轮，零生产引用）
+
+几何工具族审计发现 `snapUtils.ts`（342 行，calculateSnap/snapToCanvasEdges，
+像素量级 SNAP_THRESHOLD=5）**在生产代码零引用**——只有其测试文件 import。
+真实吸附路径是 `useCanvasDrag → computeDragRect → frameTransforms.snapRect`
+（WC3 世界坐标 0.8×0.6，被抽纯函数轮确认），snapUtils 是被取代的旧实现遗留。
+
+**处置**：删除 `snapUtils.ts` + `snapUtils.test.ts`（34 测）——死代码及其
+维护负担一并清除。全量 2114 测全绿、覆盖率仍 100×4、守护对拍不受影响。
+
+**审计教训**：零引用检查应成为盲区审计的第一步（`Select-String` 全仓引用
+扫描）——有厚测试的死代码最具迷惑性：测试越"健康"越像活代码。
 ### textureLoader 纹理管线审计（本轮，抓到 LRU 淘汰方向反转缺陷）
 
 纹理加载器（598 行，49 测）审计发现 **1 处真实算法缺陷**：
