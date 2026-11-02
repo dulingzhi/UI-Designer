@@ -110,9 +110,20 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1999 passed | 5 skipped` 测试
-- 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`2001 passed | 5 skipped` 测试
+- 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+### 真实数据大样本往返守卫（本轮，转正）
+
+`tests/ow3compare/roundtrip.real.test.ts`（guarded，war3.mpq）：全量 42 个 Glue FDF →
+parseFDF(useKernelLayout) → FDF 导出 → importFromFDFText → 断言 42/42 全通过、
+1371 帧无一抛错。这是对 18 轮导出/导入工作在**真实数据上的总验证**——
+真实语法变体（数值格式、模板引用、空字段）全部被往返消化。
+
+**探针自身教训**：首轮大样本 42 个全挂，是探针忘了 `await` 异步导出（mock 未完成时读
+`mock.calls.at(-1)` 得 undefined，报 `undefined[1]`）——不是产品缺陷。定位方法：
+单文件最小复现成功 → 对比差异 → 发现 await 缺失。**大样本验证前先确认探针自身正确**。
 
 ### JASS/LUA/TS 代码导出完善（本轮）
 
