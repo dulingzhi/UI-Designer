@@ -172,6 +172,7 @@
 | useCanvasPan 纯逻辑抽取（round 83） | test 抽取 | computeWheelScale/startPanAnchor/computePanOffset 抽到 canvasViewTransforms.ts（与 frameTransforms 同模式）+7 测；hook 保留状态/事件接线。钳制测试断言首版自错（raw vs 钳制值矛盾+手算错）修正。2083 测全绿 |
 | useHotReloadSync 纯逻辑抽取（round 84） | test 抽取+1 防御 | buildHotReloadLua 抽到 hotReloadLua.ts +5 测（空串/toFixed 6/多帧/id 双引号转义 escapeLuaString——原内联实现 id 直插无转义，抽取时加防御）；hook 保留 rAF 节流/状态机。2088 测全绿 |
 | 热重载 Lua 补文本/纹理同步（round 85） | feat 补齐 | buildHotReloadLua 原只发位置/大小（原实现注释"可以按需追加"）——补 SetText（仅 text 帧）/SetTexture（仅 texture 帧，fixedScale 0 与 luaGenerator 同参），均 escapeLuaString。8 测全绿 |
+| useKeyboardShortcuts 修复（round 87） | **修 1 死功能** | 方向键微调的 Shift 精细步长(0.001)判断放在 !e.shiftKey 分支内——恒 false，Shift+方向键落入 Ctrl+Shift 分支尾静默无操作（注释宣称的精调功能从未生效）；已加独立 Shift+方向键分支（0.001 步长）。2091 测全绿+src 0 报错 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 

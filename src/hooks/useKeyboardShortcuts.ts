@@ -186,7 +186,7 @@ export const useKeyboardShortcuts = (
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
           const selectedIds = useUIStore.getState().selectedFrameIds;
-          
+
           // 过滤掉锁定的控件
           const unlocked = selectedIds.filter(id => {
             const frame = project.frames[id];
@@ -220,10 +220,10 @@ export const useKeyboardShortcuts = (
           useUIStore.getState().selectFrame(null);
         }
 
-        // 方向键: 微调位置
+        // 方向键: 微调位置（普通 0.01；精细调整见下方 Shift+方向键分支）
         if (selectedFrameId && project.frames[selectedFrameId]) {
           const frame = project.frames[selectedFrameId];
-          const step = e.shiftKey ? 0.001 : 0.01; // Shift=精细调整(0.001), 普通=粗调(0.01)
+          const step = 0.01;
 
           switch (e.key) {
             case 'ArrowLeft':
@@ -245,9 +245,35 @@ export const useKeyboardShortcuts = (
           }
         }
       }
-    };
 
-    // ========== 辅助函数 ==========
+      // ========== Shift + 方向键：精细微调 ==========
+      // 修复：原实现把 Shift 步长判断放在 !e.shiftKey 分支内（恒 false），
+      // Shift 精细调整(0.001)是死功能——Shift+方向键落入 Ctrl+Shift 分支尾无 case 静默无操作。
+      // 现独立分支：Shift+方向键以 0.001 步长微调（Ctrl/Alt 未按下时）。
+      else if (e.shiftKey && !e.ctrlKey && !e.altKey && selectedFrameId && project.frames[selectedFrameId]) {
+        const frame = project.frames[selectedFrameId];
+        const step = 0.001; // Shift=精细调整(0.001)
+
+        switch (e.key) {
+          case 'ArrowLeft':
+            e.preventDefault();
+            executeCommand(new UpdateFrameCommand(selectedFrameId, { x: frame.x - step }));
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            executeCommand(new UpdateFrameCommand(selectedFrameId, { x: frame.x + step }));
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            executeCommand(new UpdateFrameCommand(selectedFrameId, { y: frame.y + step }));
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            executeCommand(new UpdateFrameCommand(selectedFrameId, { y: frame.y - step }));
+            break;
+        }
+      }
+    };
     const handleSave = async () => {
       try {
         const path = await saveProject(project, currentFilePath || undefined);
