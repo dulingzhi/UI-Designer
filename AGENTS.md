@@ -112,7 +112,7 @@
 最新全量基线：
 - `142 passed | 2 skipped` 测试文件，`2126 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
-- `All files` 覆盖：`100 / 100 / 100 / 100`
+- `All files` 覆盖：`100 / 100 / 100 / 100`（r193 实测明细：Stmts 3212 / Branches 1858 / Funcs 439 / Lines 2911——漂移检测锚点）
 
 ### hotReloadExporter 热重载链路审计（压缩，细节见 git 历史）
 
