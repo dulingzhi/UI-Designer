@@ -187,6 +187,7 @@
 | capabilities 核查（222） | 通过+**高危** | fs:scope ** 全盘读写——用户决策 12 |
 | .gitignore 核查（223） | 通过 | 6 路径 ignore ✓ |
 | ShortcutHelp 第三轮对账（224） | 通过 | 32 项宣称零漂移；3 探针 MISS 系正则误报——对账三验通过 |
+| MenuBar/Toolbar handler 对账（225） | 通过 | MenuBar 8 个 handler 全定义+6 内联非 stub；Toolbar 35 onClick 中 7 named 全定义（undo/redo 系 useCommandStore 解构——探针误报甄别），28 内联无 TODO/console stub；**handler↔宣称对账通过** |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
