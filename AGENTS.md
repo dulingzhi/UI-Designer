@@ -172,10 +172,11 @@
 | 构建与健壮性收口（rounds 115-125 归并） | 通过+修 8 | ①存档链：序列化保真 2 测/frames 缺失归一化/recentFiles 类型防御/hotReloadConfig 自动导出 try-catch（损坏 JSON 异步 rejection 曾使链路静默死亡）②undo：拖拽手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪——pushCommand 统一 3 处旁路（+3 测）③构建：tsconfig.build.json 修复生产构建从未绿过（95 测试侧报错阻塞）/cargo release 首验+2 死代码清理/manualChunks 分离 three/react（主 chunk -31%）④stale closure：window.checkForUpdates 重暴露修复防重入（全仓扫描为唯一一例）。r147-148 文档对账（README 8 项/QUICKSTART 倒置×5/PNG 虚标删/JSON 导出核查反转保留）；r151 HistoryPanel 跳转推演核查通过（4 场景索引映射全对） |。r145 门禁疏漏修复：r129 环打破新增分支未跑 coverage（All files 曾破 100）——inCycle 后重建阶段的 if(parentId) 结构不可达（第二步清悬空/环切根恒 falsy 实证）→ 消除死分支+悬空清理统一 null（r116 断言同步）；**门禁 2 恢复 100×4**。导出错误处理核查通过（3 入口 try-catch+alert） |
 | 宣称对账与补齐（rounds 90-157 核心） | 修 2 误删+feat 多 | 帮助面板双向对账（r90/91）；MenuBar 虚标收敛（r92 误判教训）；Ctrl+F 实现（r153）；PNG 宣称 r147 误删→恢复（r156，教训=穷尽同义关键字）+JSON/PNG 核查反转两次；防御=导出防重入+主画布 id 锚定 |
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
-| 生命周期清理域（rounds 165-166 收口） | 修 1+横向排查通过 | useHotReloadSync 的 project effect rAF 无卸载清理（卸载后仍触发 sendUpdate）——加 return cancelAnimationFrame；横向排查 hooks+组件层全部成对（App×4/MenuBar×3/HotReloadPanel×2/Toolbar×1/hooks×2），r165 是唯一缺陷；Tauri listen 清理核查通过 |
+| 生命周期清理域（165-166） | 修 1+排查通过 | hotReloadSync rAF 无卸载清理→cancelled；全 hooks+组件成对；Tauri listen ✓ |
 | 夹具与接线核查域（168-173） | 补强+核查 3 | 夹具数组填非空+5 断言；模板加载链完整；QUICKSTART 控件全真实；门禁复验 2126/444/100×4 |
 | 组件定性域（174-175） | 通过 | DebugPanel 纯展示+SidePanel 双 Tab 组装+App 四区显隐——组件核查收口 |
-| 渲染器域（176/178/180） | **修 2**+test | ①hitTest 排序键=装饰偏移→重叠帧选错；改 point.z+5 测（认证第 6 例）②fontResolver 缓存 fontName 单键→切换命中旧字体；键加 fontPath ③layerStyle 首份测试 7 测+逗号分隔防御兼容（WC3 变体无权威样本，双接受）。2138 绿 |
+| 渲染器域（176/178/180） | **修 2**+test | hitTest 排序键→point.z+5 测（认证第 6 例）；fontResolver 缓存键加 fontPath；layerStyle 首份 7 测+逗号兼容。2138 绿 |
+| ProjectContext 竞态守卫（181） | **修 1 竞态** | useEffect 异步 dirname 无取消——快速 saveAs 陈旧 resolve 覆盖新 projectDir（代际守卫族第 3 例）；加 cancelled cleanup。附带：value 无 useMemo 低危不改。2138 绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
