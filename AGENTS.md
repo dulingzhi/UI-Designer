@@ -179,6 +179,7 @@
 | CSS 孤儿补齐（208） | **清除+310 行** | 删组件漏删 CSS——配对扫描抓出；**教训：删组件四件套** |
 | CI 配置核查（210） | 通过+1 决策 | release.yml 版本注入链完整；**双轨**：本地 pnpm vs CI bun install（依赖可漂移）——对齐属用户决策 |
 | tests 顶层历史面核查（211） | 通过 | dev 调试脚本 20+ 个（test-*.ts/debug-*.ts，一次性 dev 工具定性保留）；3 个被 package scripts 引用（test:fdf/debug:fdf/analyze:fdf 活跃）；4 个 excluded 旧测试：fdf-import.test.ts 被 test:fdf 引用保留，其余 3 个有 src/utils 同名新版取代（excluded 死文件，删除属清理项）；dataSource.test 3 it 在基线内活跃 ✓ |
+| 旧测试清除（212） | **清除+701 行** | tests 顶层 3 个被 src/utils 新版取代的 excluded 旧测试删除（新版 140 测活跃覆盖），vitest exclude 同步清理（保留 fdf-import.test.ts=scripts 引用）；门禁：基线 2126 不变/tsc 非测试 0/build 绿——**总账：死代码 10 项 ~3711 行** |
 | 仓库状态与总账口径（196-200） | 通过+**定性修正** | main 干净；远端 feature 分支=**架构分歧**（产品决策）；主 chunk 1265.7kB 低于基线；**git 总账**：全历史 513 提交（fix 88/feat 26/cleanup 9）——「48+8」为本会话段口径 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped 明细核查（205） | 通过 | 5 skipped 有据 |
