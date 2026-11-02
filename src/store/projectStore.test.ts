@@ -106,6 +106,26 @@ describe('projectStore 帧操作', () => {
     expect(p.rootFrameIds).not.toContain('r');
   });
 
+  it('addFrame 到无 children 字段的父帧不崩溃（导入 FDF 场景）', () => {
+    const s = useProjectStore.getState();
+    // 父帧无 children（导入 FDF 的真实形状）
+    s.addFrame(makeFrame('p0') as FrameData & { children?: string[] });
+    const p0 = useProjectStore.getState().project!.frames['p0'];
+    delete (p0 as any).children; // 模拟导入帧缺可选字段
+    s.addFrame({ ...makeFrame('c0'), parentId: 'p0' });
+    expect(useProjectStore.getState().project!.frames['c0'].parentId).toBe('p0');
+  });
+
+  it('addFrames 父子帧同批导入（父帧无 children）不崩溃', () => {
+    const s = useProjectStore.getState();
+    const parent = makeFrame('p1');
+    delete (parent as any).children;
+    s.addFrames([parent, { ...makeFrame('c1'), parentId: 'p1' }]);
+    const p = useProjectStore.getState().project!;
+    expect(p.frames['c1'].parentId).toBe('p1');
+    expect((p.frames['p1'] as any).children).toContain('c1');
+  });
+
   it('updateGeneralSettings 合并设置', () => {
     const s = useProjectStore.getState();
     s.updateGeneralSettings({ libraryName: 'MyLib', hideMiniMap: true });

@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `115 passed | 2 skipped` 测试文件，`2017 passed | 5 skipped` 测试
+- `115 passed | 2 skipped` 测试文件，`2019 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -622,6 +622,13 @@ updateGeneralSettings。mock 头部照抄 uiStore.test.ts（stubGlobal 必须在
 删除无 `children` 字段的帧（**导入 FDF 的帧常缺该字段**）直接抛 TypeError。
 已改 `(frame.children ?? [])`。既有命令层测试没抓到它，因为 `__test_helpers__` 构造的
 帧都带 children——**只有补齐"最小帧"用例才暴露**（又一次"测试夹具比产品更完整"的教训）。
+
+**横向排查（续本轮）：同款缺陷共 5 处，全部修复**。`children` 可选字段的
+无防护访问遍及 addFrame（`[...parentFrame.children, id]`）、addFrames
+（`.includes` + spread）、updateFrame（parentId 变更的旧/新父两侧 `.filter`/spread）、
+deleteFrame（`.filter`）——**导入 FDF 后任何涉及父子关系的编辑操作都可能崩溃**。
+测试扩到 10 测（先 2/10 红）：addFrame 到无 children 父帧、addFrames 父子同批导入。
+防护模式统一为 `(parentFrame.children ?? [])`。
 
 ### commandStore 审计（本轮）
 

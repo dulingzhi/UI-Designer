@@ -149,7 +149,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const parentFrame = state.project.frames[frame.parentId];
       updatedFrames[frame.parentId] = {
         ...parentFrame,
-        children: [...parentFrame.children, frame.id],
+        children: [...(parentFrame.children ?? []), frame.id],
       };
     }
     
@@ -184,11 +184,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     for (const frame of frames) {
       if (frame.parentId && updatedFrames[frame.parentId]) {
         const parentFrame = updatedFrames[frame.parentId];
-        // 确保不重复添加
-        if (!parentFrame.children.includes(frame.id)) {
+        // 确保不重复添加（children 是可选字段：导入 FDF 的帧可能没有）
+        if (!(parentFrame.children ?? []).includes(frame.id)) {
           updatedFrames[frame.parentId] = {
             ...parentFrame,
-            children: [...parentFrame.children, frame.id],
+            children: [...(parentFrame.children ?? []), frame.id],
           };
         }
       }
@@ -225,7 +225,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const oldParent = updatedFrames[oldParentId];
         updatedFrames[oldParentId] = {
           ...oldParent,
-          children: oldParent.children.filter(childId => childId !== id),
+          children: (oldParent.children ?? []).filter(childId => childId !== id),
         };
       }
 
@@ -234,7 +234,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const newParent = updatedFrames[newParentId];
         updatedFrames[newParentId] = {
           ...newParent,
-          children: [...newParent.children, id],
+          children: [...(newParent.children ?? []), id],
         };
       }
     }
@@ -284,7 +284,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const parentFrame = updatedFrames[frame.parentId];
       updatedFrames[frame.parentId] = {
         ...parentFrame,
-        children: parentFrame.children.filter(childId => childId !== id),
+        children: (parentFrame.children ?? []).filter(childId => childId !== id),
       };
     }
 
