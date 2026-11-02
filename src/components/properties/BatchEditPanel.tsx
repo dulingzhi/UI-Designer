@@ -4,6 +4,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useCommandStore } from '../../store/commandStore';
 import { UpdateFrameCommand } from '../../commands/FrameCommands';
 import { FrameType } from '../../types';
+import { updateAnchorsFromBounds } from '../../utils/anchorUtils';
 
 interface BatchEditPanelProps {
   onClose: () => void;
@@ -22,8 +23,25 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({ onClose }) => {
   };
 
   const handleBatchChange = (field: string, value: any) => {
+    // round 134：几何字段同步重算 anchors（与 PropertiesPanel 单帧路径一致）。
+    // 原实现只写字段——批量改尺寸后锚点数据滞后，锚点编辑器显示旧 bounds。
+    const isGeometry = ['x', 'y', 'width', 'height'].includes(field);
+    const { project } = useProjectStore.getState();
     selectedFrameIds.forEach(id => {
-      executeCommand(new UpdateFrameCommand(id, { [field]: value }));
+      const frame = project.frames[id];
+      if (!frame) return;
+      if (isGeometry) {
+        const nx = field === 'x' ? value : frame.x;
+        const ny = field === 'y' ? value : frame.y;
+        const nw2 = field === 'width' ? value : frame.width;
+        const nh = field === 'height' ? value : frame.height;
+        executeCommand(new UpdateFrameCommand(id, {
+          [field]: value,
+          anchors: updateAnchorsFromBounds(frame.anchors, nx, ny, nw2, nh),
+        }));
+      } else {
+        executeCommand(new UpdateFrameCommand(id, { [field]: value }));
+      }
     });
   };
 
