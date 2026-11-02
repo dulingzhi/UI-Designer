@@ -822,6 +822,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
 
           {/* WebGL 渲染层 — 位于画布背景之上、DOM 帧之下（DOM 帧背景透明，透见此层纹理） */}
           <canvas
+            id="main-canvas"
             ref={webglCanvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}

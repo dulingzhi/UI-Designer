@@ -149,7 +149,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const handleExportPNG = () => {
     // 需要从 Canvas 组件获取 canvas 元素
     // 暂时使用简化方案
-    const canvas = document.querySelector('canvas');
+    const canvas = document.getElementById('main-canvas') as HTMLCanvasElement | null;
     exportToPNG(canvas, showAlert);
   };
 
