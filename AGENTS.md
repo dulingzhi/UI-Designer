@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `132 passed | 2 skipped` 测试文件，`2073 passed | 5 skipped` 测试
+- `133 passed | 2 skipped` 测试文件，`2077 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -167,7 +167,7 @@
 因未装 jsdom，均用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
 汇总要点（详细语义见各测试文件头部注释）：
 
-完整语义见各测试文件头部注释（src/components/**/*Wiring.test.ts，21 文件）：properties(13)/anchorEditor(6)/propertyEditors(5)/batchEdit(5)/arrayDialogs(6)/projectTree(8)/hotReloadPanel(5)/textureBrowser(6)/templatePanel(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/historyPanel(5)/utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7)/anchorVizHandles(4)/miscPanels(5)。
+完整语义见各测试文件头部注释（src/components/**/*Wiring.test.ts，21 文件）：properties(13)/anchorEditor(6)/propertyEditors(5)/batchEdit(5)/arrayDialogs(6)/projectTree(8)/hotReloadPanel(5)/textureBrowser(6)/templatePanel(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/historyPanel(5)/utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7)/anchorVizHandles(4)/miscPanels(5)。**wiringExtra.test.ts（4 测）补齐收口边界**：App.tsx 挂载但无守卫的 StylePresetPanel/FrameGroupPanel/UpdateChecker 三组件（onClose/卡片操作走 store/dev 跳过/checking-downloading 互斥/pendingUpdate 链）。
 
 **守卫编写教训**：多行字符串断言对缩进/换行过脆（Canvas 首版 1/6 失败），
 改用 `indexOf` 顺序断言（如 cancelled 判断先于 dispose）——语义等价且抗格式化。
