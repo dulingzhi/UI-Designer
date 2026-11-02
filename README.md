@@ -6,7 +6,7 @@
 
 **专业的魔兽争霸3界面设计工具**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/warcraft-iii/UI-Designer)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://github.com/warcraft-iii/UI-Designer)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Tauri-2.0-orange.svg)](https://tauri.app/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://reactjs.org/)
@@ -187,7 +187,6 @@ wc3-ui-designer/
 │   ├── commands/       # 命令模式（撤销/重做）
 │   ├── utils/          # 工具函数
 │   ├── types/          # TypeScript类型定义
-│   └── templates/      # UI模板
 ├── src-tauri/          # Tauri后端
 ├── docs/               # 文档
 └── tests/              # 测试文件
