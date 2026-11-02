@@ -391,141 +391,21 @@ localStorage 恢复并正确查询）。
   `FrameFont|SetFontSize` 两种风格——**教训**：mock AST 测试永远抓不到这类断裂，
   只有端到端穿透（`fullRoundtrip.test.ts`）能抓
 - `visible` 无 FDF 模板属性（运行时 API 职责）——不臆造，如实边界
-### Control/Highlight/Font 系导出（本轮，真实语法实证接入）
+### 编辑字段 ↔ 导出/导入全对账（多轮结论归并）
 
-系统性反向审计：属性面板可编辑的 **25 个字段**在 FDF/JASS 导出中零引用——"能设但导不出"
-的同款断裂，规模比 backdrop 更大。按 §4.1 查证：对 war3.mpq 全量 FDF 属性名扫描，
-**实证拿到真实语法**（出现次数即真实写法）：
-
-- `ControlBackdrop` 89 次、`ControlDisabledBackdrop` 48、`ControlPushedBackdrop` 26、
-  `ControlMouseOverHighlight` 18、`ControlDisabledPushedBackdrop` 2、`ControlStyle` 19
-  —— 值为**模板名**（如 "AdvancedPopupMenuBackdrop"），非文件路径
-- `HighlightType` 40、`HighlightAlphaFile` 36、`HighlightAlphaMode` 36
-- `FontShadowColor` 34、`FontShadowOffset` 34、`FontHighlightColor` 31、`FontDisabledColor` 28
-  —— 颜色为**四数值空格分隔**（`0.0 0.0 0.0 0.9`）
-- `ButtonPushedTextOffset` 10（双数值）
-- `EditCursorColor` 4（本轮未接，留待下轮查参数格式）
-
-已接入其中 **13 个字段**的 FDF 导出（通用属性段，对所有帧类型生效）。
-**如实记录未接入项**（真实 FDF 中无对应模板属性，不臆造）：`tooltip`（运行时
-`DzFrameSetTooltip`）、`listBoxItems`、`multiline`、`maxChars`、`backgroundArt`（模型子帧，
-需嵌套定义）、`cameraYaw/Pitch/Distance`（相机字段非 FDF 属性）。
-
-**测试**：`exportControlProps.test.ts`（11 测，先 10/11 红）。
-
-### EditBox 颜色系查证（本轮，续）
-
-同款真实语法扫描（放宽 Edit*/TextColor 模式），实证结果**与编辑器字段语义有出入**：
-
-- `EditCursorColor` 4 次：**三数值**（`1.0 1.0 1.0`，语法无 alpha）→ 已接入，
-  `editCursorColor` 第 4 分量（alpha）按语法丢弃（如实记录）
-- 真实语法是 `EditBorderSize`（数值，如 0.009）而**非颜色**——编辑器的
-  `editBorderColor` 字段没有对应模板属性，**如实不输出**；若要支持需先加
-  `editBorderSize` 字段 + UI（另行决策，本轮不加）
-- `editTextColor`：真实 FDF **无 EditTextColor** 属性（EditBox 文本颜色由子
-  TEXT 帧字体处理），**如实不输出**
-
-**测试**：`exportControlProps.test.ts` 扩到 13 测（先 1/13 红；
-editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确）。
-
-### appInterface 查证（本轮：字段本身无引擎语义）
-
-之前多轮记录的"`appInterface` 未接入（语义不明，不臆造）"本轮彻底查证：
-
-- **war3.mpq 全部 72 个 FDF/TOC 文件中 `AppInterface` 出现 0 次**——它在 WC3
-  FDF 语法中不存在
-- openwar3 全仓库亦无此概念
-- 本仓库现状：类型有定义、store 初始为 `''`、`updateGeneralSettings` 的 Pick
-  白名单**不含它**、无 UI 控件、导出导入均零引用——即**全链路断**
-
-结论：它不是"未接入的功能"，而是**建模时自造、无可接入引擎语义的字段**。
-按诚实原则如实记录；是否删除字段属产品决策（涉及类型/store/测试多处与存档兼容性），
-本轮不动代码。若未来确认删除，需同步移除 `updateGeneralSettings` 白名单核对项。
-
-### SLIDER 系 FDF 导出（本轮，真实语法实证）
-
-核对 FDF 导出（`exportUtils`）的 SLIDER 帧：**只输出类型名**，
-`minValue/maxValue/sliderInitialValue/stepSize` 四字段全丢（codeExport 运行时侧早已写
-`FrameSetMinMaxValue`/`FrameSetStepValue`，FDF 侧缺失）。真实语法扫描实证：
-
-- `SliderMinValue` 13 次、`SliderMaxValue` 13 次、`SliderInitialValue` 13 次、
-  `SliderStepSize` 13 次（数值型）
-- **注意**：FDF 模板名是 `SliderStepSize` —— 与运行时 API `FrameSetStepValue`
-  **不同名但并存**，不矛盾（前者是模板属性，后者是运行时调用；之前修正的是后者）
-- 另实证 `SliderThumbButtonFrame` / `ScrollBarIncButtonFrame` / `ScrollBarDecButtonFrame`
-  （模板引用型，对应 FrameData 的 *Ref 字段，本轮未接——需模板依赖排序，另行处理）
-
-已接入 4 字段的 FDF 导出（`!== undefined` 判断，0 值也会如实输出）。
-**测试**：`exportControlProps.test.ts` 扩到 15 测（先 1/15 红；含"未设置不输出"用例）。
-
-### SLIDER 系导入写回（本轮，闭环）
-
-`enhanceFrameWithFDF` 补 `SliderMinValue/MaxValue/InitialValue/StepSize` 四字段写回
-（与导出互逆）。**关键点**：数值用 `!== null && !isNaN` 判断——`minValue=0` 是合法值，
-不得按 falsy 丢弃（与之前 `BackdropTileBackground` 的 undefined 覆盖陷阱同类教训）。
-
-**测试**：`fdfImportRoundtrip.test.ts` 扩到 42 测（先 3/42 红，含 0 值用例）；
-`fullRoundtrip.test.ts` 扩到 **8 测**（新增 SLIDER 穿透，断言 `minValue === 0` 原样回来）。
-
-### SLIDER/ScrollBar 模板引用型导出+导入（本轮，闭环）
-
-`SliderThumbButtonFrame` / `ScrollBarIncButtonFrame` / `ScrollBarDecButtonFrame`
-三字段闭环（导出+导入写回）。**修正此前判断**："需模板依赖排序"实属过度谨慎——
-`ControlBackdrop` 也是模板名引用，已照实输出；引用解析由引擎按名处理，
-引用找不到属用户数据问题，导出侧照实输出引用名字符串即可。
-
-**测试**：`exportControlProps.test.ts` 扩到 18 测（先 2/18 红）；
-`fdfImportRoundtrip.test.ts` 扩到 43 测（含三字段写回断言）。
-
-### FrameFont 修复（本轮：字体硬编码 + 输出条件双重缺口）
-
-对账编辑字段全集 vs FDF 导出，发现 `frame.font`（用户选择的字体名）被
-`FrameFont "MasterFont"` **硬编码忽略**。修用例时暴露第二层缺口：
-FrameFont 原输出条件是 `horAlign/textScale 存在`——**只有文本、无对齐的文本帧
-根本没有 FrameFont**，真实引擎可能不渲染文本。
-
-已修：`frame.text` 存在即输出 FrameFont；字体名用 `frame.font || 'MasterFont'`。
-**测试**：`exportText.test.ts` 扩到 14 测（先 2/14 红——两条失败分别锁定两个缺口）。
-
-### 剩余编辑字段的真实语法查证（本轮，收口）
-
-对账后剩余未导出的编辑字段，经 war3.mpq 全量扫描实证：
-- `alpha` / `checked` / `sliderLayoutHorizontal` / `sliderLayoutVertical`：
-  真实 FDF 中**无对应模板属性**（AlphaMode 是纹理属性非帧属性）——运行时 API 职责，
-  如实记录不臆造
-- `locked` / `isRelative` / `layerStyle`：编辑器元数据，非 FDF 属性——合理不导出
-- `fontFlags`：真实语法未见（`SetFontFlags` 是运行时调用），如实记录
-- `textureFile`：与 `texture` 语义重复（导出侧已走 `texture`），非缺口
-
-至此编辑字段 ↔ FDF 导出的对账**全部有结论**：可导出的全部接入，
-无语法依据的如实记录，无遗留"能设但导不出"的未查证项。
-
-### Control/Font 系导入写回（本轮，收口）
-
-上轮如实记录的"只进元数据"口径升级为**真写回**（backdrop 同款处理）：
-`enhanceFrameWithFDF` 新增 `controlFields` 映射——
-
-- 8 个字符串字段（ControlBackdrop/Pushed/Disabled/MouseOver/Style、Highlight 三系）直写
-- 6 个数值数组字段（FontHighlightColor/DisabledColor/ShadowColor 四元、
-  FontShadowOffset/ButtonPushedTextOffset 二元、EditCursorColor 三元）经 `asNumArray`
-  形状校验（长度不符/非数值不设置，不臆造）
-- undefined/空串不覆盖（陷阱同前）；`rawProperties` 元数据同时保留
-
-**测试**：`fdfImportRoundtrip.test.ts` 扩到 39 测（先 12/39 红）；
-`fullRoundtrip.test.ts` Control/Font 穿透用例口径**升级为断言真写回**
-（text/数值往返值逐项比对），7/7 通过。属性面板现可显示这批属性的导入值。
-
-### 运行时链路对 Control/Font 系的覆盖查证（本轮，收口）
-
-核对 `luaGenerator` 与 `codeExport`（两条运行时链路）对 14 个新接入字段的处理：
-**全部零引用——且这是语义正确，不是缺陷**。证据链：
-
-- ControlBackdrop 系值为**模板名**，运行时无 `SetControlBackdrop` 类 API
-  （模板引用靠 `BlzCreateFrame(templateName, ...)` 创建，模板本身在 FDF 里声明）
-- dzapi 60 函数与 Blz 原生集（`src/compat/prelude.ts`）均无
-  Shadow/CursorColor/HighlightAlpha 类 native
-- 结论：这批属性**唯一表达渠道就是 FDF 模板导出**（已接入）；运行时链路
-  不写它们是正确现状。如实记录，防止未来误当缺口"补齐"出不存在的 API 调用。
+对 war3.mpq 全量 FDF 属性名扫描实证后完成全部对账：**Control/Highlight/Font 系 13 字段**（ControlBackdrop 89 次/
+ControlDisabledBackdrop 48/Pushed 26/MouseOver 18/DisabledPushed 2/Style 19——值为模板名；HighlightType 40/
+HighlightAlphaFile·Mode 各 36；FontShadowColor·Offset 各 34/FontHighlightColor 31/FontDisabledColor 28——颜色四数值/
+ButtonPushedTextOffset 10 双数值/EditCursorColor 4 三数值无 alpha）接入 FDF 导出+真写回（enhanceFrameWithFDF
+controlFields，asNumArray 形状校验，undefined/空串不覆盖）；**SLIDER 系 4 字段**（SliderMinValue/MaxValue/
+InitialValue/StepSize 各 13 次）+ **模板引用 3 字段**（SliderThumbButtonFrame/ScrollBarInc·DecButtonFrame）闭环导出+导入
+（minValue=0 用 !== null && !isNaN 防 falsy 丢弃）；**EditBox**：EditCursorColor 三数值接入（alpha 按语法丢弃）、
+EditBorderSize 是数值非颜色（editBorderColor 无对应模板属性不输出）、editTextColor 无属性不输出；**FrameFont**：
+frame.text 存在即输出（不再要求 horAlign/textScale），字体名 frame.font || 'MasterFont'；**剩余字段收口**：alpha/
+checked/sliderLayout* 无模板属性（运行时 API 职责）、locked/isRelative/layerStyle 编辑器元数据合理不导出、
+fontFlags 无语法依据、textureFile 与 texture 重复——**无遗留"能设但导不出"未查证项**。运行时链路（luaGenerator/
+codeExport）对 Control/Font 系零引用是语义正确（模板名唯一表达渠道是 FDF 模板导出）。appInterface 经查证 WC3 FDF
+语法不存在（72 文件 0 次）/openwar3 无此概念——建模自造字段，是否删除属产品决策（涉及类型/store/测试多处）。
 
 ### luaGenerator 导出链路补齐（本轮）
 
@@ -554,86 +434,14 @@ FrameFont 原输出条件是 `horAlign/textScale 存在`——**只有文本、�
 **测试**：`luaGenerator.guard.test.ts`（16 测，先 11/12 红再修复转绿）。
 注意 `generate()` 只产出 Frame 创建代码，API 包装在 `generateLoaderScript()` 里——两者需分开断言。
 
-### 画布交互几何抽纯函数（本轮）
+### 画布交互几何与渲染器单测（历史归并，rounds 30-33 结论）
 
-审计 `src/hooks/` 发现 **6 个 hook 全部没有测试**（`useCanvasDrag` / `useCanvasPan` /
-`useCanvasResize` / `useHotReloadSync` / `useKeyboardShortcuts` / `useTextureLoader`）。
-它们依赖 React hooks，而本仓库**未安装 jsdom / happy-dom / @testing-library**，
-无法渲染 hook 做单测。
-
-因此把 `useCanvasDrag` / `useCanvasResize` 里重复内联的**纯几何计算**抽到
-`src/utils/frameTransforms.ts`（可单测，两块逻辑合并去重）：
-- `clampRectToCanvas`：钳制到 0..0.8 / 0..0.6，最小尺寸 0.01，且尺寸收紧后起点再钳一次
-- `snapRect` / `computeDragRect` / `computeResizeRect`（含 Shift 保比例）
-
-**关键约束：语义必须严格对齐原 hook，不得反转。** 抽取时我一度把 n/s 方向做成
-"n 改 y+高度、s 只改高度"，与 `useCanvasResize` 现有实现**正好相反**；已按原实现改为
-"n 只改高度、s 改 y+高度（保持上边不动）"，并在测试里钉死这两条。
-
-两个 hook 现分别调用 `computeDragRect` / `computeResizeRect`，行为不变（全量测试 1885 绿）。
-**注意**：`useKeyboardShortcuts` 经核查每个分支都调用了 `preventDefault` 并忽略输入框内按键，
-行为正确，但因其纯属事件分发、无独立几何逻辑，本轮未抽函数。
-
-**测试**：`src/utils/frameTransforms.test.ts`（22 测）。
-`useCanvasPan` / `useHotReloadSync` / `useTextureLoader` 仍无测试——它们以 DOM/IO 副作用为主，
-无 DOM 环境时无法诚实覆盖，如实记录为缺口。
-
-### 渲染器单测缺口补齐（本轮）
-
-审计 `src/renderer` 全部模块后发现：`backdropLayout / buttonState / highlightColor / highlightType /
-editBoxBorder / hitTest / layerStyle / fontResolver / textLayout / backdropBlend / backdropSplitEdges /
-pixelSnap / popupMenuVisibility / constants` **均已有测试**，唯独 `ShaderLib` 与 `TextureCache` 没有
-（此前 `psnr.real.test.ts` 只是间接用了 `TextureCache` 实例，未对其行为断言）。已补：
-- `tests/visual-regression/shaderLib.test.ts`（23 测）：材质映射（基色/NOSHADING/alpha 归一化/钳制）、
-  alphaMode → alphaTest 与混合（BLEND vs ADD 的差异在 `blendDst`）、DISABLE 语义、
-  纹理 UV（repeat/offset/wrap 默认与覆盖）、`updateMaterial` 原地更新与**纹理所有权**（不释放 Cache 的纹理）。
-- `tests/visual-regression/textureOwnership.test.ts`（2 测）：材质 ↔ TextureCache 所有权集成回归。
-- `tests/visual-regression/textureCache.test.ts`（7 测）：路径归一化、1×1 品红 fallback 及其 sRGB/LinearFilter
-  参数、失败后从缓存移除允许重试、LRU 上限不崩、`dispose` 幂等。
-- **`SceneGraphManager` 仍无直接单测**：其构造需要真实 GPU（private ctor + `create()` 走 WebGPU/WebGL 回退），
-  无法在纯单测中实例化。它消费的几何由 `pixelSnap`（已测）给出、材质由 `ShaderLib`（本文件已测）给出，
-  故**可确定性断言的部分已覆盖**；GPU 光栅结果只在 `psnr.real.test.ts` 的 t1/t2/t4 三个公平基元上验证。
-
-**ShaderLib 已知问题（已在测试中以"已知问题"用例固定，非期望语义）**：
-1. `material.needsUpdate = true` 在 NodeMaterial 上读回为 `undefined`（写入不产生可断言读回值）。
-   仅影响可断言性，不影响 THREE 内部响应。**未修**，测试锁定现状。
-
-**已修：材质擅自释放 TextureCache 拥有的纹理（所有权错误，非"泄漏"）**
-- 原先记录为"首帧纹理泄漏（createMaterial 未标记 managedTexture）"——**定性错了**，实测方向相反。
-- **根因（探针实证）**：`updateMaterial` 把传入纹理标为 `userData.managedTexture = true`，换图时
-  执行 `oldTex.dispose()`。但 `SceneGraphManager` 的全部 14 处纹理来源都是 `TextureCache`
-  （`loadTexture` / `loadBorderAtlas` / `getFallback`），纹理**归 Cache 所有**。于是：
-  ① 被换下的纹理被材质销毁，而 Cache 仍持有它；
-  ② Cache 后续淘汰/`dispose` 时对同一张纹理**再次 dispose**（double dispose）；
-  ③ 缓存命中时返回**已销毁的纹理**（use-after-dispose）→ 渲染到失效纹理。
-  探针实测：`update#2` 后 `texA` 已 disposed，而 `disposed=["A"]`、随后 `["A","B"]`。
-- **修复**：`updateMaterial` **不再释放任何纹理**，只做 `material.map` 引用替换 + UV 参数应用；
-  删除 `managedTexture` 标记机制（该机制本身建立在错误的所有权假设上，全仓库仅 ShaderLib 自用）。
-  纹理生命周期完全由 `TextureCache` 负责（`ownedTextures` + `evictKey` + `dispose`）。
-  特例：`getFallback()` 返回模块级单例，不归任何 cache 实例销毁（已用测试记录该事实）。
-- **验证**：`shaderLib.test.ts`「纹理所有权」2 测（换图不销毁被换下纹理、共享纹理不受影响）；
-  新增 `textureOwnership.test.ts`（2 测）做材质 ↔ Cache 集成回归。
-  既有 PSNR 守卫与全部对拍仍绿。
-
-**已修：AlphaMode `DISABLE` 被静默丢弃（IDA 取证驱动）**
-- 症状：`parseAlphaMode` 的 switch 只识别 `ALPHAKEY/ADD/BLEND`，`'DISABLE'` 回落为 `BLEND`，
-  导致不透明层仍设 `alphaTest=4/255`、`depthWrite=false`；同时三个解析点
-  （`fdfTransformer.ts` 两处、`fdfImport.ts`、`fdfTemplates.ts`）的三值白名单会把 FDF 里的
-  `AlphaMode "DISABLE"` 静默丢掉，`ShaderLib` 里那条正确的 DISABLE 处理逻辑成了死代码。
-- **IDA 取证**（Game.dll，imagebase `0x6f000000`）：`ReaderTextureKeyword` @ `0x6f09b8a0`
-  显式比较四个字符串并分别赋值——
-  `"DISABLE"`(`0x6fa8600c`)→`GxMatAlpha_Disable`、`"BLEND"`(`0x6fa86014`)→`GxMatAlpha_Blend`、
-  `"ALPHAKEY"`(`0x6fa8601c`)→`GxMatAlpha_AlphaKey`、`"ADD"`(`0x6fa86028`)→`GxMatAlpha_Add`。
-  即 **DISABLE 是引擎合法取值**，不是本仓库自造的。
-- 修复：`FrameData.alphaMode` / `FDFTextureData.alphaMode` 类型扩为
-  `'DISABLE' | 'ALPHAKEY' | 'BLEND' | 'ADD'`；三个解析点白名单加入 `DISABLE`；
-  `parseAlphaMode` 增加 `case 'DISABLE'`。
-- 验证：`shaderLib.test.ts` 新增「DISABLE 语义（已修正）」3 测（NoBlending / depthWrite=true /
-  alphaTest=0 / updateMaterial 切回）；`fdfTransformer.test.ts` 新增解析器接受 DISABLE（含小写）。
-  既有 PSNR 守卫（t1/t2/t4）与全部对拍仍绿，未受影响。
-
-> 注：`editorgeometry.parity.test.ts` 现走**产品真实路径**（`parseFDF(src,{useKernelLayout:true})`
-> 让内核几何先 overlay 进 FrameData），再断言求解器覆盖不破坏该几何——与渲染真实数据流一致。
+- useCanvasDrag/useCanvasResize 纯几何抽到 frameTransforms.ts（22 测；n 只改高度、s 改 y+高度语义已钉死）；
+  round 83 起 useCanvasPan（canvasViewTransforms 7 测）、useHotReloadSync（hotReloadLua 8 测）同模式抽取，
+  **6 hook 测试缺口清零**（useTextureLoader 已删、useKeyboardShortcuts 纯事件分发）。
+- 渲染器：ShaderLib 23 测（材质映射/alphaMode 含 DISABLE/UV/纹理所有权——updateMaterial 不释放 Cache 拥有的纹理，
+  managedTexture 机制已删；AlphaMode DISABLE 经 IDA 0x6f09b8a0 取证为引擎合法值并接入三解析点）+ TextureCache 7 测 + 所有权集成 2 测。
+  SceneGraphManager 无直接单测（需真实 GPU），可确定性部分由 pixelSnap/ShaderLib 覆盖，GPU 光栅在 psnr t1/t2/t4 验证。
 
 ### 编辑器命令层测试（`src/commands`，当前目标「编辑器端单测 + 完整编辑功能」）
 - 命令层 `src/commands/*.ts`（20 个命令类）不在覆盖率门 `include`（`src/utils/**`）内，不要求 100%，
