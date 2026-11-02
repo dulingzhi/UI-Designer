@@ -151,8 +151,7 @@ export function useCanvasResize({
             height: resizeStartSize.height,
             anchors: resizeStartAnchors,
           };
-          const { undoStack } = useCommandStore.getState();
-          useCommandStore.setState({ undoStack: [...undoStack, command], redoStack: [] });
+          useCommandStore.getState().pushCommand(command);
         }
       }
     }

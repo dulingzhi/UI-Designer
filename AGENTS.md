@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `139 passed | 2 skipped` 测试文件，`2113 passed | 5 skipped` 测试
+- `139 passed | 2 skipped` 测试文件，`2116 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -188,6 +188,7 @@
 | 损坏存档容错（round 116） | **修 1 防御缺口** | 合法 JSON 但 frames 缺失（手编辑残档）→ migrateProjectData 的 Object.entries(undefined) 抛 TypeError（上层警告框兜住但信息技术化）——改为归一化空项目/空 rootFrameIds。非法 JSON 保持抛错冒泡（handleOpen 警告框，不静默失败）语义正确。+2 测（缺 frames/非法 JSON）。2113 测全绿 |
 | recentFiles 类型防御（round 117） | **修 1 同族缺口** | 值语义审计（r95 配对审计延伸）：上限 10/去重置顶/加载 try-catch/失败文件移除全健康——唯 JSON.parse 无类型验证，存档损坏成非数组时 filter 抛 TypeError。加 Array.isArray 回落空列表（与 r116 frames 归一化同族） |
 | hotReloadConfig 损坏容错（round 118） | **修 1 异步抛错** | 自动导出订阅的 JSON.parse 无 try-catch——损坏 JSON 在 setTimeout 异步上下文抛未捕获 rejection，**自动导出链路静默死亡**（每次编辑重复触发）。损坏回落默认配置+console.error。Toolbar 读取点在大 try 内已安全。同族第 10 处收口 |
+| 拖拽入栈旁路统一（round 119） | **修 1 上限旁路** | useCanvasDrag/Resize 结束时手动 setState 入栈——**绕过 MAX_UNDO_HISTORY=100 裁剪**（拖拽是最频繁操作，撤销栈无限增长）且 (command as any).previousState 三处重复。修复：commandStore 加 pushCommand（入栈+裁剪+清 redo，不调 execute——拖拽过程已实时应用），executeCommand 复用它，3 处旁路统一。+3 测（不执行/裁剪生效/清 redo）。2116 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 

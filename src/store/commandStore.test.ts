@@ -116,3 +116,39 @@ describe('commandStore 异常路径（round 106 语义锁定）', () => {
     expect(useCommandStore.getState().canUndo()).toBe(true);
   });
 });
+
+describe('pushCommand（round 119：拖拽/缩放入栈旁路统一）', () => {
+  beforeEach(() => {
+    useCommandStore.setState({ undoStack: [], redoStack: [] });
+  });
+
+  it('入栈但不执行命令（拖拽过程已实时应用状态）', () => {
+    let executed = false;
+    const cmd: Command = {
+      execute: () => { executed = true; },
+      undo: () => {},
+      redo: () => {},
+    };
+    useCommandStore.getState().pushCommand(cmd);
+    expect(executed).toBe(false);
+    expect(useCommandStore.getState().undoStack).toHaveLength(1);
+    expect(useCommandStore.getState().canUndo()).toBe(true);
+  });
+
+  it('上限裁剪同样生效（拖拽高频操作不再绕过 100 上限）', () => {
+    const noop: Command = { execute: () => {}, undo: () => {}, redo: () => {} };
+    for (let i = 0; i < 105; i++) {
+      useCommandStore.getState().pushCommand({ ...noop });
+    }
+    expect(useCommandStore.getState().undoStack).toHaveLength(100);
+  });
+
+  it('清空 redoStack（与 executeCommand 一致）', () => {
+    const noop: Command = { execute: () => {}, undo: () => {}, redo: () => {} };
+    useCommandStore.getState().executeCommand({ ...noop });
+    useCommandStore.getState().undo();
+    expect(useCommandStore.getState().redoStack).toHaveLength(1);
+    useCommandStore.getState().pushCommand({ ...noop });
+    expect(useCommandStore.getState().redoStack).toHaveLength(0);
+  });
+});

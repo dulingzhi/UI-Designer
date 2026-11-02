@@ -234,8 +234,7 @@ export function useCanvasDrag({
             y: dragStartState.y,
             anchors: dragStartState.anchors,
           };
-          const { undoStack } = useCommandStore.getState();
-          useCommandStore.setState({ undoStack: [...undoStack, command], redoStack: [] });
+          useCommandStore.getState().pushCommand(command);
         }
       } else if (currentFrame) {
         // 没有 temp ref 的兼容路径
@@ -250,8 +249,7 @@ export function useCanvasDrag({
             y: dragStartState.y,
             anchors: dragStartState.anchors,
           };
-          const { undoStack } = useCommandStore.getState();
-          useCommandStore.setState({ undoStack: [...undoStack, command], redoStack: [] });
+          useCommandStore.getState().pushCommand(command);
         }
       }
     }

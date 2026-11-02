@@ -10,8 +10,11 @@ export interface Command {
 interface CommandState {
   undoStack: Command[];
   redoStack: Command[];
-  
+
   executeCommand: (command: Command) => void;
+  // round 119：记录一条"已生效"的命令（不调用 execute）——拖拽/缩放等
+  // 过程中实时应用状态的路径使用。统一入栈逻辑：上限裁剪 + 清空 redo。
+  pushCommand: (command: Command) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -29,6 +32,10 @@ export const useCommandStore = create<CommandState>((set, get) => ({
 
   executeCommand: (command) => {
     command.execute();
+    get().pushCommand(command);
+  },
+
+  pushCommand: (command) => {
     set((state) => {
       const next = [...state.undoStack, command];
       return {
