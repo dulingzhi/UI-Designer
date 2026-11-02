@@ -123,18 +123,18 @@
 
 | 模块 | 结果 | 核心结论 |
 |---|---|---|
-| dataSource.ts | 通过 | loadList 失败降级可重试；大小写分层正确（Rust has_mpq_file 走 MPQ hash 不敏感，快/降级两路一致） |
-| rustBridge.ts | 通过+1 决策 | `Array.from(blpData)` 大纹理内存膨胀 8 倍——Tauri 2 二进制 payload 需 Rust 端配合，性能决策项 |
-| kkweDetector+Rust | 通过+2 边界 | ①detectKKWE 失败与未安装不可区分（UX 决策）②launch_kkwe 以启动器退出码当 War3 PID（外部约定） |
+| dataSource.ts | 通过 | loadList 降级可重试；大小写分层正确 |
+| rustBridge.ts | 通过+1 决策 | blpData 内存膨胀 8 倍（性能决策项） |
+| kkweDetector+Rust | 通过+2 边界 | 检测失败不可区分；PID 外部约定 |
 | fileOperations.ts | **修 1 缺陷** | 迁移不清理悬空 parentId → 再次保存永久化；已修（清理为 `''`，2 测） |
 | snapUtils.ts | **删除死代码** | 零生产引用（真实路径 frameTransforms.snapRect）；342 行+34 测清除。**教训：零引用检查是盲区审计第一步** |
 | textureLoader.ts | **修 1 缺陷** | evictLRU 公式 `acc*1000+age` 淘汰 score 最小=刚加载项——**与 LRU 相反**；已改 `acc*maxCacheAge-age` + fake-timer 方向性 2 测。**测试认证 bug 第 4 例**（旧测试注释把 timestamp 当 age、不断言淘汰对象） |
 | war3ProcessManager | **修 1 耦合** | isCurrentProcessRunning 只查内存，漏 localStorage 恢复——隐式依赖调用方先调 getCurrentPid；已统一 |
 | mpqManager.ts | **修 1 竞态** | setWar3Path 无并发防护（WC3TextureBrowser:55 fire-and-forget + 用户改路径并发）→ **两路径档案混合加载**；已加代际守卫（loadGeneration 过期中止剩余档案），58 测 |
-| blpDecoder.ts | 通过+1 改进项 | JPEG 静默占位是设计决策（Rust 后端优先、灰图不断链）；URL 三路 revoke 完整；mip 越界已有抛错守卫。低危项：空/短缓冲的 RangeError 信息不友好（Rust 前置遮蔽） |
+| blpDecoder.ts | 通过+1 改进 | JPEG 占位系设计；revoke 完整 |
 | war3SkinsParser+textureLoader | **修 2 缺陷** | openwar3 仲裁：1.27 war3skins.txt 值大量带成对引号（`Key="UI\..."`），两 parser 均无 unquote → **路径含引号字符全部失效**。已加 unquote（两处）；textureLoader 扁平映射改段落感知（[Default] 全表优先，种族段 override 不冒充全局；且旧实现"后缀过滤在 unquote 前"会全部误过滤带引号值——测试红抓出）。textureLoader.parseWar3Skins 与 war3SkinsParser.parseWar3Skins 是双实现（扁平 vs 结构化，语义不同故并存） |
 | Rust lib.rs（20 命令） | 通过 | extract_template_map 白名单+include_bytes!（无路径注入）；parse_mdx ? 错误链显式；BLP 三命令 map_err 完整；get_username USERNAME→USER 环境变量回退。与此前 kkwe/MPQ/BLP 分项审计合并后 Rust 侧全面收口 |
-| codeExport 数值格式化 | 通过 | 全部数值插值有 toFixed(2/5) 保护（锚点/尺寸/MinMax/Step）——无 JASS/LUA 不支持的科学计数法（1e-7）风险；maxValue=0→100、stepSize=0→1 是无意义输入的防御兜底，与 SLIDER 导入侧 minValue=0 合法值不冲突（minValue||0 对 0 处理正确） |
+| codeExport 数值格式化 | 通过 | toFixed 全保护；0 值防御兜底 |
 | fdfParser.old.ts | **删除死代码** | `.old.` 命名旧解析器实现，零生产引用（真实路径 fdfParser.ts 内核）；8.4KB+18 测清除。testMdxParser/fdfTest 是有意的控制台调试工具（非死代码）保留 |
 | backdropEdgeRenderer.ts | **删除死代码** | 全部导出（BackdropEdgeRenderer/renderBackdropEdge）生产零引用；BackdropEdge.tsx 组件实际用 textureAtlas（WebGL 路径），本文件是被取代的 canvas 2D 旧实现；6.6KB+11 测清除 |
 | textureAtlas.ts | **修 1 缺陷** | extractSubTextures 缓存键 `${url}_${subSize}` 不含 layout——同纹理换布局命中错误缓存返回错误部件；已加 `JSON.stringify(layout)` 进键（removeCacheEntry 同步签名）。**测试认证 bug 第 5 例**：既有测试名直接写 "reuses cache cacheKey layout-independent"、注释明示 "cache key ignores layout"——缺陷被认证为期望。HORIZONTAL_BORDER_LAYOUT 的 TODO(P1) Hexrays 索引顺序差异已有诚实记录，不动 |
@@ -152,7 +152,7 @@
 | mdx_parser.rs 全文 | **修 1 DoS 缺陷** | VRTX/NRMS/UVBS/PVTX 数据循环用 read_f32().unwrap_or(0.0)——截断/损坏文件 count 巨大时 EOF 后静默产 0 循环数十亿次 push（内存爆炸/假死）；已改 ? 传播错误（12 处），损坏文件报错给前端而非假死。skip 类分支（GNDX/PTYP）保持 .ok()（seek 兜底无膨胀风险）。编译验证仍被 turbojpeg 环境阻塞（同上条缺口），花括号配对+残留扫描自检通过 |
 | blp_handler.rs 全文 | **修 1 panic 缺陷**+实证修正 | decode_blp_mipmap 在 mipmaps 为空时 "count - 1" usize 下溢 panic（debug 构建）——已加 count==0 提前报错。**round 103 实证修正**：blp-0.1.37 from_buf 返回 [Mipmap; MAX_MIPS].into_iter().collect()——mipmaps.len() 恒为 MAX_MIPS，**count==0 分支实证不可达**（"损坏 BLP 可能 mipmaps 为空"假设被源码证伪；防御代码无害保留）。错误链/越界检查/多 mip 解码旗标语义正确；91/91 前端 BLP 守卫覆盖真实解码路径。**边界**：get_blp_info 命令前端零消费（未接线 API 面，format 字符串仅展示用），保留不删（cargo 验证阻塞下减少 Rust 动作）；test_decode_blp 空壳如实记录（真实路径由前端守卫覆盖） |
 | fdfTransformer 旧路径抽查 | 通过+定性 | 70.7KB 双路径保留分支不做逐行全文审（30+ 视觉回归+roundtrip+importRoundtrip 43 测守卫其行为）；抽查几何核心：toPixels 恒等（编辑器世界坐标语义）与内核 toPixels（世界→像素）不同名不同义各得其所，世界矩形等价由 5760 守卫锁；Anchor 单点=绝对、SetPoint=相对 ✓；外部引用（UIParent/ConsoleUI/GameUI）删 relativeTo 画布绝对化与内核 __PARENT__ 顶层语义一致 ✓；同名多候选优先同父级（比内核精细）。3 条 console.log 在导入一次性路径非热路径，保留 |
-| fdfLexer+fdfAst 抽查 | 通过 | readNumber 负号/小数/科学计数法/C 风格 f 后缀（官方 FDF ButtonPushedTextOffset 用 -0.0015f）全支持；readIdentifier 无连字符但真实 FDF 无此案例（42/42 往返守卫覆盖）；fdfAst 纯类型+常量白名单无运行时逻辑 |
+| fdfLexer+fdfAst | 通过 | 数字/标识符全支持；纯类型无逻辑 |
 | Rust 损坏输入测试（round 82） | test 补齐 | mdx 截断 VRTX（count=3 无数据字节）必须报错而非产零顶点 + 合法 3 顶点解析/bounds 计算——fixture 首版缺 geoset_size 字段探针自错（GEOS 内布局 size+sub-chunks）。cargo test 19/19 全绿；tcp_server/blp 的行为由类型/早退结构保证不额外建测 |
 | hook 纯逻辑抽取与热重载补齐（rounds 83-85 归并） | test 抽取+feat | computeWheelScale/startPanAnchor/computePanOffset→canvasViewTransforms（7 测）、buildHotReloadLua→hotReloadLua（8 测，含 escapeLuaString 防御）、热重载 Lua 补 SetText/SetTexture 同步——6 hook 测试缺口清零模式确立 |
 | 交互面与数据链核查通过（rounds 88-106 归并） | 通过 | 十一次核查全通过：修饰键反模式横向排查（canvas 三 hook 正确）、CustomEvent 配对、画布交互 4 项、Toolbar 启动链（含 grep 假阴性教训）、localStorage 6 键配对、自动导出订阅、uiStore 5 开关消费、右键菜单 11 项、DebugPanel 接线、mpq 6 测+参考线闭环、commandStore 异常路径（+2 守卫测）。详见各轮 git 历史 |
@@ -188,6 +188,7 @@
 | .gitignore 核查（223） | 通过 | 6 路径 ignore ✓ |
 | ShortcutHelp 三验（224） | 通过 | 32 宣称零漂移；3 MISS 系正则误报 |
 | MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
+| 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
