@@ -625,9 +625,9 @@ export const WC3TextureBrowser: React.FC<WC3TextureBrowserProps> = ({
               </div>
             ) : (
               <div className={`items-container ${viewMode}`}>
-                {items.map((item, idx) => (
+                {items.map((item) => (
                   <div
-                    key={idx}
+                    key={item.path} // round 185: 索引 key 复用 LazyTexturePreview 实例——hasLoadedRef 锁旧图(切换目录缩略图残留); path 唯一作 key
                     className={`texture-item ${item.isDirectory ? 'directory' : 'file'} ${
                       selectedPath === item.path ? 'selected' : ''
                     }`}
