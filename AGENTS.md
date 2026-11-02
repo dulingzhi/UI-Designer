@@ -148,6 +148,28 @@
   二进制 payload（`ArrayBuffer`/`Uint8Array` 直接传输），但需 Rust 端命令签名
   同步改为 `Vec<u8>`——**跨端联动改造，属性能优化决策项，行为正确，本轮不动**
 
+### KKWE/进程链路审计（本轮：kkweDetector + Rust launch/is_process——通过，边界记录）
+
+**`kkweDetector.ts`（139 行）+ `src-tauri/lib.rs` 联动审计——无高置信缺陷**：
+
+- **前端疑点排除**：`launchMapWithKKWE` 未检查 `kkweInfo.war3Path`——查 Rust
+  `launch_kkwe` 实现确认：直接 `Command::new(launcher_path)` spawn，war3 路径由
+  KKWE 启动器自行定位，前端不传、不依赖 ✓
+- **`is_process_running` 安全性确认**：`stdout.contains("\"{pid}")` 表面会匹配
+  前缀 PID（123 匹配 1234），但 tasklist `/FI "PID eq {pid}"` 已精确过滤输出——
+  不存在误报源；无匹配时输出本地化 INFO 文本不含引号+数字 ✓
+- **错误处理策略一致**：查询类（isProcessRunning/isWar3Running）失败返回 false、
+  操作类（kill*）失败抛错——语义合理 ✓
+
+**两项边界如实记录（不动代码）**：
+1. `detectKKWE` 失败（invoke/exists 异常）与"未安装"**不可区分**——都返回
+   `{installed: false}`；调用方显示"KKWE 未安装，跳过自动启动"可能掩盖环境错误。
+   行为安全（不启动），改进需区分错误通道，属 UX 决策
+2. `launch_kkwe` 以**启动器退出码作为 War3 PID** 返回（`child.wait()` 后
+   `exit_code as u32`）——依赖 KKWE 启动器的行为约定（启动 War3 后以 War3 PID
+   退出），无法从本仓库验证；若启动器不符合约定，PID 跟踪/结束进程功能失准。
+   属外部依赖约定，如实记录
+
 ### fileOperations 存档链路审计（上轮，抓到悬空引用缺陷）
 
 保存/加载链路（177 行，此前仅覆盖率门覆盖、无语义审计）审计发现 **1 处真实缺陷**：
