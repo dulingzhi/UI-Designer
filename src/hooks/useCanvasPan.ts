@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { computeWheelScale, startPanAnchor, computePanOffset } from '../utils/canvasViewTransforms';
+import { startPanAnchor, computePanOffset, computeWheelZoomAt } from '../utils/canvasViewTransforms';
 
 export interface UseCanvasPanOptions {
   canvasRef: React.RefObject<HTMLDivElement | null>;
@@ -22,11 +22,17 @@ export interface UseCanvasPanReturn {
 export function useCanvasPan({ canvasRef, containerRef, showRulers }: UseCanvasPanOptions): UseCanvasPanReturn {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  // round 159：滚轮锚定缩放需要 handler 内读最新值——effect 依赖 [] 只挂一次，用 ref 镜像
+  const scaleRef = React.useRef(scale);
+  const offsetRef = React.useRef(offset);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
-  // 滚轮缩放（原生事件防 passive 警告）
+    // ref 镜像同步（round 159）
+  React.useEffect(() => { scaleRef.current = scale; }, [scale]);
+  React.useEffect(() => { offsetRef.current = offset; }, [offset]);
+// 滚轮缩放（原生事件防 passive 警告）
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -34,7 +40,15 @@ export function useCanvasPan({ canvasRef, containerRef, showRulers }: UseCanvasP
     const handleWheel = (e: WheelEvent) => {
       if (e.altKey) {
         e.preventDefault();
-        setScale(prev => computeWheelScale(prev, e.deltaY));
+        // round 159：锚定缩放——保持鼠标下世界点屏幕位置不动（VS Code/Figma 同款）
+        const { scale: ns, offset: noff } = computeWheelZoomAt(
+          scaleRef.current,
+          e.deltaY,
+          { x: e.clientX, y: e.clientY },
+          offsetRef.current,
+        );
+        setScale(ns);
+        setOffset(noff);
       }
     };
 

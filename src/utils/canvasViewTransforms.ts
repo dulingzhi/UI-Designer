@@ -35,3 +35,24 @@ export function computePanOffset(
 
 // clampRectToCanvas re-export 保持单一几何工具入口（帧拖拽也在 frameTransforms）。
 export { clampRectToCanvas };
+
+/** 滚轮缩放锚定（round 159）：保持鼠标下世界点屏幕位置不动。
+ *  数学：w=(s-offset)/scale；offset' = s - w*scale' = offset + w*(scale-scale')。
+ *  这是 VS Code/Figma 同款行为；原 computeWheelScale 仅改 scale（原点缩放）保留给工具栏按钮。 */
+export function computeWheelZoomAt(
+  current: number,
+  deltaY: number,
+  pointer: { x: number; y: number },
+  offset: { x: number; y: number },
+): { scale: number; offset: { x: number; y: number } } {
+  const scale = computeWheelScale(current, deltaY);
+  const wx = (pointer.x - offset.x) / current;
+  const wy = (pointer.y - offset.y) / current;
+  return {
+    scale,
+    offset: {
+      x: offset.x + wx * (current - scale),
+      y: offset.y + wy * (current - scale),
+    },
+  };
+}
