@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `116 passed | 2 skipped` 测试文件，`2037 passed | 5 skipped` 测试
+- `117 passed | 2 skipped` 测试文件，`2042 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -124,6 +124,14 @@
 `handleChange('anchors', …)` 单出口（≥4 处回写）、`createDefaultAnchors` 兜底、
 `detectAnchorConflicts` 冲突检测被消费、删除走 `filter` 不可变操作。
 现状正确（6/6 一次通过），守卫锁定防止回归。
+
+### PropertyEditors 接线守卫（本轮，续）
+
+属性面板的通用受控控件库（ColorPicker/TextField/MultiSelect 等）此前无测试。
+守卫锁定三条不变式：受控模式（value+onChange 成对）、文本/MultiSelect 清空
+归一为 `undefined`（FrameData 可选字段语义）、颜色 alpha 编辑合并进四元组不丢 RGB。
+
+**测试**：`src/components/propertyEditorsWiring.test.ts`（5 测，5/5 一次通过）。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
