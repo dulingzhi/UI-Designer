@@ -1,13 +1,40 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { FramePoint, FrameAnchor } from '../types';
+import { FramePoint, FrameAnchor, FrameData } from '../types';
 import { useProjectStore } from '../store/projectStore';
-import { useCommandStore } from '../store/commandStore';
+import { useUIStore } from '../store/uiStore';
+import { useCommandStore, type Command } from '../store/commandStore';
 import { UpdateFrameCommand } from '../commands/FrameCommands';
 import { updateAnchorsFromBounds, calculatePositionFromAnchors, getAnchorPosition, getAnchorOffsetWc3 } from '../utils/anchorUtils';
 import { pixelToWc3X, pixelToWc3Y } from '../utils/coordinateService';
 import { computeDragRect } from '../utils/frameTransforms';
 
 const UPDATE_THROTTLE_MS = 16; // ~60fps
+
+// round 126：多选拖拽——计算除被拖帧外、其余选中帧按同一 delta 平移后的新帧数据。
+// 锚点统一平移 delta：绝对锚点跟随移动；相对锚点的 offset 平移使解算位置
+// 相对未动的参照帧平移同量——两种锚点数学一致。
+export function computeMultiDragFrames(
+  project: { frames: Record<string, FrameData> },
+  starts: Map<string, { x: number; y: number }>,
+  draggedFrameId: string,
+  newX: number,
+  newY: number,
+): Record<string, FrameData> {
+  const start = starts.get(draggedFrameId);
+  if (!start || starts.size <= 1) return {};
+  const dx = newX - start.x;
+  const dy = newY - start.y;
+  if (dx === 0 && dy === 0) return {};
+  const extra: Record<string, FrameData> = {};
+  starts.forEach((s, id) => {
+    if (id === draggedFrameId) return;
+    const f = project.frames[id];
+    if (!f) return;
+    const movedAnchors = (f.anchors ?? []).map(a => ({ ...a, x: (a.x ?? 0) + dx, y: (a.y ?? 0) + dy }));
+    extra[id] = { ...f, x: s.x + dx, y: s.y + dy, anchors: movedAnchors };
+  });
+  return extra;
+}
 
 interface DragStartState {
   x: number;
@@ -56,6 +83,9 @@ export function useCanvasDrag({
 
   const dragTempPositionRef = useRef<TempPosition | null>(null);
   const lastUpdateTimeRef = useRef<number>(0);
+  // round 126：多选拖拽——捕获拖动开始时全部选中帧（含被拖帧）的起始状态。
+  // 单选时 Map 仅含 1 帧，多帧路径与单帧路径行为一致。
+  const dragMultiStartRef = useRef<Map<string, { x: number; y: number; anchors: FrameAnchor[] | undefined }>>(new Map());
 
   const startDrag = useCallback((e: React.MouseEvent, frameId: string) => {
     const { project } = useProjectStore.getState();
@@ -87,6 +117,18 @@ export function useCanvasDrag({
     // 计算鼠标相对于控件左下角的偏移
     const offsetX = mouseWc3X - actualX;
     const offsetY = mouseWc3Y - actualY;
+
+    // 多选捕获：被拖帧在选中集内且选中数 >1 时，同步移动全部选中帧
+    const { selectedFrameIds } = useUIStore.getState();
+    const multiIds = selectedFrameIds.includes(frameId) && selectedFrameIds.length > 1
+      ? selectedFrameIds
+      : [frameId];
+    const starts = new Map<string, { x: number; y: number; anchors: typeof frame.anchors }>();
+    for (const id of multiIds) {
+      const f = project.frames[id];
+      if (f) starts.set(id, { x: f.x, y: f.y, anchors: JSON.parse(JSON.stringify(f.anchors)) });
+    }
+    dragMultiStartRef.current = starts;
 
     setDragStartState({
       x: frame.x,
@@ -161,6 +203,7 @@ export function useCanvasDrag({
         frames: {
           ...project.frames,
           [draggedFrameId]: { ...frame, x: newX, y: newY, anchors: updatedAnchors },
+          ...computeMultiDragFrames(project, dragMultiStartRef.current, draggedFrameId, newX, newY),
         },
       });
     } else {
@@ -190,6 +233,7 @@ export function useCanvasDrag({
         frames: {
           ...project.frames,
           [draggedFrameId]: { ...frame, x: newX, y: newY, anchors: updatedAnchors },
+          ...computeMultiDragFrames(project, dragMultiStartRef.current, draggedFrameId, newX, newY),
         },
       });
     }
@@ -253,6 +297,34 @@ export function useCanvasDrag({
         }
       }
     }
+
+    // 多选拖拽：其余选中帧的批量 undo——组合命令，一次 Ctrl+Z 全撤（逆序恢复）。
+    const multiStarts = dragMultiStartRef.current;
+    if (multiStarts.size > 1) {
+      const { project: curProject } = useProjectStore.getState();
+      const commands: Command[] = [];
+      multiStarts.forEach((s, id) => {
+        if (id === draggedFrameId) return; // 主帧由上方单帧逻辑记录
+        const f = curProject.frames[id];
+        if (!f) return;
+        if (f.x === s.x && f.y === s.y) return;
+        const cmd = new UpdateFrameCommand(id, { x: f.x, y: f.y, anchors: f.anchors });
+        (cmd as unknown as { previousState: unknown }).previousState = {
+          x: s.x,
+          y: s.y,
+          anchors: s.anchors,
+        };
+        commands.push(cmd);
+      });
+      if (commands.length > 0) {
+        useCommandStore.getState().pushCommand({
+          execute: () => commands.forEach(c => c.execute()),
+          undo: () => [...commands].reverse().forEach(c => c.undo()),
+          redo: () => commands.forEach(c => c.redo()),
+        });
+      }
+    }
+    dragMultiStartRef.current = new Map();
 
     setIsDragging(false);
     setDraggedFrameId(null);
