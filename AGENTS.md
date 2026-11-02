@@ -175,7 +175,7 @@
 | 生命周期清理域（rounds 165-166 收口） | 修 1+横向排查通过 | useHotReloadSync 的 project effect rAF 无卸载清理（卸载后仍触发 sendUpdate）——加 return cancelAnimationFrame；横向排查 hooks+组件层全部成对（App×4/MenuBar×3/HotReloadPanel×2/Toolbar×1/hooks×2），r165 是唯一缺陷；Tauri listen 清理核查通过 |
 | 夹具与接线核查域（168-173） | 补强+核查 3 | 夹具数组填非空+5 断言；模板加载链完整；QUICKSTART 控件全真实；门禁复验 2126/444/100×4 |
 | 组件定性域（174-175） | 通过 | DebugPanel 纯展示+SidePanel 双 Tab 组装+App 四区显隐——组件核查收口 |
-| 渲染器域修复（176/178） | **修 2** | ①hitTest 排序键=子网格装饰偏移（帧层级 z 不参与）→重叠帧选错；改世界交点 point.z+旧测试更新+5 测（认证第 6 例）②fontResolver 缓存 fontName 单键→切换后命中旧字体；键加 fontPath。2131 绿 |
+| 渲染器域（176/178/180） | **修 2**+test | ①hitTest 排序键=装饰偏移→重叠帧选错；改 point.z+5 测（认证第 6 例）②fontResolver 缓存 fontName 单键→切换命中旧字体；键加 fontPath ③layerStyle 首份测试 7 测+逗号分隔防御兼容（WC3 变体无权威样本，双接受）。2138 绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
