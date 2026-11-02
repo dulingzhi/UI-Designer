@@ -152,6 +152,7 @@
 | codeExport 数值格式化 | 通过 | 全部数值插值有 toFixed(2/5) 保护（锚点/尺寸/MinMax/Step）——无 JASS/LUA 不支持的科学计数法（1e-7）风险；maxValue=0→100、stepSize=0→1 是无意义输入的防御兜底，与 SLIDER 导入侧 minValue=0 合法值不冲突（minValue||0 对 0 处理正确） |
 | fdfParser.old.ts | **删除死代码** | `.old.` 命名旧解析器实现，零生产引用（真实路径 fdfParser.ts 内核）；8.4KB+18 测清除。testMdxParser/fdfTest 是有意的控制台调试工具（非死代码）保留 |
 | backdropEdgeRenderer.ts | **删除死代码** | 全部导出（BackdropEdgeRenderer/renderBackdropEdge）生产零引用；BackdropEdge.tsx 组件实际用 textureAtlas（WebGL 路径），本文件是被取代的 canvas 2D 旧实现；6.6KB+11 测清除 |
+| textureAtlas.ts | **修 1 缺陷** | extractSubTextures 缓存键 `${url}_${subSize}` 不含 layout——同纹理换布局命中错误缓存返回错误部件；已加 `JSON.stringify(layout)` 进键（removeCacheEntry 同步签名）。**测试认证 bug 第 5 例**：既有测试名直接写 "reuses cache cacheKey layout-independent"、注释明示 "cache key ignores layout"——缺陷被认证为期望。HORIZONTAL_BORDER_LAYOUT 的 TODO(P1) Hexrays 索引顺序差异已有诚实记录，不动 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）

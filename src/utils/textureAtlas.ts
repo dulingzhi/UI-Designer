@@ -99,8 +99,9 @@ export class TextureAtlasSplitter {
     layout: SubTextureLayout = DEFAULT_BORDER_LAYOUT,
     subSize: number = 64
   ): Promise<Map<EdgeFlag, string>> {
-    // 检查缓存
-    const cacheKey = `${textureDataURL}_${subSize}`;
+    // 缓存键必须包含 layout：布局是语义参数（3x3/8x1/2x4 的网格坐标完全不同），
+    // 旧键 `${dataURL}_${subSize}` 会让同一纹理第二次传不同布局时命中错误缓存
+    const cacheKey = `${textureDataURL}_${subSize}_${JSON.stringify(layout)}`;
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
     }
@@ -244,10 +245,10 @@ export class TextureAtlasSplitter {
   }
 
   /**
-   * 移除特定纹理的缓存
+   * 移除特定纹理的缓存（键与 extractSubTextures 一致，layout 必须同参才能命中）
    */
-  removeCacheEntry(textureDataURL: string, subSize: number = 64): void {
-    const cacheKey = `${textureDataURL}_${subSize}`;
+  removeCacheEntry(textureDataURL: string, subSize: number = 64, layout: SubTextureLayout = DEFAULT_BORDER_LAYOUT): void {
+    const cacheKey = `${textureDataURL}_${subSize}_${JSON.stringify(layout)}`;
     this.cache.delete(cacheKey);
   }
 

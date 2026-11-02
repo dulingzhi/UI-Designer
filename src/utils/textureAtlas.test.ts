@@ -87,7 +87,7 @@ afterEach(() => {
 });
 
 describe('TextureAtlasSplitter.extractSubTextures', () => {
-  it('extracts all parts, rotating T/B, and caches by url+subSize', async () => {
+  it('extracts all parts, rotating T/B, and caches by url+subSize+layout', async () => {
     imgSizes.set('data:u', [192, 192]);
     const splitter = new TextureAtlasSplitter();
     const result = await splitter.extractSubTextures('data:u', {
@@ -102,22 +102,28 @@ describe('TextureAtlasSplitter.extractSubTextures', () => {
     expect(result.get('T')).toBeDefined();
     expect(splitter.getCacheSize()).toBe(1);
 
-    // second call hits cache (same cache entry, no re-extraction)
+    // 修复后语义：layout 是语义参数，不同 layout 必须是独立缓存条目
+    // （旧实现缓存键忽略 layout，第二次会返回第一个布局的部件——已修）
     const cached = await splitter.extractSubTextures('data:u', {
-      B: [0, 0], // different layout, but cache key ignores layout
+      B: [0, 0],
     }, 64);
-    expect(Array.from(cached.keys()).sort()).toEqual(['B', 'R', 'T', 'UL']);
+    expect(Array.from(cached.keys()).sort()).toEqual(['B']);
+    expect(splitter.getCacheSize()).toBe(2);
 
     // different subSize => different cache key
     await splitter.extractSubTextures('data:u', DEFAULT_BORDER_LAYOUT, 128);
-    expect(splitter.getCacheSize()).toBe(2);
+    expect(splitter.getCacheSize()).toBe(3);
   });
 
-  it('uses default layout and size, and reuses cache cacheKey layout-independent', async () => {
+  it('uses default layout and size, and caches by url+subSize+layout', async () => {
     imgSizes.set('data:d', [192, 192]);
     const splitter = new TextureAtlasSplitter();
     const r1 = await splitter.extractSubTextures('data:d');
     expect(Array.from(r1.keys()).length).toBe(8);
+    expect(splitter.getCacheSize()).toBe(1);
+    // 同参（默认 layout + 默认 subSize）重复调用命中缓存——缓存命中分支
+    const r2 = await splitter.extractSubTextures('data:d');
+    expect(r2).toBe(r1);
     expect(splitter.getCacheSize()).toBe(1);
   });
 
