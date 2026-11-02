@@ -181,6 +181,7 @@
 | 画布交互宣称核查（round 93） | 通过 | 帮助面板画布交互 4 项全属实：Ctrl+点击多选（Canvas.tsx:788 toggleSelectFrame）/Shift+左键框选（:290 isBoxSelecting）/Alt+中键平移（:287 startPan）/空白点击清选且修饰键豁免（:798） |
 | Toolbar 启动链路核查（round 94） | 通过 | "自动导出Lua并启动"宣称属实：handleLaunchWar3 完整链路 = getCurrentPid 检测→kill 重启→getHotReloadExporter().export(project,true) 静默导出→extract_template_map 模板地图→launchMapWithKKWE→setProcess PID。**教训**：grep exportCode|exportProject 漏了 exporter.export 模式——假阴性，链路核查搜索词须穷举导出形态 |
 | localStorage 键位配对审计（round 95） | 通过 | 全仓 6 键（system_username/hotReloadConfig/recentFiles/preferences/war3_install_path/war3_process_pid）写读全配对：无孤立写、无未初始化读；跨文件语义正确（hotReloadConfig 写于 HotReloadPanel/Toolbar 读于 projectStore 自动导出；system_username 读侧带 81468 回退=已记录决策项） |
+| projectStore 自动导出订阅审计（round 96） | 通过 | 底部 subscribe 语义健康：引用比较正确过滤无关变更（zustand 任意 state 变化都进 subscribe）/首跳初始化/setTimeout(0) 脱同步栈/PID 双检/快速变更由 exportDebounced(L169) 防抖合并/配置读执行时快照。无缺陷 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
