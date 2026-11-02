@@ -20,6 +20,29 @@ export const useKeyboardShortcuts = (
   const { selectedFrameId } = useUIStore();
   const { undo, redo, canUndo, canRedo, executeCommand } = useCommandStore();
 
+
+  // round 127：方向键多选微调——selectedFrameIds 全部成员（无选中回退主帧）。
+  // 单帧走 executeCommand（正常入栈）；多帧组合命令一次 Ctrl+Z 全撤（r126 拖拽同款语义）。
+  const nudgeSelected = (dx: number, dy: number) => {
+    const ui = useUIStore.getState();
+    const proj = useProjectStore.getState().project;
+    const ids = ui.selectedFrameIds.length > 0 ? ui.selectedFrameIds : (ui.selectedFrameId ? [ui.selectedFrameId] : []);
+    const cmds: UpdateFrameCommand[] = [];
+    for (const id of ids) {
+      const f = proj.frames[id];
+      if (f) cmds.push(new UpdateFrameCommand(id, { x: f.x + dx, y: f.y + dy }));
+    }
+    if (cmds.length === 1) {
+      executeCommand(cmds[0]);
+    } else if (cmds.length > 1) {
+      useCommandStore.getState().pushCommand({
+        execute: () => cmds.forEach(c => c.execute()),
+        undo: () => [...cmds].reverse().forEach(c => c.undo()),
+        redo: () => cmds.forEach(c => c.redo()),
+      });
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 忽略在输入框中的按键
@@ -241,26 +264,25 @@ export const useKeyboardShortcuts = (
         }
 
         // 方向键: 微调位置（普通 0.01；精细调整见下方 Shift+方向键分支）
+        // round 127：多选微调——selectedFrameIds 全部成员同步步进，组合命令一次撤销
         if (selectedFrameId && project.frames[selectedFrameId]) {
-          const frame = project.frames[selectedFrameId];
           const step = 0.01;
-
           switch (e.key) {
             case 'ArrowLeft':
               e.preventDefault();
-              executeCommand(new UpdateFrameCommand(selectedFrameId, { x: frame.x - step }));
+              nudgeSelected(-step, 0);
               break;
             case 'ArrowRight':
               e.preventDefault();
-              executeCommand(new UpdateFrameCommand(selectedFrameId, { x: frame.x + step }));
+              nudgeSelected(step, 0);
               break;
             case 'ArrowUp':
               e.preventDefault();
-              executeCommand(new UpdateFrameCommand(selectedFrameId, { y: frame.y + step }));
+              nudgeSelected(0, step);
               break;
             case 'ArrowDown':
               e.preventDefault();
-              executeCommand(new UpdateFrameCommand(selectedFrameId, { y: frame.y - step }));
+              nudgeSelected(0, -step);
               break;
           }
         }
@@ -271,25 +293,24 @@ export const useKeyboardShortcuts = (
       // Shift 精细调整(0.001)是死功能——Shift+方向键落入 Ctrl+Shift 分支尾无 case 静默无操作。
       // 现独立分支：Shift+方向键以 0.001 步长微调（Ctrl/Alt 未按下时）。
       else if (e.shiftKey && !e.ctrlKey && !e.altKey && selectedFrameId && project.frames[selectedFrameId]) {
-        const frame = project.frames[selectedFrameId];
         const step = 0.001; // Shift=精细调整(0.001)
 
         switch (e.key) {
           case 'ArrowLeft':
             e.preventDefault();
-            executeCommand(new UpdateFrameCommand(selectedFrameId, { x: frame.x - step }));
+            nudgeSelected(-step, 0);
             break;
           case 'ArrowRight':
             e.preventDefault();
-            executeCommand(new UpdateFrameCommand(selectedFrameId, { x: frame.x + step }));
+            nudgeSelected(step, 0);
             break;
           case 'ArrowUp':
             e.preventDefault();
-            executeCommand(new UpdateFrameCommand(selectedFrameId, { y: frame.y + step }));
+            nudgeSelected(0, step);
             break;
           case 'ArrowDown':
             e.preventDefault();
-            executeCommand(new UpdateFrameCommand(selectedFrameId, { y: frame.y - step }));
+            nudgeSelected(0, -step);
             break;
         }
       }

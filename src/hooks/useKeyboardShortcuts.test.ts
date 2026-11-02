@@ -29,8 +29,16 @@ describe('useKeyboardShortcuts 静态守卫', () => {
     expect(shiftBranch).toContain("'ArrowRight'");
     expect(shiftBranch).toContain("'ArrowUp'");
     expect(shiftBranch).toContain("'ArrowDown'");
-    // 精调也走命令层（可撤销）
-    expect(shiftBranch).toContain('executeCommand(new UpdateFrameCommand');
+    // 精调走 nudgeSelected（round 127：内部含命令层，多选组合命令一次撤销）
+    expect(shiftBranch).toContain('nudgeSelected(');
+  });
+
+  it('round 127：方向键多选微调辅助存在（多帧组合命令一次撤销）', () => {
+    expect(src).toContain('const nudgeSelected = (dx: number, dy: number)');
+    expect(src).toContain('useCommandStore.getState().pushCommand({');
+    expect(src).toContain('selectedFrameIds.length > 0 ? ui.selectedFrameIds');
+    // 组合命令语义：单帧 executeCommand，多帧 pushCommand
+    expect(src).toContain('cmds.length === 1');
   });
 
   it('修饰键分支互斥链完整（Ctrl / Ctrl+Shift / Alt / Alt+Shift / 无修饰 / Shift 独立）', () => {

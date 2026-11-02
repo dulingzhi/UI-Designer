@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-- `141 passed | 2 skipped` 测试文件，`2119 passed | 5 skipped` 测试
+- `141 passed | 2 skipped` 测试文件，`2120 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -191,6 +191,7 @@
 | UpdateChecker 核查（round 124） | **修 1 stale closure** | 网络/下载容错全健康（check/downloadAndInstall 均 catch+对话框；dev 跳过；挂载 3s 静默检查）——唯 window.checkForUpdates 暴露用 [] 依赖数组，闭包捕获恒 false 的 checking/downloading，防重入失效可并发检查。改无依赖数组每渲染重暴露（setState 引用稳定无副作用） |
 | stale closure 同族排查（round 125） | 通过 | 全仓 useEffect([]) 扫描：App 偏好恢复用 getState()（稳定引用）、MenuBar/Toolbar 事件监听只调 setState 引用——均无 stale closure。r124 修复为唯一一例 |
 | 多选拖拽实现（round 126） | **feat 补 1 功能缺口** | useCanvasDrag 原只移动被拖帧（无 selectedFrameIds 引用）——多选拖动其余选中帧留原地（与主流编辑器相悖）。实现：startDrag 捕获选中集起始状态/位置/锚点快照，updateDrag 对其余帧平移同一 delta（**绝对锚点跟随+相对锚点 offset 平移——两种锚点 += delta 解算位置等量平移，数学一致**），endDrag 组合命令一次 Ctrl+Z 全撤（逆序恢复）。computeMultiDragFrames 导出+3 测（delta 平移/锚点语义/单选零位移空）。2119 测全绿 |
+| 方向键多选微调（round 127） | feat 补齐 | 方向键/Shift+方向键原只处理 selectedFrameId 单帧——多选时仅主帧步进。提取 nudgeSelected：selectedFrameIds 全员同步步进（无选中回退主帧），单帧 executeCommand/多帧组合命令一次 Ctrl+Z 全撤（r126 拖拽同款）。r88 静态守卫同步新语义+1 测。2120 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
