@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { computeWheelScale, startPanAnchor, computePanOffset } from '../utils/canvasViewTransforms';
 
 export interface UseCanvasPanOptions {
   canvasRef: React.RefObject<HTMLDivElement | null>;
@@ -33,8 +34,7 @@ export function useCanvasPan({ canvasRef, containerRef, showRulers }: UseCanvasP
     const handleWheel = (e: WheelEvent) => {
       if (e.altKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        setScale(prev => Math.max(0.1, Math.min(5, prev * delta)));
+        setScale(prev => computeWheelScale(prev, e.deltaY));
       }
     };
 
@@ -58,15 +58,12 @@ export function useCanvasPan({ canvasRef, containerRef, showRulers }: UseCanvasP
 
   const startPan = useCallback((e: React.MouseEvent) => {
     setIsPanning(true);
-    setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+    setPanStart(startPanAnchor(e.clientX, e.clientY, offset));
   }, [offset]);
 
   const updatePan = useCallback((e: React.MouseEvent) => {
     if (!isPanning) return;
-    setOffset({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y,
-    });
+    setOffset(computePanOffset(e.clientX, e.clientY, panStart));
   }, [isPanning, panStart]);
 
   const endPan = useCallback(() => {

@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `133 passed | 2 skipped` 测试文件，`2076 passed | 5 skipped` 测试
+- `134 passed | 2 skipped` 测试文件，`2083 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -169,6 +169,7 @@
 | fdfTransformer 旧路径抽查 | 通过+定性 | 70.7KB 双路径保留分支不做逐行全文审（30+ 视觉回归+roundtrip+importRoundtrip 43 测守卫其行为）；抽查几何核心：toPixels 恒等（编辑器世界坐标语义）与内核 toPixels（世界→像素）不同名不同义各得其所，世界矩形等价由 5760 守卫锁；Anchor 单点=绝对、SetPoint=相对 ✓；外部引用（UIParent/ConsoleUI/GameUI）删 relativeTo 画布绝对化与内核 __PARENT__ 顶层语义一致 ✓；同名多候选优先同父级（比内核精细）。3 条 console.log 在导入一次性路径非热路径，保留 |
 | fdfLexer+fdfAst 抽查 | 通过 | readNumber 负号/小数/科学计数法/C 风格 f 后缀（官方 FDF ButtonPushedTextOffset 用 -0.0015f）全支持；readIdentifier 无连字符但真实 FDF 无此案例（42/42 往返守卫覆盖）；fdfAst 纯类型+常量白名单无运行时逻辑 |
 | Rust 损坏输入测试（round 82） | test 补齐 | mdx 截断 VRTX（count=3 无数据字节）必须报错而非产零顶点 + 合法 3 顶点解析/bounds 计算——fixture 首版缺 geoset_size 字段探针自错（GEOS 内布局 size+sub-chunks）。cargo test 11/11 全绿；tcp_server/blp 的行为由类型/早退结构保证不额外建测 |
+| useCanvasPan 纯逻辑抽取（round 83） | test 抽取 | computeWheelScale/startPanAnchor/computePanOffset 抽到 canvasViewTransforms.ts（与 frameTransforms 同模式）+7 测；hook 保留状态/事件接线。钳制测试断言首版自错（raw vs 钳制值矛盾+手算错）修正。2083 测全绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
