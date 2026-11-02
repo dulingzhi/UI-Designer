@@ -444,10 +444,7 @@ codeExport）对 Control/Font 系零引用是语义正确（模板名唯一表�
   - `src/commands/FrameCommands.test.ts`（17 测）、`src/commands/AlignCommands.test.ts`（23 测）、
     `src/commands/DuplicateZIndexSize.test.ts`（17 测）、`src/commands/ArrayCommands.test.ts`（9 测）；
   - `src/commands/__test_helpers__.ts`：`makeTestFrame/makeTestFrameFixed/makeTestProject` 复用构造。
-- 每个测试文件必须沿用 `uiStore.test.ts` 头部：`vi.mock('../utils/hotReloadExporter')` +
-  `vi.mock('../utils/war3ProcessManager')` + `vi.stubGlobal('localStorage', ...)`（projectStore 底部 subscribe
-  在 setTimeout 里访问 localStorage/进程管理器）。
-- `beforeEach` 顺序须为「先 reset UI 状态，再 seed project」，否则 seed 的 project 会被 reset 覆盖（已踩坑修正）。
+  mock 头部照抄 uiStore.test.ts（vi.mock hotReloadExporter/war3ProcessManager + stubGlobal localStorage，import 前）；beforeEach 顺序「先 reset UI 再 seed project」（已踩坑修正）。
 
 ### projectStore 测试补齐（本轮，抓到真实崩溃缺陷）
 
