@@ -139,27 +139,35 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   }),
 
   addFrame: (frame) => set((state) => {
+    // round 108 修复（幽灵帧缺陷）：parentId 悬空（父已被删/手编辑存档指向不存在帧）时，
+    // 原实现既不挂父 children 也不入 rootFrameIds——副本存在却不可见不可选。
+    // 归一化为根帧（与 fileOperations 迁移的悬空 parentId 清理语义一致）。
+    const parentExists = frame.parentId && state.project.frames[frame.parentId];
+    const normalizedFrame = frame.parentId && !parentExists
+      ? { ...frame, parentId: null }
+      : frame;
+
     const updatedFrames = {
       ...state.project.frames,
-      [frame.id]: frame,
+      [normalizedFrame.id]: normalizedFrame,
     };
-    
+
     // 如果有父控件，需要更新父控件的children数组
-    if (frame.parentId && state.project.frames[frame.parentId]) {
-      const parentFrame = state.project.frames[frame.parentId];
-      updatedFrames[frame.parentId] = {
+    if (normalizedFrame.parentId) {
+      const parentFrame = state.project.frames[normalizedFrame.parentId];
+      updatedFrames[normalizedFrame.parentId] = {
         ...parentFrame,
-        children: [...(parentFrame.children ?? []), frame.id],
+        children: [...(parentFrame.children ?? []), normalizedFrame.id],
       };
     }
-    
+
     return {
       project: {
         ...state.project,
         frames: updatedFrames,
-        // 如果没有父控件（parentId 为 null 或 undefined），则添加到根节点
-        rootFrameIds: !frame.parentId 
-          ? [...state.project.rootFrameIds, frame.id]
+        // 没有父控件（null/undefined/悬空归一化）则添加到根节点
+        rootFrameIds: !normalizedFrame.parentId
+          ? [...state.project.rootFrameIds, normalizedFrame.id]
           : state.project.rootFrameIds,
       },
     };
