@@ -101,10 +101,10 @@ function fullProject(): ProjectData {
     frames: { root1: parent, child1: child },
     rootFrameIds: ['root1'],
     frameGroups: [{ id: 'g1', name: 'Buttons', createdAt: 1700000000000, frameIds: ['child1'] }],
-    tableArrays: [],
-    circleArrays: [],
+    tableArrays: [{ id: 'ta1', frameId: 'child1', rows: 2, cols: 2, dx: 0.05, dy: 0.03 } as never],
+    circleArrays: [{ id: 'ca1', frameId: 'child1', count: 3, radius: 0.1 } as never],
     guides: [{ id: 'gd1', axis: 'x', position: 0.4 } as never],
-    stylePresets: [],
+    stylePresets: [{ id: 'sp1', name: 'Gold', style: { textColor: [1, 0.8, 0, 1] } } as never],
   } as unknown as ProjectData;
 }
 
@@ -141,6 +141,11 @@ describe('saveProject/loadProjectFromPath 序列化保真（round 115）', () =>
     expect(project.frameGroups).toHaveLength(1);
     expect(project.frameGroups![0].frameIds).toEqual(['child1']);
     expect(project.guides).toHaveLength(1);
+    // round 168：非空数组字段保真（防未来改白名单序列化静默丢失）
+    expect(project.tableArrays).toHaveLength(1);
+    expect(project.circleArrays).toHaveLength(1);
+    expect(project.stylePresets).toHaveLength(1);
+    expect(project.stylePresets![0].name).toBe('Gold');
   });
 
   it('文本含双引号/反斜杠在往返中不被破坏（转义由 JSON 处理）', async () => {
