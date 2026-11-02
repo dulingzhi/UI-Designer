@@ -681,8 +681,14 @@ useProjectStore.subscribe((state) => {
     
     const hotReloadConfigStr = localStorage.getItem('hotReloadConfig');
     if (hotReloadConfigStr) {
-      const config = JSON.parse(hotReloadConfigStr);
-      getHotReloadExporter(config).exportDebounced(currentProject);
+      // round 118：损坏 JSON（手编辑/localStorage 异常）不得在异步上下文抛
+      // 未捕获 rejection——那会让自动导出链路静默死亡。损坏回落默认配置。
+      try {
+        const config = JSON.parse(hotReloadConfigStr);
+        getHotReloadExporter(config).exportDebounced(currentProject);
+      } catch (error) {
+        console.error('[自动导出] 热重载配置损坏，跳过自动导出:', error);
+      }
     } else {
       console.log('[自动导出] 未找到热重载配置，跳过自动导出');
     }

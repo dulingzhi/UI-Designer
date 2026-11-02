@@ -187,6 +187,7 @@
 | saveProject 序列化保真测试（round 115） | 通过+守卫 | JSON.stringify 对 ProjectData 语义安全（undefined 丢弃与消费方 X||等价；无循环/Date/Map）。+2 往返保真测（全字段/嵌套 children/组/参考线/转义文本不被破坏）锁定结论。2111 测全绿 |
 | 损坏存档容错（round 116） | **修 1 防御缺口** | 合法 JSON 但 frames 缺失（手编辑残档）→ migrateProjectData 的 Object.entries(undefined) 抛 TypeError（上层警告框兜住但信息技术化）——改为归一化空项目/空 rootFrameIds。非法 JSON 保持抛错冒泡（handleOpen 警告框，不静默失败）语义正确。+2 测（缺 frames/非法 JSON）。2113 测全绿 |
 | recentFiles 类型防御（round 117） | **修 1 同族缺口** | 值语义审计（r95 配对审计延伸）：上限 10/去重置顶/加载 try-catch/失败文件移除全健康——唯 JSON.parse 无类型验证，存档损坏成非数组时 filter 抛 TypeError。加 Array.isArray 回落空列表（与 r116 frames 归一化同族） |
+| hotReloadConfig 损坏容错（round 118） | **修 1 异步抛错** | 自动导出订阅的 JSON.parse 无 try-catch——损坏 JSON 在 setTimeout 异步上下文抛未捕获 rejection，**自动导出链路静默死亡**（每次编辑重复触发）。损坏回落默认配置+console.error。Toolbar 读取点在大 try 内已安全。同族第 10 处收口 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 
