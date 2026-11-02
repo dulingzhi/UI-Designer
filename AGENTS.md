@@ -201,7 +201,7 @@
 因未装 jsdom，20 个 wiring 文件（19 *Wiring.test.ts + wiringExtra，r226 vitest JSON 实测 114 测——原 112 系 miscPanels 5→4 与 canvasHelpers 7→6 两处 -1 未同步）用静态断言锁接线（诚实守卫；引入 jsdom 后应改渲染级交互测试）。
 properties(13)/anchorEditor(6)/propertyEditors(5)/batchEdit(5)/arrayDialogs(6)/projectTree(8)/hotReloadPanel(5)/
 textureBrowser(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/
-utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(7)/anchorVizHandles(4)/miscPanels(4)。
+utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(6)/anchorVizHandles(4)/miscPanels(4)。
 **wiringExtra.test.ts（4 测）**补齐 StylePresetPanel/FrameGroupPanel/UpdateChecker 三组件边界。
 **教训**：多行字符串断言过脆——用 indexOf 顺序断言（语义等价抗格式化）。
 
