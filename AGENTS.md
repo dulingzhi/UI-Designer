@@ -158,6 +158,7 @@
 | fdf.ts 统一入口 | 通过+2 边界 | 双路径分支与 AGENTS.md 决策一致；parseFDFToAST 被 fdfImport/fdfTemplates 生产消费。边界：①validateFDF 的 warnings 恒空（预留通道未实现，仅 dev 工具消费）②formatFDF 经旧 transformer 有损风险但生产零引用（仅 fdfTest） |
 | fdfExporter.roundtrip（新守卫） | 通过+守卫补齐 | 真实守卫只覆盖 lossless 分支（真实数据全带 rawProperties）——新 3 测覆盖**标准分支**（无 metadata）：Enhanced 导出→importFromFDFText→字段/转义/层级往返成立。Width 归一化语义（0.3/0.8=0.375 父宽比，渲染 ×父宽还原）以语义链断言。两次探针自身错误（parseFdf 返回 FdfFile 误用、regex 数帧类型标签而非帧名）——探针教训第 N 次验证 |
 | fdfIncludeResolver.ts | **删除死代码** | Node-only（fs/path import，浏览器/Tauri webview 不可用）+ 生产零引用；真实模板继承走 fdfTemplates.templateManager 路径。191 行+14 测清除 |
+| fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | mapFrameType FT 0-28 全覆盖（+100/101 别名）；exportTexture 的 TexCoord 顺序/AlphaMode/DecorateFileNames 与 exportUtils 一致；escapeString 数组多元素空格连接。fdfTemplates：循环继承 visited 防护、多级继承合并顺序正确（子覆盖父）。**边界**：applyTemplate 继承属性只进 fdfMetadata.rawProperties（不写可编辑字段）——导入带 INHERITS 的帧其继承 backdrop 在属性面板不可见，lossless 导出靠 rawProperties 保真，改动需产品决策 |
 
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
