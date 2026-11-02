@@ -54,6 +54,12 @@ export const useKeyboardShortcuts = (
             e.preventDefault();
             handleCopy();
             break;
+          case 'x':
+            e.preventDefault();
+            // 剪切 = 复制 + 删除（帮助面板早已宣称；补实现）
+            handleCopy();
+            handleCutDelete();
+            break;
           case 'v':
             e.preventDefault();
             handlePaste();
@@ -93,6 +99,20 @@ export const useKeyboardShortcuts = (
           case ',':
             e.preventDefault();
             window.dispatchEvent(new CustomEvent('openPreferences'));
+            break;
+          // 缩放（帮助面板宣称；Ctrl+= 是 Ctrl+Shift+= 即 Ctrl+加号 的原生键位）
+          case '=':
+          case '+':
+            e.preventDefault();
+            if (setScale) setScale((prev: number) => Math.min(5, prev * 1.1));
+            break;
+          case '-':
+            e.preventDefault();
+            if (setScale) setScale((prev: number) => Math.max(0.1, prev * 0.9));
+            break;
+          case '0':
+            e.preventDefault();
+            if (setScale) setScale(1);
             break;
         }
       }
@@ -340,6 +360,18 @@ export const useKeyboardShortcuts = (
       if (selectedFrameId) {
         executeCommand(new CopyFrameCommand(selectedFrameId));
         console.log('✅ 已复制到剪贴板');
+      }
+    };
+
+    const handleCutDelete = () => {
+      // 剪切的删除半步：与 Delete 键同语义（过滤锁定帧，走确认框或命令层）
+      if (!selectedFrameId) return;
+      const frame = project.frames[selectedFrameId];
+      if (!frame || frame.locked) return;
+      if (onDeleteRequest) {
+        onDeleteRequest([selectedFrameId]);
+      } else {
+        executeCommand(new RemoveFrameCommand(selectedFrameId));
       }
     };
 
