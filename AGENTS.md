@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `128 passed | 2 skipped` 测试文件，`2105 passed | 5 skipped` 测试
+- `129 passed | 2 skipped` 测试文件，`2110 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -243,6 +243,16 @@ canUndo/canRedo 禁用态、对齐/分布/画布对齐/批量删除/样式复制
 
 **测试**：`src/components/toolbarMenuBarWiring.test.ts`（5 测，5/5 一次通过）。
 组件层接线守卫现共 **87 测**。
+
+### HistoryPanel 接线守卫（本轮，续）
+
+undo/redo 历史 UI 守卫锁定：消费 commandStore 双栈、合并视图按栈序
+（undoStack 正序 + redoStack 反序——时间轴语义）、回退逐次 undo / 前进逐次 redo
+（跳转由步数驱动，与 commandStore 单步语义一致）、初始状态 currentIndex===-1
+有视觉标记。
+
+**测试**：`src/components/historyPanelWiring.test.ts`（5 测，5/5 一次通过）。
+组件层接线守卫现共 **92 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
