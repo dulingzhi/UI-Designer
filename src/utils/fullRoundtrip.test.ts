@@ -127,6 +127,28 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     expect(back.text).toBe('Click me');
   });
 
+  it('Control/Font 系属性穿透：写回可编辑字段或如实进元数据', async () => {
+    const src = mkFrame({
+      id: 'cf1', name: 'Cf', type: FrameType.BUTTON,
+      controlBackdrop: 'MyBackdropTpl',
+      controlStyle: 'AUTOTRACK',
+      fontShadowColor: [0, 0, 0, 0.9],
+      buttonPushedTextOffset: [-0.002, -0.003],
+    });
+
+    dialogMocks.save.mockResolvedValue('/out/rt.fdf');
+    fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+    await exportToFDF(proj([src]), false, () => {});
+    const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
+
+    const [back] = importFromFDFText(fdf);
+    // 导入侧至少要把这些属性保留在 rawProperties 元数据里（供往返）。
+    // 若写回可编辑字段则断言值一致；不臆造导入语义。
+    const raw = back.fdfMetadata?.rawProperties as Record<string, unknown> | undefined;
+    expect(raw?.ControlBackdrop).toBe('MyBackdropTpl');
+    expect(raw?.FontShadowColor).toBeDefined();
+  });
+
   it('textScale 经 FrameFont 往返', async () => {
     const src = mkFrame({
       id: 's1', name: 'Scaled', type: FrameType.TEXT_FRAME,

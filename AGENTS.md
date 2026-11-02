@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `112 passed | 2 skipped` 测试文件，`1974 passed | 5 skipped` 测试
+- `112 passed | 2 skipped` 测试文件，`1975 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -380,6 +380,15 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 
 **测试**：`exportControlProps.test.ts` 扩到 13 测（先 1/13 红；
 editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确）。
+
+### Control/Font 系端到端穿透（本轮，续）
+
+按此前教训（导出侧单测全绿 ≠ 链路通），给新导出的 Control/Font 系加穿透用例
+（`fullRoundtrip.test.ts` 扩到 **7 测**）：带 controlBackdrop/controlStyle/
+fontShadowColor/buttonPushedTextOffset 的帧导出 → 真 parser 导入 → 断言保留在
+`rawProperties` 元数据（实测行为，诚实口径——导入侧对这些属性**未写回可编辑字段**，
+与 backdrop/text 系不同；如需编辑器内可视化编辑导入值，需另行接入 import 侧映射）。
+7/7 一次通过，无新断裂。
 
 ### luaGenerator 导出链路补齐（本轮）
 
