@@ -107,7 +107,7 @@
    - 验收指标**四项全 100**：`Lines` / `Statements` / `Functions` / `Branches`
 3. **守护回归全绿**：内核 + 参考对拍套件
    `node node_modules/vitest/vitest.mjs run tests/fdfKernel tests/ow3compare`
-4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。
+4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
 - `139 passed | 2 skipped` 测试文件，`2116 passed | 5 skipped` 测试
@@ -187,6 +187,7 @@
 | 生产构建修复（round 120） | **修 1 P1 交付缺陷** | npm run build（tsc && vite build）被 95 个测试文件 TS 报错阻塞——生产构建从未绿过（门禁"测试侧可暂缓"与 build 全量编译矛盾，无法发布）。修复：新增 tsconfig.build.json（exclude *.test.ts/__test_helpers__），build 脚本改用之。vite build 4.72s 绿；主 chunk 1.87MB 警告=分割优化项 |
 | 数据完整性与持久化收口（rounds 115-119 归并） | 通过+修 5 | 存档序列化保真 2 测（全字段往返/JSON 转义）；损坏容错：存档 frames 缺失归一化空项目（+2 测）、recentFiles 非数组回落空列表、hotReloadConfig 自动导出订阅 try-catch（**损坏 JSON 异步未捕获 rejection 曾使自动导出静默死亡**）；undo 旁路：useCanvasDrag/Resize 手动入栈绕过 MAX_UNDO_HISTORY=100 裁剪（拖拽最频繁操作栈无限增长）——commandStore 加 pushCommand 统一 3 处旁路（+3 测） |
 | Rust 发布构建验证（round 121） | 通过+清理 | cargo build --release 2m35s 绿（首次 release 验证）——3 warnings 中 2 个死代码已清（unused import Manager/read_half→_read_half），LNK4098 链接器提示与 num-bigint-dig future-incompat 为工具链/外部依赖如实记录。cargo test 19/19 复绿 |
+| 主 chunk 代码分割（round 122） | perf 补齐 | vite manualChunks 分离 three/react vendor——主 chunk 1.87→1.29MB（-31%），vendor 内容稳定可长缓存；业务模块强耦合不细分（误拆有循环 chunk 风险）。build 3.2s 绿 |
 
 **盲区审计阶段收敛声明（rounds 48-80）**：src 全树（utils 33 文件/commands/store/components/hooks/renderer/constants/App）+ src-tauri 全树（6 Rust 文件）全部定性完毕——30 个模块面：12 缺陷修复 + 6 死代码清除（~2200 行）+ 12 通过/抽查 + 2 守卫补齐 + 2 测试侧修复 + 1 环境缺口（cargo check 被 libturbojpeg 阻塞）+ 4 产品决策项（appInterface/editBorderSize/applyTemplate 写回/用户名回退）。后续轮次转入新方向。
 

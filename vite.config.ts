@@ -13,6 +13,20 @@ export default defineConfig(async () => ({
     exclude: ['vendor']
   },
 
+  // round 122：代码分割——主 chunk 1.87MB 超 vite 500KB 告警阈值。
+  // three.js（WebGL 渲染器内核）与 react 系独立分包，业务代码瘦身；
+  // vendor chunk 内容稳定，浏览器与 Tauri WebView 均可长缓存。
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
