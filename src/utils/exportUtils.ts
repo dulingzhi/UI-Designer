@@ -2,6 +2,23 @@ import { ProjectData, FrameData, FrameType } from '../types';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { FDFExporterEnhanced } from './fdfExporter';
+import { escapeJassString } from './codegen/identifiers';
+
+/** 编辑器对齐值 → FDF 的 JustifyH 常量。 */
+function justifyHOf(align: FrameData['horAlign']): string | undefined {
+  if (align === 'left') return 'JUSTIFYLEFT';
+  if (align === 'right') return 'JUSTIFYRIGHT';
+  if (align === 'center') return 'JUSTIFYCENTER';
+  return undefined;
+}
+
+/** 编辑器对齐值 → FDF 的 JustifyV 常量。 */
+function justifyVOf(align: FrameData['verAlign']): string | undefined {
+  if (align === 'start') return 'JUSTIFYTOP';
+  if (align === 'flex-end') return 'JUSTIFYBOTTOM';
+  if (align === 'center') return 'JUSTIFYMIDDLE';
+  return undefined;
+}
 
 /**
  * 导出项目为 FDF 格式（魔兽3 UI 文件格式）
@@ -235,30 +252,49 @@ function generateFrameFDF(
       }
       break;
 
-    case FrameType.TEXT_FRAME:
+    case FrameType.TEXT_FRAME: {
+      // 文本必须转义：未转义时 parser 不报错但会静默截断（"a"b" → 只剩 "a"）
       if (frame.text) {
-        lines.push(`${indentStr}    Text "${frame.text}",`);
+        lines.push(`${indentStr}    Text "${escapeJassString(frame.text)}",`);
       }
-      if (frame.horAlign) {
+      // 对齐属性（旧实现只在 horAlign 存在时输出 FrameFont，既没输出对齐、又硬编码字体名）
+      const jh = justifyHOf(frame.horAlign);
+      if (jh) lines.push(`${indentStr}    FontJustificationH ${jh},`);
+      const jv = justifyVOf(frame.verAlign);
+      if (jv) lines.push(`${indentStr}    FontJustificationV ${jv},`);
+      if (frame.horAlign !== undefined || frame.verAlign !== undefined || frame.textScale) {
         const fontSize = frame.textScale || 0.012;
         lines.push(`${indentStr}    FrameFont "MasterFont", ${fontSize}, "",`);
       }
       break;
+    }
 
     case FrameType.BUTTON:
     case FrameType.BROWSER_BUTTON:
     case FrameType.SCRIPT_DIALOG_BUTTON:
       if (frame.text) {
-        lines.push(`${indentStr}    ButtonText "${frame.text}",`);
+        lines.push(`${indentStr}    ButtonText "${escapeJassString(frame.text)}",`);
       }
       break;
 
     case FrameType.EDITBOX:
     case FrameType.TEXTAREA:
       if (frame.text) {
-        lines.push(`${indentStr}    EditTextFrame "${frame.text}",`);
+        lines.push(`${indentStr}    EditTextFrame "${escapeJassString(frame.text)}",`);
       }
       break;
+  }
+
+  // 通用纹理属性（对所有类型生效）
+  if (frame.texCoord) {
+    const [l, r, t, b] = frame.texCoord;
+    lines.push(`${indentStr}    TexCoord ${l}, ${r}, ${t}, ${b},`);
+  }
+  if (frame.alphaMode) {
+    lines.push(`${indentStr}    AlphaMode "${frame.alphaMode}",`);
+  }
+  if (frame.decorateFileNames) {
+    lines.push(`${indentStr}    DecorateFileNames,`);
   }
 
   // 递归处理子控件

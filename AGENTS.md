@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `104 passed | 2 skipped` 测试文件，`1885 passed | 5 skipped` 测试
+- `105 passed | 2 skipped` 测试文件，`1897 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -218,6 +218,27 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 断言字段值一致（不是只看字符串包含）。
 
 > 注意：`exportToFDF` 默认分支会调 `alert()`，在 node 测试环境不存在；测试须传 `onShowAlert` 回调绕过。
+
+### FDF 导出文本/对齐/纹理字段补齐（本轮）
+
+上一轮只修了 BACKDROP。本轮审计 `generateFrameFDF` 的其余分支，发现 4 类问题：
+
+1. **文本引号未转义（最危险）**：`Text "${frame.text}"` 直接插入。
+   **探针实测的精确行为**：FDF 里未转义的 `Text "He said "hi""` 让内核 `parseFdf`
+   **不抛错**，但把文本**静默截断**成 `He said `（`hi` 丢失）。即产物"看起来能解析"、
+   内容却是错的——比直接报错更难发现。已改用 `escapeJassString`（FDF 同样用双写引号）。
+   `ButtonText` / `EditTextFrame` 同步修复。
+2. **`horAlign` 分支只输出 `FrameFont`**：既没写对齐属性，又把字体名硬编码 `MasterFont`、
+   字号错取 `textScale`——用户设的对齐完全丢失。已改为分别输出
+   `FontJustificationH`（left→JUSTIFYLEFT / right→JUSTIFYRIGHT / center→JUSTIFYCENTER）
+   与 `FrameFont`。
+3. **`verAlign` 完全没有导出**。已加 `FontJustificationV`
+   （start→JUSTIFYTOP / flex-end→JUSTIFYBOTTOM / center→JUSTIFYMIDDLE）。
+4. **纹理属性未导出**：`texCoord` → `TexCoord l, r, t, b`；`alphaMode` → `AlphaMode "..."`；
+   `decorateFileNames` → `DecorateFileNames`。均为通用属性，对所有帧类型生效。
+
+**测试**：`exportText.test.ts`（12 测，先 9/10 红再修复转绿）。
+引号相关用例**从"不抛错"改为断言"回读后文本不被截断"**——前者会假绿（parser 本就容错）。
 
 ### luaGenerator 导出链路补齐（本轮）
 
