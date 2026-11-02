@@ -325,3 +325,31 @@ describe('importFromFDF', () => {
     err.mockRestore();
   });
 });
+
+describe('loadProjectFromPath 悬空 parentId 迁移', () => {
+  it('指向不存在帧的 parentId 迁移时清理为空串', async () => {
+    fsMocks.readTextFile.mockResolvedValue(JSON.stringify({
+      frames: {
+        a: { id: 'a', name: 'A', type: FrameType.FRAME, x: 0, y: 0, width: 1, height: 1, parentId: '' },
+        b: { id: 'b', name: 'B', type: FrameType.FRAME, x: 0, y: 0, width: 1, height: 1, parentId: 'ghost' },
+      },
+    }));
+    const { project } = await loadProjectFromPath('C:\\p.w3ui');
+    // 悬空引用被清理（不再随再次保存永久化）
+    expect(project.frames.b.parentId).toBe('');
+    // 有效父子关系不受影响
+    expect(project.frames.a.children).toEqual([]);
+  });
+
+  it('有效 parentId 与完整父子链正常保留', async () => {
+    fsMocks.readTextFile.mockResolvedValue(JSON.stringify({
+      frames: {
+        p: { id: 'p', name: 'P', type: FrameType.FRAME, x: 0, y: 0, width: 2, height: 2, parentId: '' },
+        c: { id: 'c', name: 'C', type: FrameType.FRAME, x: 0, y: 0, width: 1, height: 1, parentId: 'p' },
+      },
+    }));
+    const { project } = await loadProjectFromPath('C:\\p.w3ui');
+    expect(project.frames.c.parentId).toBe('p');
+    expect(project.frames.p.children).toEqual(['c']);
+  });
+});

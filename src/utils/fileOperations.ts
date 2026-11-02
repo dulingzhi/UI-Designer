@@ -36,6 +36,11 @@ function migrateProjectData(project: ProjectData): ProjectData {
   for (const [id, frame] of Object.entries(migratedFrames)) {
     if (frame.parentId && migratedFrames[frame.parentId]) {
       migratedFrames[frame.parentId].children.push(id);
+    } else if (frame.parentId) {
+      // 悬空 parentId（指向不存在的帧，如手编辑/半途删除后的存档）：
+      // 迁移时清理为 ''，否则悬空引用随再次保存永久化，
+      // 下游 ChangeParent/removeFrame 的旧父查找将落空。
+      frame.parentId = '';
     }
   }
   

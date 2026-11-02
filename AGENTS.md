@@ -110,9 +110,25 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `135 passed | 2 skipped` 测试文件，`2141 passed | 5 skipped` 测试
+- `135 passed | 2 skipped` 测试文件，`2143 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+### fileOperations 存档链路审计（本轮，抓到悬空引用缺陷）
+
+保存/加载链路（177 行，此前仅覆盖率门覆盖、无语义审计）审计发现 **1 处真实缺陷**：
+`migrateProjectData` 重建 children 时跳过悬空 parentId（`migratedFrames[frame.parentId]`
+不存在），但**不清理**——含悬空引用的存档（手编辑/半途删除产物）加载后悬空原样保留，
+**再次保存即永久化**，下游 ChangeParent/removeFrame 的旧父查找将落空。
+探针实证（`parentId: 'ghost'` 迁移后原样返回）→ 已修：迁移时悬空 parentId
+清理为 `''`（有效父子链不受影响，探针转正为 2 测）。
+
+**探针教训（又一次"先确认探针自身正确"的变体）**：vitest 全量跑会先执行
+全部测试再跑探针文件——探针应单独文件并限定运行；验证后探针转正删除。
+
+其余链路核查结论：JSON 序列化无 Map/Set 陷阱（ProjectData 纯 JSON 结构）、
+损坏文件（缺 frames/非法 JSON）显式抛错不静默、保存对话框取消返回 null、
+FDF 导入走内核 layout（`useKernelLayout: true`）与渲染消费路径一致。
 
 ### 组件层接线守卫汇总（rounds 27-47，21 文件共 123 测，全部一次或微调通过）
 
