@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `122 passed | 2 skipped` 测试文件，`2072 passed | 5 skipped` 测试
+- `123 passed | 2 skipped` 测试文件，`2078 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -181,6 +181,16 @@ outputPath 显示给用户可核对、enabled 开关受控。
 
 **测试**：`src/components/textureBrowserWiring.test.ts`（6 测，6/6 一次通过）。
 组件层接线守卫现共 **54 测**。
+
+### TemplatePanel 接线守卫（本轮，续）
+
+模板面板（"从模板创建帧"入口）守卫锁定：
+单模板 `template.createFrame()` → CreateFrameCommand、组合模板 `createFrames()`
+逐帧建（全走命令层可 undo）、帧 ID 唯一（时间戳+随机后缀，单/组合各一处）、
+分类过滤消费 `getTemplatesByCategory`、空态提示、两类模板分别渲染。
+
+**测试**：`src/components/templatePanelWiring.test.ts`（6 测，6/6 一次通过）。
+组件层接线守卫现共 **60 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
