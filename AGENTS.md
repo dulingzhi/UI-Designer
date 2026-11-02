@@ -396,6 +396,18 @@ editTextColor/editBorderColor 的"不输出"断言天然通过——现状正确
 `fullRoundtrip.test.ts` Control/Font 穿透用例口径**升级为断言真写回**
 （text/数值往返值逐项比对），7/7 通过。属性面板现可显示这批属性的导入值。
 
+### 运行时链路对 Control/Font 系的覆盖查证（本轮，收口）
+
+核对 `luaGenerator` 与 `codeExport`（两条运行时链路）对 14 个新接入字段的处理：
+**全部零引用——且这是语义正确，不是缺陷**。证据链：
+
+- ControlBackdrop 系值为**模板名**，运行时无 `SetControlBackdrop` 类 API
+  （模板引用靠 `BlzCreateFrame(templateName, ...)` 创建，模板本身在 FDF 里声明）
+- dzapi 60 函数与 Blz 原生集（`src/compat/prelude.ts`）均无
+  Shadow/CursorColor/HighlightAlpha 类 native
+- 结论：这批属性**唯一表达渠道就是 FDF 模板导出**（已接入）；运行时链路
+  不写它们是正确现状。如实记录，防止未来误当缺口"补齐"出不存在的 API 调用。
+
 ### luaGenerator 导出链路补齐（本轮）
 
 审计发现 `src/utils/luaGenerator.ts`（33KB，`codeExport` 之外的**另一条独立导出链路**）有 4 类问题：
