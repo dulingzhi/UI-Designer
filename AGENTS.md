@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `111 passed | 2 skipped` 测试文件，`1957 passed | 5 skipped` 测试
+- `111 passed | 2 skipped` 测试文件，`1961 passed | 5 skipped` 测试
 - 内核/对拍：`17 passed | 2 skipped` 文件，`443 passed | 5 skipped` 测试
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -330,6 +330,19 @@ BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"      // 硬编码，覆盖用户设置
 
 **测试**：`fdfImportFont.test.ts`（5 测，先 2/5 红）+ fullRoundtrip textScale 穿透用例
 （5 测）。端到端一次通过——导出侧 `FrameFont` 名字本就与导入查找匹配。
+
+### visible 语义边界 + ButtonText/EditTextFrame 往返（本轮，续 4）
+
+1. **`visible` 的诚实边界（查证后不加戏）**：核对 openwar3，`Visible` 只存在于运行时
+   API（`BlzFrameSetVisible`），**FDF 模板语法没有可见性属性**——模板定义的帧默认可见。
+   故 FDF 导出不写 visible 是**正确现状**（无处安放），可见性导出的职责属于 codeExport
+   （已写 `FrameSetVisible`）。如实记录，不臆造模板属性。
+2. **ButtonText / EditTextFrame 往返断裂**：导出侧按钮/编辑框的文本以 `ButtonText` /
+   `EditTextFrame` 承载（数据源都是 `frame.text`），导入只查 `SetText`/`Text`——
+   按钮文本往返丢失。已纳入文本源链（颜色剥离同款处理）。
+
+**测试**：`fdfImportText.test.ts` 扩到 11 测（先 3/11 红）；
+`fullRoundtrip.test.ts` 扩到 **6 测**（新增按钮文本穿透）。
 
 ### luaGenerator 导出链路补齐（本轮）
 

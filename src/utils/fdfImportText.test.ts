@@ -95,6 +95,26 @@ describe('导入写回可编辑字段：纹理', () => {
   });
 });
 
+describe('导入写回可编辑字段：按钮文本别名', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('ButtonText → frame.text（按钮帧无 SetText，文本以 ButtonText 承载）', async () => {
+    const frames = await importWithProps([prop('ButtonText', stringValue('Click me'))]);
+    expect((frames[0] as any).text).toBe('Click me');
+  });
+
+  it('ButtonText 含 |cff 颜色 → 剥离还原', async () => {
+    const frames = await importWithProps([prop('ButtonText', stringValue('|cff00FF00OK|r'))]);
+    expect((frames[0] as any).text).toBe('OK');
+    expect((frames[0] as any).textColor).toBe('#00FF00');
+  });
+
+  it('EditTextFrame → frame.text（编辑框文本）', async () => {
+    const frames = await importWithProps([prop('EditTextFrame', stringValue('input'))]);
+    expect((frames[0] as any).text).toBe('input');
+  });
+});
+
 describe('不破坏既有元数据行为', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 

@@ -174,7 +174,11 @@ function enhanceFrameWithFDF(frame: FrameData, astNode: FDFFrameDefinition): Fra
   // 而编辑器需要保留「导入了空文本」的语义。
   // 文本属性名兼容：模板定义里是 `Text`（exportUtils 导出此名），运行时调用风格是 `SetText`。
   // 曾因只查 SetText 导致真实产物的剥离从未生效（mock 测试手写 SetText 掩盖了断裂）。
-  const setText = findProperty(properties, 'SetText') ?? findProperty(properties, 'Text');
+  // 按钮/编辑框帧的文本分别以 ButtonText / EditTextFrame 承载（导出侧同名字段）。
+  const setText = findProperty(properties, 'SetText')
+    ?? findProperty(properties, 'Text')
+    ?? findProperty(properties, 'ButtonText')
+    ?? findProperty(properties, 'EditTextFrame');
   const textureFields: Partial<FrameData> = {};
   if (setText !== null) {
     // WC3 把文本颜色内嵌在 Text 里（|cffRRGGBB...|r），无独立模板属性。

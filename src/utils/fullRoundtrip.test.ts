@@ -112,6 +112,21 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     expect(back.textColor).toBe('#FF8800');
   });
 
+  it('按钮文本经 ButtonText 往返', async () => {
+    const src = mkFrame({
+      id: 'btn1', name: 'Btn', type: FrameType.BUTTON,
+      text: 'Click me',
+    });
+
+    dialogMocks.save.mockResolvedValue('/out/rt.fdf');
+    fsMocks.writeTextFile.mockResolvedValue(undefined as never);
+    await exportToFDF(proj([src]), false, () => {});
+    const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
+
+    const [back] = importFromFDFText(fdf);
+    expect(back.text).toBe('Click me');
+  });
+
   it('textScale 经 FrameFont 往返', async () => {
     const src = mkFrame({
       id: 's1', name: 'Scaled', type: FrameType.TEXT_FRAME,
