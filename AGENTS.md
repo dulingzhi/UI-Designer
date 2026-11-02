@@ -110,9 +110,20 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `115 passed | 2 skipped` 测试文件，`2031 passed | 5 skipped` 测试
+- `116 passed | 2 skipped` 测试文件，`2037 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
+
+### AnchorEditor 接线守卫（本轮）
+
+`AnchorEditor`（锚点编辑器——SetPoint/FramePoint 9 点是内核对拍语义的编辑入口）
+此前无任何测试。接线守卫转正：
+
+**测试**：`src/components/properties/anchorEditorWiring.test.ts`（6 测）——
+9 个 FramePoint 选项齐全（内核对拍语义的编辑入口）、所有修改走不可变数组更新 +
+`handleChange('anchors', …)` 单出口（≥4 处回写）、`createDefaultAnchors` 兜底、
+`detectAnchorConflicts` 冲突检测被消费、删除走 `filter` 不可变操作。
+现状正确（6/6 一次通过），守卫锁定防止回归。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
