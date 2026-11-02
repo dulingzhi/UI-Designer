@@ -132,6 +132,22 @@
 `documentDir()` 异步 API 并调整模块级常量初始化时序，涉及启动时序重构，
 本轮不动代码、如实记录。
 
+### 桥接层审计（本轮：dataSource/rustBridge——通过，无缺陷）
+
+继续盲区审计（"覆盖率 100% 但无语义审计"路线）：
+
+**`dataSource.ts`（194 行，MPQ 数据源抽象）——审计通过**：
+- `MpqDataSource.loadList` 失败降级为空列表且**允许后续重试**（`listPromise` 置 null）——行为已被既有测试锁定（"falls back to an empty list ... and can recover later"）
+- **路径大小写分层正确（曾疑为缺陷，查证后排除）**：`exists()` 的 `hasFile` 快路径传原始大小写、listfile 降级路径转 lowercase——不一致表面下，Rust 端 `has_mpq_file` → `find_file` 走 MPQ hash 查找（StormLib 语义**大小写不敏感**，Rust 侧测试 `ui\\hello.txt` 小写查询实证）→ 两路径语义一致
+- `LayeredDataSource` 高优先在前、list 合并去重保留高优先层 ✓；`InMemoryDataSource` key lowercase ✓
+- 均为纯前端逻辑可单测（Rust 能力经 `MpqFns` 注入）——设计正确
+
+**`rustBridge.ts`（169 行，Rust 桥接）——通过，1 项优化决策记录**：
+- `Array.from(blpData)`：`Uint8Array` → `number[]` 经 JSON 序列化传给 `invoke`——
+  大纹理（2048×2048 BLP）内存膨胀约 8 倍 + JSON 解析开销。Tauri 2 原生支持
+  二进制 payload（`ArrayBuffer`/`Uint8Array` 直接传输），但需 Rust 端命令签名
+  同步改为 `Vec<u8>`——**跨端联动改造，属性能优化决策项，行为正确，本轮不动**
+
 ### fileOperations 存档链路审计（上轮，抓到悬空引用缺陷）
 
 保存/加载链路（177 行，此前仅覆盖率门覆盖、无语义审计）审计发现 **1 处真实缺陷**：
