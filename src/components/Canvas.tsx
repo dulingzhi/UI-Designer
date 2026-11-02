@@ -247,6 +247,7 @@ export const Canvas = forwardRef<CanvasHandle>((_, ref) => {
       // 允许在整个画布范围内（0-1920），不限制在内容区域
       position = (clientX - canvasBounds.left) / scale;
     }
+    if (isNaN(position)) return; // round 137：防御（canvasBounds 异常时除法结果）
     
     // 确保位置有效（在画布范围内）
     if (position < 0) return;
