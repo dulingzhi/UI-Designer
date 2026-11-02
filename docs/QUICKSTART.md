@@ -5,7 +5,7 @@
 ### 1. 安装依赖
 
 ```bash
-pnpm install
+ppnpm install
 ```
 
 这将安装以下关键依赖：
