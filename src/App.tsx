@@ -69,6 +69,21 @@ function AppContent() {
     initMPQ();
   }, []);
 
+  // 恢复偏好设置中的画布项（round 97：此前 preferences 的画布项保存后零消费）
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem('preferences');
+      if (!saved) return;
+      const prefs = JSON.parse(saved);
+      const ui = useUIStore.getState();
+      if (typeof prefs.showGrid === 'boolean') ui.setShowGrid(prefs.showGrid);
+      if (typeof prefs.snapToGrid === 'boolean') ui.setSnapToGrid(prefs.snapToGrid);
+      if (typeof prefs.gridSize === 'number' && prefs.gridSize > 0) ui.setGridSize(prefs.gridSize);
+    } catch (error) {
+      console.error('[App] 恢复偏好设置失败:', error);
+    }
+  }, []);
+
   // 初始化 War3 进程管理器 - 恢复上次的进程监听
   React.useEffect(() => {
     const initProcessManager = async () => {

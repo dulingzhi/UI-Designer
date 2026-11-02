@@ -4,6 +4,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useAlert } from '../hooks/useAlert';
 import { join } from '@tauri-apps/api/path';
 import { exists } from '@tauri-apps/plugin-fs';
+import { useUIStore } from '../store/uiStore';
 import './PreferencesDialog.css';
 
 interface PreferencesDialogProps {
@@ -96,11 +97,18 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
     try {
       // 保存到 localStorage
       localStorage.setItem('preferences', JSON.stringify(preferences));
-      
+
       // 为了向后兼容，也保存 War3 路径
       if (preferences.war3Path) {
         localStorage.setItem('war3_install_path', preferences.war3Path);
       }
+
+      // round 97 修复：画布项实时同步到 uiStore（此前 preferences 的
+      // showGrid/snapToGrid/gridSize 保存后零消费——画布读 uiStore，设置不生效）
+      const ui = useUIStore.getState();
+      ui.setShowGrid(preferences.showGrid);
+      ui.setSnapToGrid(preferences.snapToGrid);
+      ui.setGridSize(preferences.gridSize);
 
       // 触发全局事件，通知其他组件首选项已更新
       window.dispatchEvent(new CustomEvent('preferences-updated', { detail: preferences }));
@@ -187,28 +195,8 @@ export const PreferencesDialog: React.FC<PreferencesDialogProps> = ({ onClose })
               </div>
 
               <div className="setting-group">
-                <h3>外观</h3>
-                <div className="setting-item">
-                  <label>主题:</label>
-                  <select
-                    value={preferences.theme}
-                    onChange={(e) => setPreferences(prev => ({ ...prev, theme: e.target.value as 'light' | 'dark' }))}
-                  >
-                    <option value="dark">深色</option>
-                    <option value="light">浅色</option>
-                  </select>
-                </div>
-
-                <div className="setting-item">
-                  <label>语言:</label>
-                  <select
-                    value={preferences.language}
-                    onChange={(e) => setPreferences(prev => ({ ...prev, language: e.target.value as 'zh-CN' | 'en-US' }))}
-                  >
-                    <option value="zh-CN">简体中文</option>
-                    <option value="en-US">English</option>
-                  </select>
-                </div>
+                <h3>编辑器行为</h3>
+                <p className="setting-hint">网格与吸附设置即时同步到画布（round 97：此前保存后无消费方，设置不生效）</p>
               </div>
             </div>
           )}

@@ -20,7 +20,13 @@ describe('PreferencesDialog 接线守卫', () => {
     expect(src).toContain('checked={preferences.showGrid}');
     expect(src).toContain('checked={preferences.snapToGrid}');
     expect(src).toContain('onChange={(e) => setPreferences(prev => ({ ...prev, gridSize: parseInt(e.target.value) }))}');
-    expect(src).toContain("onChange={(e) => setPreferences(prev => ({ ...prev, theme: e.target.value as 'light' | 'dark' }))}");
+    // round 97：theme/language 控件已删（仓库无主题/i18n 系统，纯摆设承诺）；
+    // 画布项保存时实时同步 uiStore（此前零消费不生效）
+    expect(src).not.toContain('preferences.theme');
+    expect(src).not.toContain('preferences.language');
+    expect(src).toContain('ui.setShowGrid(preferences.showGrid)');
+    expect(src).toContain('ui.setSnapToGrid(preferences.snapToGrid)');
+    expect(src).toContain('ui.setGridSize(preferences.gridSize)');
   });
 
   it('重置有确认框且回落默认值', () => {
