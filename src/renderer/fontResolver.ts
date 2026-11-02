@@ -9,6 +9,7 @@ interface FontResolverContext {
   race?: FontRace;
 }
 
+// round 178：缓存键含 fontPath（fontName 单键在 projectDir/race 切换后会命中旧字体文件）
 const loadedFontFamilies = new Map<string, string>();
 const loadingFonts = new Map<string, Promise<string | undefined>>();
 let resolverContext: FontResolverContext = {};
@@ -31,7 +32,9 @@ export function setFontResolverContext(context: FontResolverContext): void {
 
 export function getResolvedFontFamily(fontName: string | undefined): string | undefined {
   if (!fontName) return undefined;
-  return loadedFontFamilies.get(fontName) ?? fontName;
+  const fontPath = resolveFontPath(fontName, resolverContext.projectDir, resolverContext.war3Skins, resolverContext.race);
+  if (!fontPath) return fontName;
+  return loadedFontFamilies.get(`${fontName}@@${fontPath}`) ?? fontName;
 }
 
 export function resolveFontPath(
@@ -64,9 +67,6 @@ function buildCssFamily(fontName: string, fontPath: string): string {
 
 export async function ensureWar3FontLoaded(fontName: string | undefined): Promise<string | undefined> {
   if (!fontName) return undefined;
-  const cached = loadedFontFamilies.get(fontName);
-  if (cached) return cached;
-
   const fontPath = resolveFontPath(fontName, resolverContext.projectDir, resolverContext.war3Skins, resolverContext.race);
   if (!fontPath) return undefined;
 
@@ -81,7 +81,7 @@ export async function ensureWar3FontLoaded(fontName: string | undefined): Promis
       const face = new FontFace(family, source, { display: 'swap' });
       await face.load();
       document.fonts.add(face);
-      loadedFontFamilies.set(fontName, family);
+      loadedFontFamilies.set(loadKey, family);
       return family;
     } catch (error) {
       console.warn('[fontResolver] Failed to load font:', fontName, fontPath, error);
