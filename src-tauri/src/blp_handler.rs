@@ -92,7 +92,13 @@ pub fn decode_blp_mipmap(blp_data: &[u8], mipmap_level: usize) -> Result<BlpImag
         .map_err(|e| format!("BLP 解析失败: {:?}", e))?;
     
     let mipmap_count = blp.mipmaps.len();
-    
+
+    // 损坏 BLP 可能 mipmaps 为空：先报错，避免下方 "count - 1" 在 usize 上
+    // 下溢 panic（debug 构建）。
+    if mipmap_count == 0 {
+        return Err("BLP 文件没有任何 mipmap 数据".into());
+    }
+
     if mipmap_level >= mipmap_count {
         return Err(format!("Mipmap 层级 {} 超出范围 (最大: {})", mipmap_level, mipmap_count - 1));
     }
