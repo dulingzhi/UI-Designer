@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。
 
 最新全量基线：
-- `125 passed | 2 skipped` 测试文件，`2089 passed | 5 skipped` 测试
+- `126 passed | 2 skipped` 测试文件，`2094 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`
 
@@ -210,6 +210,16 @@ return + 按钮 disabled）、分组创建/更新/删除全走 store action。
 
 **测试**：`src/components/preferencesWiring.test.ts`（5 测，5/5 一次通过）。
 组件层接线守卫现共 **71 测**。
+
+### MDXModelViewer 接线守卫（本轮，续）
+
+MDX 模型预览入口守卫锁定：异步加载 **cancelled 竞态防护**（每步检查，卸载后
+加载完成则 dispose 已建资源——防 use-after-dispose/泄漏）、effect cleanup
+置 cancelled、WebGPU 初始化失败回退 WebGL2、模型加载失败显式错误消息（不静默）、
+loading/error/正常三态 UI。
+
+**测试**：`src/components/mdxViewerWiring.test.ts`（5 测，5/5 一次通过）。
+组件层接线守卫现共 **76 测**。
 
 ### 真实数据大样本往返守卫（本轮，转正）
 
