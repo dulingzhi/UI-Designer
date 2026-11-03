@@ -192,6 +192,7 @@
 | templates.ts 补审（230） | 通过+清除 1 | 1197 行定性：52 模板+7 类（含 layout）+compositeTemplates 32 结构；getCategories 实含 layout（L835）——**r229 探针 slice 截断误判 P1，如实撤销**；getTemplateById 生产+测试零引用**删除**（-7 行）；SidePanel 消费链（templates/composite/getCategories/getTemplatesByCategory）完整 |
 | 盲区批审 2/15（231） | 通过 | useAlert（状态型 hook，6 消费方全接——App 经 prop 传递）；AboutDialog（Tauri 动态版本）；RaceSwitcher（store 链接）——三文件全净 |
 | renderer 小文件批审 5-10/15（232） | 通过+**盲区降级** | 6 文件全部有 tests/visual-regression 专属测试（57 it/90 expect，stub 0）+SceneGraphManager 单主消费——**纯盲区定性降级为账本未点名**；纯函数模块健康 |
+| 盲区终批 11-15/15（233） | 通过+**1 死代码候选** | TextProperties(149L)/TextureProperties(80L)：PropertiesPanel 消费 ✓；types/index(435L,19 导出)：82 文件消费（探针首版 grep 模式误报 NONE）；mpq-file.d.ts：纯声明 ✓；**fdfKernelSerializer(90L)：parse→serialize→parse 往返保真序列化器（注释完整），生产零消费仅 serialize.test 7 it——功能与 fdfExporter/exportToFDF 并列独立（导出用旧 transformer 路径），删否属内核 API 决策，暂保留** |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
