@@ -154,8 +154,8 @@
 | fdfTransformer 旧路径抽查 | 通过+定性 | 70.7KB 双路径保留分支不做逐行全文审（30+ 视觉回归+roundtrip+importRoundtrip 43 测守卫其行为）；抽查几何核心：toPixels 恒等（编辑器世界坐标语义）与内核 toPixels（世界→像素）不同名不同义各得其所，世界矩形等价由 5760 守卫锁；Anchor 单点=绝对、SetPoint=相对 ✓；外部引用（UIParent/ConsoleUI/GameUI）删 relativeTo 画布绝对化与内核 __PARENT__ 顶层语义一致 ✓；同名多候选优先同父级（比内核精细）。3 条 console.log 在导入一次性路径非热路径，保留 |
 | fdfLexer+fdfAst | 通过 | 数字/标识符全支持；纯类型无逻辑 |
 | Rust 损坏输入测试（round 82） | test 补齐 | mdx 截断 VRTX（count=3 无数据字节）必须报错而非产零顶点 + 合法 3 顶点解析/bounds 计算——fixture 首版缺 geoset_size 字段探针自错（GEOS 内布局 size+sub-chunks）。cargo test 19/19 全绿；tcp_server/blp 的行为由类型/早退结构保证不额外建测 |
-| hook 纯逻辑抽取与热重载补齐（rounds 83-85 归并） | test 抽取+feat | computeWheelScale/startPanAnchor/computePanOffset→canvasViewTransforms（7 测）、buildHotReloadLua→hotReloadLua（8 测，含 escapeLuaString 防御）、热重载 Lua 补 SetText/SetTexture 同步——6 hook 测试缺口清零模式确立 |
-| 交互面与数据链核查通过（rounds 88-106 归并） | 通过 | 十一次核查全通过：修饰键反模式横向排查（canvas 三 hook 正确）、CustomEvent 配对、画布交互 4 项、Toolbar 启动链（含 grep 假阴性教训）、localStorage 6 键配对、自动导出订阅、uiStore 5 开关消费、右键菜单 11 项、DebugPanel 接线、mpq 6 测+参考线闭环、commandStore 异常路径（+2 守卫测）。详见各轮 git 历史 |
+| hook 纯逻辑抽取（83-85） | test 抽取+feat | canvasViewTransforms 7 测/hotReloadLua 8 测；6 hook 缺口清零 |
+| 交互面与数据链核查（88-106） | 通过 | 十一次核查：修饰键/CustomEvent/画布/Toolbar/localStorage/uiStore/右键/DebugPanel/mpq/commandStore |
 | useKeyboardShortcuts 修复（round 87） | **修 1 死功能** | 方向键微调的 Shift 精细步长(0.001)判断放在 !e.shiftKey 分支内——恒 false，Shift+方向键落入 Ctrl+Shift 分支尾静默无操作（注释宣称的精调功能从未生效）；已加独立 Shift+方向键分支（0.001 步长）。2091 测全绿+src 0 报错 |
 | 帮助面板虚标快捷键补齐（round 90） | **修 1 宣称≠实现** | ShortcutHelp 宣称的 Ctrl+X 剪切 / Ctrl+±/0 缩放 hook 无实现（按了没反应）——已补：Ctrl+X=复制+删除半步（过滤锁定帧走确认框）、Ctrl+=/- 缩放钳 0.1..5、Ctrl+0 重置 1。其余宣称项核实存在（Alt+滚轮/Ctrl+点击/Shift 框选）。2094 测全绿 |
 | 帮助面板反向对账（round 91） | docs 补全 | 已实现但未列：Ctrl+A 全选/Ctrl+Shift+A 反选/Ctrl+; 清参考线/Ctrl+, 偏好设置——补入 ShortcutHelp 编辑操作类。双向对账完成（宣称≠实现 r90 + 实现≠宣称 r91），帮助面板与 hook 全量一致 |
@@ -166,8 +166,8 @@
 | BatchRemove undo 恢复顺序修复（round 109） | **修 1 回归风险** | round 108 修复引入的回归面：undo 按用户选择序（Map 插入序）恢复，子先于父时子帧被归一化成根帧 → 与父 children 快照树断裂。修复：undo 按拓扑序（父先）恢复（迭代去依赖+环防御）。+2 测（跨层级删除树完整/兄弟多选不变）。2106 测全绿 |
 | Rust 补测与命令族核查（rounds 102/103/110/111 归并） | 通过 | tcp_server 4 测（State 契约/broadcast Err 语义/wire 序列化）+ resolve_username 抽纯函数 4 测（**空 USERNAME 视同缺失**——原 Ok("") 拼坏路径，行为改进）→ Rust 19/19；DuplicateFrame（redo 稳定快照）与 UpdateFrame（undo 按键精确采样/已删帧安全）核查通过；PasteFrame redo 重新生成 id 定性低危边界不修 |
 | updateFrame 悬空归一化修复（round 112） | **修 1 同族缺陷（第 8 处）** | parentId 变更路径无归一化：拖拽到已删父（悬空）不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧在 updateFrame 路径复发。修复：悬空归一化根帧（与 addFrame r108 统一），rootFrameIds 判定改用归一化值。+3 测（悬空/正常父/拖回根）。2109 测全绿 |
-| CreateFrame/重命名核查（round 114） | 通过 | CreateFrame 构造期快照（redo id 稳定）；MoveFrame redo 重新捕获经分析安全（undo 后新 execute 清空 redo 栈——重捕获值=正确旧值）；ProjectTree 重命名走 UpdateFrameCommand 可撤销。命令族 20 类全部核查完毕 |
-| 生产构建修复（round 120） | **修 1 P1 交付缺陷** | npm run build（tsc && vite build）被 95 个测试文件 TS 报错阻塞——生产构建从未绿过（门禁"测试侧可暂缓"与 build 全量编译矛盾，无法发布）。修复：新增 tsconfig.build.json（exclude *.test.ts/__test_helpers__），build 脚本改用之。vite build 4.72s 绿；主 chunk 1.87MB 警告=分割优化项 |
+| CreateFrame/重命名核查（114） | 通过 | 快照稳定；20 命令类核查完毕 |
+| 生产构建修复（120） | **修 1 P1** | tsconfig.build 修复 95 测试侧报错阻塞；vite 4.72s 绿 |
 | 编辑器健壮性收口（rounds 126-142 归并） | feat 3+修 10 | ①多选：组拖拽/方向键微调全员同步，组合命令一次 Ctrl+Z 全撤 ②存档环打破：手编辑 parentId 互指→migrate 切根+children/rootFrameIds 重建（渲染递归假死 P1）③NaN 防御矩阵：parseFloat/parseInt 输入面 14 处+guide 几何 ④组合命令族：组合模板/BatchEditPanel N 帧独立命令只撤一帧→组合命令；applyStylePreset/clearGuides/addGuide 直调 store 不可撤销→捕获型命令入 undo 栈（r141 只修了 add/clear；r143 补漏 updateGuide 拖动/removeGuide 单删 2 消费点；r144 终扫：右键锁定/可见性+组 CRUD 直调 store 定性低价值不修——同一菜单项再点即恢复，与 saveFrameAsPreset/setRace 同档，旁路清单 10 项全定性）⑤dirty 防护：beforeunload 拦截+project-state-reset 事件（监听 1/派发 8）+加载前 dirty 确认 3 处（dirty 迁 uiStore 同源，r145 补 2 测——store action 行为测试约定）。教训：r133 声称 4/4 实际 2/4——批量替换后必须 grep 验证 |
 | 构建与健壮性收口（115-125 归并） | 通过+修 8 | 存档链 2 测/缺失归一化/recentFiles 防御/hotReload try-catch；undo MAX=100 统一 3 旁路；tsconfig.build 修复生产构建；manualChunks three/react；stale closure 修复。r147-148 文档对账；r145 门禁疏漏修复→100×4 恢复；导出错误处理 3 入口 ✓ |
 | 宣称对账与补齐（90-157） | 修 2 误删+feat 多 | 双向对账；Ctrl+F；PNG 误删→恢复；防御=防重入 |
@@ -189,6 +189,7 @@
 | ShortcutHelp 三验（224） | 通过 | 32 宣称零漂移；3 MISS 系正则误报 |
 | MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
+| 盲区补审闭合（230-233） | **15/15 完成** | 4 全净+6 测试守卫确认（降级为账本未点名）+3 消费确认+2 定性（serializer 死代码候选=决策项 13）；**清除 1**（getTemplateById）；**教训：穷尽性判定=文件级语义映射+测试目录双查，缺一即假穷尽** |
 | templates.ts 补审（230） | 通过+清除 1 | 1197 行定性：52 模板+7 类（含 layout）+compositeTemplates 32 结构；getCategories 实含 layout（L835）——**r229 探针 slice 截断误判 P1，如实撤销**；getTemplateById 生产+测试零引用**删除**（-7 行）；SidePanel 消费链（templates/composite/getCategories/getTemplatesByCategory）完整 |
 | 盲区批审 2/15（231） | 通过 | useAlert（状态型 hook，6 消费方全接——App 经 prop 传递）；AboutDialog（Tauri 动态版本）；RaceSwitcher（store 链接）——三文件全净 |
 | renderer 小文件批审 5-10/15（232） | 通过+**盲区降级** | 6 文件全部有 tests/visual-regression 专属测试（57 it/90 expect，stub 0）+SceneGraphManager 单主消费——**纯盲区定性降级为账本未点名**；纯函数模块健康 |
