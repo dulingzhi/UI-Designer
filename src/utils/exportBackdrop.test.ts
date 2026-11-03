@@ -2,8 +2,8 @@
  * FDF 导出（exportUtils）的 backdrop 字段完整性守卫。
  *
  * 审计发现 `exportUtils.generateFrameFDF` 的 BACKDROP 分支只输出 3 行，且**硬编码**：
- *   BackdropBackground "${frame.texture}"
- *   BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"
+ * BackdropBackground "${frame.texture}"
+ * BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"
  *
  * 导致：① 背景读错字段（正确字段是 `backdropBackground`）；② 用户设置的角标志/边框被
  * **硬编码值覆盖**，编辑器里的九宫格边框配置完全导不出去。
@@ -40,7 +40,7 @@ function proj(frames: FrameData[]): ProjectData {
     version: 2, libraryName: 'Lib', originMode: 'gameui', exportVersion: 'reforged',
     hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
     hideButtonBar: false, hidePortrait: false, hideChat: false,
-    appInterface: '', frames: rec,
+ frames: rec,
     rootFrameIds: frames.filter((f) => !f.parentId).map((f) => f.id),
   } as unknown as ProjectData;
 }
@@ -48,7 +48,7 @@ function proj(frames: FrameData[]): ProjectData {
 async function exportContent(frames: FrameData[]): Promise<string> {
   dialogMocks.save.mockResolvedValue('/out/x.fdf');
   fsMocks.writeTextFile.mockResolvedValue(undefined as never);
-  // 传 onShowAlert 避免走 alert()（node 环境无该全局）
+ // 传 onShowAlert 避免走 alert()（node 环境无该全局）
   await exportToFDF(proj(frames), false, () => {});
   const call = fsMocks.writeTextFile.mock.calls.at(-1)!;
   return call[1] as string;
@@ -95,7 +95,7 @@ describe('FDF 导出：九宫格边框必须如实导出（不得硬编码）', 
       backdropCornerFlags: 'UL|BR' });
     const c = await exportContent([bd]);
     expect(c).toContain('BackdropCornerFlags "UL|BR"');
-    // 断言不再出现硬编码的全标志
+ // 断言不再出现硬编码的全标志
     expect(c).not.toContain('BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R"');
   });
 

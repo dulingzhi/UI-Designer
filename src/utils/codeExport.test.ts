@@ -25,7 +25,6 @@ function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: '',
     frames: {},
     rootFrameIds: [],
     tableArrays: [],
@@ -112,7 +111,7 @@ describe('codeExport', () => {
     });
 
     it('excludes non-[00] array element frames from declarations but creates them', () => {
-      // name includes '[' but not '[00]' -> skipped in declaration
+ // name includes '[' but not '[00]' -> skipped in declaration
       const project = makeProject({
         frames: {
           el: makeFrame({ id: 'el', name: 'arr[1]', type: FrameType.TEXT_FRAME, anchors: [], text: 'x' }),
@@ -120,7 +119,7 @@ describe('codeExport', () => {
         rootFrameIds: ['el'],
       });
       const code = generateJASSCode(project);
-      // should NOT declare arr[1] variable
+ // should NOT declare arr[1] variable
       expect(code).not.toContain('framehandle array arr[1]');
       const lua = generateLUACode(project);
       expect(lua).not.toContain('arr[1] = nil');
@@ -219,7 +218,7 @@ describe('codeExport', () => {
       const lua = generateLUACode(project);
       expect(lua).toContain('FrameSetPoint(child, FRAMEPOINT_LEFT, parent, FRAMEPOINT_RIGHT, 1.50000, 2.50000)');
       const ts = generateTypeScriptCode(project);
-      // TS 生成的是 class 内部代码，相对引用必须是 this.parent（旧断言写成裸 parent，IDE 会报未定义）
+ // TS 生成的是 class 内部代码，相对引用必须是 this.parent（旧断言写成裸 parent，IDE 会报未定义）
       expect(ts).toContain('FrameSetPoint(this.child, FRAMEPOINT_LEFT, this.parent, FRAMEPOINT_RIGHT, 1.50000, 2.50000)');
     });
 
@@ -233,7 +232,7 @@ describe('codeExport', () => {
         },
         rootFrameIds: ['f'],
       });
-      // relativePoint undefined -> absolute branch
+ // relativePoint undefined -> absolute branch
       const jass = generateJASSCode(project);
       expect(jass).toContain('FrameSetAbsPoint(ff, FRAMEPOINT_BOTTOM');
       const lua = generateLUACode(project);
@@ -269,10 +268,10 @@ describe('codeExport', () => {
         },
         rootFrameIds: ['m'],
       });
-      // Delete anchors to force createDefaultAnchors
+ // Delete anchors to force createDefaultAnchors
       delete project.frames.m.anchors;
       const lua = generateLUACode(project);
-      // default anchor generation should produce a SetAbsPoint
+ // default anchor generation should produce a SetAbsPoint
       expect(lua).toContain('FrameSetSize');
     });
 
@@ -352,7 +351,7 @@ describe('codeExport', () => {
         },
         rootFrameIds: ['n_bd', 'n_sl', 'n_sb', 'n_tx'],
       });
-      // Remove anchors so createDefaultAnchors runs
+ // Remove anchors so createDefaultAnchors runs
       for (const id of Object.keys(project.frames)) delete project.frames[id].anchors;
 
       const jass = generateJASSCode(project);
@@ -361,7 +360,7 @@ describe('codeExport', () => {
       const lua = generateLUACode(project);
       expect(lua).toContain('BlzFrameSetMinMaxValue(nsb');
       const ts = generateTypeScriptCode(project);
-      // TS TEXT without textColor -> white fallback
+ // TS TEXT without textColor -> white fallback
       expect(ts).toContain('FFFFFFcolored');
       expect(ts).toContain('BlzFrameSetMinMaxValue(this.nsb');
     });

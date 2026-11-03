@@ -45,14 +45,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
   const [isLaunching, setIsLaunching] = React.useState(false);
   const { showAlert, AlertComponent } = useAlert();
 
-  // 监听 F1 快捷键事件
+ // 监听 F1 快捷键事件
   React.useEffect(() => {
     const handleOpenHelp = () => setShowShortcutHelp(true);
     window.addEventListener('openShortcutHelp', handleOpenHelp);
     return () => window.removeEventListener('openShortcutHelp', handleOpenHelp);
   }, []);
 
-  // 层级管理
+ // 层级管理
   const handleZIndex = (action: 'moveUp' | 'moveDown' | 'bringToFront' | 'sendToBack') => {
     if (selectedFrameId) {
       executeCommand(new ZIndexCommand(selectedFrameId, action));
@@ -76,7 +76,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       hideButtonBar: false,
       hidePortrait: false,
       hideChat: false,
-      appInterface: '',
       frames: {},
       rootFrameIds: [],
       tableArrays: [],
@@ -123,10 +122,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
     }
   };
   const exportingRef = React.useRef(false);
-  // round 155：导出防重入标志
+ // round 155：导出防重入标志
 
   const handleExport = async (language: ExportLanguage) => {
-    // round 155：防重入（导出对话框打开期间再点其他导出按钮会交错触发）
+ // round 155：防重入（导出对话框打开期间再点其他导出按钮会交错触发）
     if (exportingRef.current) return;
     exportingRef.current = true;
     try {
@@ -142,14 +141,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
     }
   };
 
-  // 启动War3测试
+ // 启动War3测试
   const handleLaunchWar3 = async () => {
     if (isLaunching) return;
     
     try {
       setIsLaunching(true);
       
-      // 检查是否有War3进程正在运行（使用PID检测）
+ // 检查是否有War3进程正在运行（使用PID检测）
       const currentPid = war3ProcessManager.getCurrentPid();
       if (currentPid) {
         const isRunning = await war3ProcessManager.isCurrentProcessRunning();
@@ -157,16 +156,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
         
         if (isRunning) {
           console.log('[工具栏] 检测到War3.exe正在运行，正在重启...');
-          // 静默重启，不显示提示
+ // 静默重启，不显示提示
           
           try {
             await war3ProcessManager.killCurrentProcess();
-            // 等待进程完全结束
+ // 等待进程完全结束
             await new Promise(resolve => setTimeout(resolve, 1500));
           } catch (error) {
             const errorMsg = String(error);
             
-            // 用户取消了UAC
+ // 用户取消了UAC
             if (errorMsg.includes('取消')) {
               showAlert({ 
                 title: '已取消', 
@@ -176,7 +175,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
               return;
             }
             
-            // 其他错误：提示用户手动关闭
+ // 其他错误：提示用户手动关闭
             console.warn('[工具栏] 关闭War3进程失败:', error);
             showAlert({ 
               title: '错误', 
@@ -188,7 +187,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
         }
       }
 
-      // 检测 KKWE (静默检测,不显示提示)
+ // 检测 KKWE (静默检测,不显示提示)
       console.log('[工具栏] 检测 KKWE 环境...');
       const kkweInfo: KKWEInfo | null = await detectKKWE();
       if (!kkweInfo) {
@@ -200,7 +199,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
         return;
       }
 
-      // 获取热重载配置
+ // 获取热重载配置
       const hotReloadConfigStr = localStorage.getItem('hotReloadConfig');
       if (!hotReloadConfigStr) {
         showAlert({ 
@@ -213,13 +212,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
 
       const config = JSON.parse(hotReloadConfigStr);
       
-      // 静默导出Lua文件
+ // 静默导出Lua文件
       console.log('[工具栏] 开始导出Lua文件...');
       const exporter = getHotReloadExporter(config);
       await exporter.export(project, true);
       console.log('[工具栏] ✅ Lua文件导出完成');
 
-      // 静默更新模板地图
+ // 静默更新模板地图
       console.log('[工具栏] 开始更新模板地图...');
       const targetPath = await invoke<string>('extract_template_map', {
         war3Path: kkweInfo.war3Path,
@@ -227,18 +226,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       });
       console.log('[工具栏] ✅ 模板地图已更新:', targetPath);
       
-      // 更新配置中的测试地图路径
+ // 更新配置中的测试地图路径
       const updatedConfig = { ...config, testMapPath: targetPath };
       localStorage.setItem('hotReloadConfig', JSON.stringify(updatedConfig));
 
-      // 启动War3并保存进程ID (等待启动器退出获取War3.exe的真实PID)
+ // 启动War3并保存进程ID (等待启动器退出获取War3.exe的真实PID)
       console.log('[工具栏] 开始启动War3...');
       const war3Pid = await launchMapWithKKWE(targetPath, kkweInfo);
       console.log('[工具栏] ✅ YDWEConfig退出码(War3 PID)=', war3Pid);
       await war3ProcessManager.setProcess(war3Pid);
       
       console.log('[工具栏] ✅ War3.exe 启动成功, PID=', war3Pid);
-      // 启动成功后不显示提示,让用户专注游戏
+ // 启动成功后不显示提示,让用户专注游戏
     } catch (error) {
       console.error('启动War3失败:', error);
       showAlert({ title: '错误', message: '启动失败: ' + error, type: 'danger' });
@@ -587,7 +586,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
       {showTextureBrowser && (
         <WC3TextureBrowser
           onSelect={(path) => {
-            // 复制路径到剪贴板
+ // 复制路径到剪贴板
             navigator.clipboard.writeText(path).then(() => {
               console.log('已复制路径:', path);
             });

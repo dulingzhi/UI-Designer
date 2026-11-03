@@ -3,8 +3,8 @@
  *
  * 背景：`codeExport.ts` 长期只导出一小部分字段。经审计，以下 8 个 ProjectData 字段
  * **完全未被使用**（用户在编辑器勾选后导出即丢失）：
- *   hideHeroBar / hideMiniMap / hideResources / hideButtonBar / hidePortrait / hideChat /
- *   originMode / appInterface   （只有 hideGameUI 被用到）
+ * hideHeroBar / hideMiniMap / hideResources / hideButtonBar / hidePortrait / hideChat /
+ * originMode （只有 hideGameUI 被用到）
  * 另有 FrameData 的 visible / horAlign / verAlign / 纹理类字段未导出。
  *
  * 另发现一处 **API 名错误**：本仓库用 `FrameSetStepSize`，但权威实现（openwar3
@@ -118,7 +118,7 @@ describe('originMode 决定父帧根', () => {  it('gameui 用 ORIGIN_FRAME_GAME
   it('consoleui 仍以 GAME_UI 为根（环境无独立 origin 常量，如实记录）', () => {
     const f = mkFrame({ id: 'f1', name: 'F1' });
     const code = generateJASSCode(mkProject([f], { originMode: 'consoleui' } as Partial<ProjectData>));
-    // openwar3 的 dzapi 未提供独立 CONSOLE_UI origin 类型；控制台差异只体现在隐藏策略上。
+ // openwar3 的 dzapi 未提供独立 CONSOLE_UI origin 类型；控制台差异只体现在隐藏策略上。
     expect(code).toContain('ORIGIN_FRAME_GAME_UI');
   });
 });

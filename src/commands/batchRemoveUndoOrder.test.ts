@@ -61,7 +61,6 @@ function seedProject(frames: Record<string, FrameData>, rootFrameIds: string[]) 
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: '',
     backgroundImage: '',
     frames,
     rootFrameIds,
@@ -80,7 +79,7 @@ describe('BatchRemoveFrameCommand undo 恢复顺序（round 109）', () => {
   });
 
   it('子先于父选择删除，undo 后树结构完整（父 children + 子 parentId 一致）', () => {
-    // 树：root ── parent ── child
+ // 树：root ── parent ── child
     const root = makeFrame('root', null);
     const parent = { ...makeFrame('parent', 'root'), children: ['child'] };
     const child = makeFrame('child', 'parent');
@@ -89,7 +88,7 @@ describe('BatchRemoveFrameCommand undo 恢复顺序（round 109）', () => {
       ['root'],
     );
 
-    // 用户先选子帧再选父帧（子先于父的删除顺序）
+ // 用户先选子帧再选父帧（子先于父的删除顺序）
     const cmd = new BatchRemoveFrameCommand(['child', 'parent']);
     cmd.execute();
     expect(useProjectStore.getState().project.frames['child']).toBeUndefined();
@@ -98,12 +97,12 @@ describe('BatchRemoveFrameCommand undo 恢复顺序（round 109）', () => {
     cmd.undo();
 
     const state = useProjectStore.getState().project;
-    // 关键断言：child 没有被归一化成根帧（round 108 修复的回归风险）
+ // 关键断言：child 没有被归一化成根帧（round 108 修复的回归风险）
     expect(state.frames['child'].parentId).toBe('parent');
     expect(state.rootFrameIds).not.toContain('child');
-    // 父的 children 快照与 child.parentId 一致
+ // 父的 children 快照与 child.parentId 一致
     expect(state.frames['parent'].children).toContain('child');
-    // parent 挂回其原父 root（本就不是根帧）
+ // parent 挂回其原父 root（本就不是根帧）
     expect(state.frames['parent'].parentId).toBe('root');
     expect(state.frames['root'].children).toContain('parent');
     expect(state.rootFrameIds).toEqual(['root']);

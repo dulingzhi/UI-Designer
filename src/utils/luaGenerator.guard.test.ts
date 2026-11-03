@@ -3,13 +3,13 @@
  *
  * 审计发现（luaGenerator 是**独立于 codeExport 的另一条导出链路**）：
  * 1. **texCoord 参数错序**：`frame.texCoord` 定义为 `[left, right, top, bottom]`，
- *    但产物写成 `API.SetTexCoord(frame, left, top, right, bottom)` —— `right`/`top` 互换，
- *    纹理区域裁错。引擎 `DzFrameSetTexCoord(f, l, r, t, b)`（openwar3 dzapi 确认）按 r 在前。
+ * 但产物写成 `API.SetTexCoord(frame, left, top, right, bottom)` —— `right`/`top` 互换，
+ * 纹理区域裁错。引擎 `DzFrameSetTexCoord(f, l, r, t, b)`（openwar3 dzapi 确认）按 r 在前。
  * 2. **Reforged 分支的 SetTexCoord 是空壳**：只 `print` 警告、**不设置任何值**。
  * 3. **6 个隐藏开关全未接入** → 勾选后导出即静默丢失。
  * 4. **文本对齐 horAlign/verAlign 未接入**。
  * 5. **alphaMode 无法运行时设置**（`DzFrameSetTexture` 只有 frame/path/texCoord/fixedScale），
- *    属 FDF 模板属性；本条只断言"不伪装成已支持"。
+ * 属 FDF 模板属性；本条只断言"不伪装成已支持"。
  *
  * 说明：API 包装在 `generateLoaderScript()` 里，Frame 创建代码在 `generate()` 里——两者分开断言。
  */
@@ -30,7 +30,7 @@ function mkProject(frames: FrameData[], o: Partial<ProjectData> = {}): ProjectDa
     version: 2, libraryName: 'TestLib', originMode: 'gameui', exportVersion: 'reforged',
     hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
     hideButtonBar: false, hidePortrait: false, hideChat: false,
-    appInterface: '', frames: rec,
+ frames: rec,
     rootFrameIds: frames.filter((f) => !f.parentId).map((f) => f.id),
     ...o,
   } as unknown as ProjectData;
@@ -129,8 +129,8 @@ describe('alphaMode：引擎无运行时 API，如实记录（不臆造）', () 
     const bd = mkFrame({ id: 'b2', name: 'Bd2', type: FrameType.BACKDROP,
       backdropBackground: 'x.blp', alphaMode: 'ALPHAKEY' });
     const code = gen([bd]);
-    // 依据 openwar3 dzapi：DzFrameSetTexture 只有 (frame,path,texCoord,fixedScale)，
-    // 无 alphaMode 运行时接口；alphaMode 属 FDF 模板属性（由 FDF 导出承担）。
+ // 依据 openwar3 dzapi：DzFrameSetTexture 只有 (frame,path,texCoord,fixedScale)，
+ // 无 alphaMode 运行时接口；alphaMode 属 FDF 模板属性（由 FDF 导出承担）。
     expect(code).not.toMatch(/SetAlphaMode/);
   });
 });

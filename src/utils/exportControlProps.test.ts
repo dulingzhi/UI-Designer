@@ -3,11 +3,11 @@
  *
  * 审计：属性面板可编辑的 25 个字段在 FDF/JASS 导出中零引用。本轮按**真实 FDF 实证**
  * （war3.mpq 全量属性名扫描）接入把握明确的 13 个：
- *   ControlBackdrop / ControlPushedBackdrop / ControlDisabledBackdrop /
- *   ControlMouseOverHighlight / ControlStyle（引用模板名，竖线分隔标志）
- *   HighlightType / HighlightAlphaFile / HighlightAlphaMode
- *   FontHighlightColor / FontDisabledColor / FontShadowColor（四数值 0..1）
- *   FontShadowOffset / ButtonPushedTextOffset（双数值）
+ * ControlBackdrop / ControlPushedBackdrop / ControlDisabledBackdrop /
+ * ControlMouseOverHighlight / ControlStyle（引用模板名，竖线分隔标志）
+ * HighlightType / HighlightAlphaFile / HighlightAlphaMode
+ * FontHighlightColor / FontDisabledColor / FontShadowColor（四数值 0..1）
+ * FontShadowOffset / ButtonPushedTextOffset（双数值）
  * 真实语法样例：ControlBackdrop "模板名"、FontShadowColor 0.0 0.0 0.0 0.9。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -38,7 +38,7 @@ function proj(frames: FrameData[]): ProjectData {
     version: 2, libraryName: 'Lib', originMode: 'gameui', exportVersion: 'reforged',
     hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
     hideButtonBar: false, hidePortrait: false, hideChat: false,
-    appInterface: '', frames: rec,
+ frames: rec,
     rootFrameIds: frames.filter((f) => !f.parentId).map((f) => f.id),
   } as unknown as ProjectData;
 }

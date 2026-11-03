@@ -24,7 +24,6 @@ dist-ssr
 *.sw?
 target/*
 package-lock.json
-pnpm-lock.yaml
 
 # Coverage / temp analysis artifacts (never commit)
 coverage/

@@ -34,7 +34,7 @@ function proj(frames: FrameData[]): ProjectData {
     version: 2, libraryName: 'Lib', originMode: 'gameui', exportVersion: 'reforged',
     hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
     hideButtonBar: false, hidePortrait: false, hideChat: false,
-    appInterface: '', frames: rec,
+ frames: rec,
     rootFrameIds: frames.filter((f) => !f.parentId).map((f) => f.id),
   } as unknown as ProjectData;
 }
@@ -89,10 +89,10 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
 
     const [back] = importFromFDFText(fdf);
-    // 对齐必须回可编辑字段
+ // 对齐必须回可编辑字段
     expect(back.horAlign).toBe('right');
     expect(back.verAlign).toBe('center');
-    // 文本写回可编辑字段且不被截断（引号转义在真实 lexer 往返下还原完整内容）
+ // 文本写回可编辑字段且不被截断（引号转义在真实 lexer 往返下还原完整内容）
     expect(back.text).toBe('He said "hi"');
   });
 
@@ -139,7 +139,7 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
 
     const [back] = importFromFDFText(fdf);
-    // minValue=0 必须原样回来（数值 0 不得按 falsy 丢弃）
+ // minValue=0 必须原样回来（数值 0 不得按 falsy 丢弃）
     expect(back.minValue).toBe(0);
     expect(back.maxValue).toBe(2);
     expect(back.sliderInitialValue).toBe(2);
@@ -161,12 +161,12 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
     const fdf = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
 
     const [back] = importFromFDFText(fdf);
-    // 导入侧写回可编辑字段（与导出互逆），属性面板可显示导入值
+ // 导入侧写回可编辑字段（与导出互逆），属性面板可显示导入值
     expect(back.controlBackdrop).toBe('MyBackdropTpl');
     expect(back.controlStyle).toBe('AUTOTRACK');
     expect(back.fontShadowColor).toEqual([0, 0, 0, 0.9]);
     expect(back.buttonPushedTextOffset).toEqual([-0.002, -0.003]);
-    // 元数据同时保留
+ // 元数据同时保留
     const raw = back.fdfMetadata?.rawProperties as Record<string, unknown> | undefined;
     expect(raw?.ControlBackdrop).toBe('MyBackdropTpl');
   });
@@ -202,8 +202,8 @@ describe('端到端往返：导出 → 导入，九宫格与文本字段不丢�
 
     const [back] = importFromFDFText(fdf);
     expect(back.backdropBackground).toBe('UI\\Bg.blp');
-    // SetTexture 导出的是"有效背景"（backdropBackground 优先于 texture，与导出语义一致），
-    // 故往返后 texture 应等于有效背景值而非原 texture 字段值。
+ // SetTexture 导出的是"有效背景"（backdropBackground 优先于 texture，与导出语义一致），
+ // 故往返后 texture 应等于有效背景值而非原 texture 字段值。
     expect(back.texture).toBe('UI\\Bg.blp');
     expect(back.texCoord).toEqual([0.25, 0.5, 0.1, 0.9]);
     expect(back.alphaMode).toBe('ALPHAKEY');

@@ -24,18 +24,18 @@ export interface FrameAnchor {
 }
 
 export enum FrameType {
-  // 基础容器
+ // 基础容器
   ORIGIN = 0,
   FRAME = 1,
   BACKDROP = 2,
   SIMPLEFRAME = 3,
   
-  // 文本控件
+ // 文本控件
   TEXT_FRAME = 4,
   SIMPLEFONTSTRING = 5,
   TEXTAREA = 6,
   
-  // 按钮控件
+ // 按钮控件
   BUTTON = 7,
   GLUETEXTBUTTON = 8,
   GLUEBUTTON = 9,
@@ -44,7 +44,7 @@ export enum FrameType {
   SCRIPT_DIALOG_BUTTON = 12,
   INVIS_BUTTON = 13,
   
-  // 交互控件
+ // 交互控件
   CHECKBOX = 14,
   EDITBOX = 15,
   SLIDER = 16,
@@ -53,21 +53,21 @@ export enum FrameType {
   MENU = 19,
   POPUPMENU = 20,
   
-  // 图形控件
+ // 图形控件
   SPRITE = 21,
   MODEL = 22,
   HIGHLIGHT = 23,
   
-  // 状态栏
+ // 状态栏
   SIMPLESTATUSBAR = 24,
   STATUSBAR = 25,
   
-  // 其他控件
+ // 其他控件
   CONTROL = 26,
   DIALOG = 27,
   TIMERTEXT = 28,
   
-  // 兼容旧枚举值（已废弃，保留向后兼容）
+ // 兼容旧枚举值（已废弃，保留向后兼容）
   CHECKLIST_BOX = 100,
   ESC_MENU_BACKDROP = 101,
   OPTIONS_POPUP_MENU_BACKDROP_TEMPLATE = 102,
@@ -91,10 +91,10 @@ export interface FDFMetadata {
   isTemplate?: boolean;                 // 是否是模板定义（来自Include文件）
   inheritedChildrenIds?: string[];      // 从模板继承的子控件ID列表（只读）
   /**
-   * inline 模板 Frame 名集合（Control*Backdrop/Highlight 等字段在被 resolveControlTextureRefs
-   * 替换为贴图前保留的原始模板名）。同名直接子 Frame 将在场景图构建阶段被摘除，
-   * 避免官方 FDF 常见的「按钮内部嵌套 BACKDROP 状态模板」被误当作可视子节点。
-   */
+ * inline 模板 Frame 名集合（Control*Backdrop/Highlight 等字段在被 resolveControlTextureRefs
+ * 替换为贴图前保留的原始模板名）。同名直接子 Frame 将在场景图构建阶段被摘除，
+ * 避免官方 FDF 常见的「按钮内部嵌套 BACKDROP 状态模板」被误当作可视子节点。
+ */
   inlineTemplateNames?: string[];
 }
 
@@ -138,55 +138,55 @@ export interface FrameData {
   name: string;
   type: FrameType;
   
-  // 编辑器坐标 (像素，左下角原点)
+ // 编辑器坐标 (像素，左下角原点)
   x: number;
   y: number;
   width: number;
   height: number;
   z: number;
   
-  // 层级关系
+ // 层级关系
   parentId: string | null;
   children: string[];
   
-  // 锚点系统 (用于 FDF 导出)
+ // 锚点系统 (用于 FDF 导出)
   anchors: FrameAnchor[];
   
-  // ========== 显示控制 ==========
+ // ========== 显示控制 ==========
   locked?: boolean;
   visible?: boolean;
   tooltip?: boolean | string;
   alpha?: number;                      // 透明度 0-255
   
-  // ========== 基础纹理 ==========
+ // ========== 基础纹理 ==========
   texture?: string;                    // 主纹理路径（支持本地文件、MPQ资源、HTTP等）
   
-  // ========== 文本属性 ==========
+ // ========== 文本属性 ==========
   text?: string;                       // 文本内容
   textScale?: number;                  // 文本缩放
   textLength?: number;                 // 最大文本长度
   
-  // 文本颜色 (RGBA格式，值范围0-1)
+ // 文本颜色 (RGBA格式，值范围0-1)
   textColor?: string;                  // 主文本颜色
   fontColor?: [number, number, number, number];         // 字体颜色 RGBA
   fontHighlightColor?: [number, number, number, number]; // 高亮颜色
   fontDisabledColor?: [number, number, number, number];  // 禁用颜色
   fontShadowColor?: [number, number, number, number];    // 阴影颜色
   
-  // 文本对齐
+ // 文本对齐
   horAlign?: 'left' | 'center' | 'right';              // 水平对齐
   verAlign?: 'start' | 'center' | 'flex-end';          // 垂直对齐
   fontJustificationH?: 'JUSTIFYLEFT' | 'JUSTIFYCENTER' | 'JUSTIFYRIGHT';
   fontJustificationV?: 'JUSTIFYTOP' | 'JUSTIFYMIDDLE' | 'JUSTIFYBOTTOM';
   
-  // 字体设置
+ // 字体设置
   font?: string;                       // 字体名称
   fontSize?: number;                   // 字体大小
   fontFlags?: string[];                // 字体标志 ['FIXEDSIZE', 'THICKOUTLINE']
   fontShadowOffset?: [number, number]; // 阴影偏移 [x, y]
   fontJustificationOffset?: [number, number]; // 文本对齐微调偏移 (WC3 单位, Y-up; 4 vendor)
   
-  // ========== EDITBOX 属性 ==========
+ // ========== EDITBOX 属性 ==========
   multiline?: boolean;                 // 多行文本
   maxChars?: number;                   // 最大字符数
   editTextColor?: [number, number, number, number];      // 编辑文本颜色
@@ -194,18 +194,18 @@ export interface FrameData {
   editBorderColor?: [number, number, number, number];    // 边框颜色
   editBorderSize?: number;             // EditBox 边框宽度 (WC3 单位)
 
-  // ========== TEXTAREA 属性 ==========
+ // ========== TEXTAREA 属性 ==========
   textAreaInset?: number;              // 内边距 (WC3 单位)
   textAreaLineHeight?: number;         // 行高 (WC3 单位)
   textAreaLineGap?: number;            // 行间距 (WC3 单位)
   textAreaMaxLines?: number;           // 最大显示行数
 
-  // ========== MENU / POPUP 属性 ==========
+ // ========== MENU / POPUP 属性 ==========
   menuItemHeight?: number;             // 菜单项高度 (WC3 单位)
   popupButtonInset?: number;           // 弹出按钮内边距 (WC3 单位)
   menuBorder?: number;                 // 菜单文本边距/边框宽 (WC3 单位)
   
-  // ========== SLIDER 属性 ==========
+ // ========== SLIDER 属性 ==========
   minValue?: number;                   // 最小值
   maxValue?: number;                   // 最大值
   stepSize?: number;                   // 步进值
@@ -213,10 +213,10 @@ export interface FrameData {
   sliderLayoutHorizontal?: boolean;    // 水平布局
   sliderLayoutVertical?: boolean;      // 垂直布局
   
-  // ========== CHECKBOX 属性 ==========
+ // ========== CHECKBOX 属性 ==========
   checked?: boolean;                   // 勾选状态
   
-  // ========== BUTTON 属性 ==========
+ // ========== BUTTON 属性 ==========
   controlStyle?: string;               // 控件样式标志 "AUTOTRACK|HIGHLIGHTONMOUSEOVER"
   controlBackdrop?: string;            // 默认背景
   controlPushedBackdrop?: string;      // 按下背景
@@ -225,17 +225,17 @@ export interface FrameData {
   controlMouseOverHighlight?: string;  // 鼠标悬停高亮
   buttonPushedTextOffset?: [number, number]; // 按下文本偏移
   
-  // ========== LISTBOX 属性 ==========
+ // ========== LISTBOX 属性 ==========
   listBoxItems?: string[];             // 列表项
   
-  // ========== HIGHLIGHT 属性 ==========
+ // ========== HIGHLIGHT 属性 ==========
   highlightType?: string;              // 高亮类型
   highlightAlphaFile?: string;         // 高亮Alpha文件
   highlightAlphaMode?: string;         // 高亮混合模式
   highlightColor?: [number, number, number, number];      // 高亮颜色 (HIGHLIGHT 帧填充, RGBA 0..255)
   menuTextHighlightColor?: [number, number, number, number]; // 菜单项文本高亮颜色 RGBA 0..255
 
-  // ========== 子 frame 引用 (frame 名引用, 由 BUTTON/POPUPMENU/DIALOG 等组合控件指向其内部子 frame) ==========
+ // ========== 子 frame 引用 (frame 名引用, 由 BUTTON/POPUPMENU/DIALOG 等组合控件指向其内部子 frame) ==========
   buttonTextRef?: string;              // BUTTON 显示文本所用的 TEXT 子 frame 名 (182 vendor)
   normalTextRef?: string;              // 默认态文本 frame 名
   highlightTextRef?: string;           // 鼠标悬停态文本 frame 名
@@ -256,20 +256,20 @@ export interface FrameData {
   checkBoxCheckHighlightRef?: string;  // CHECKBOX 勾选高亮子 frame (7)
   checkBoxDisabledCheckHighlightRef?: string; // CHECKBOX 禁用高亮 (4)
 
-  // ========== CHATDISPLAY 属性 ==========
+ // ========== CHATDISPLAY 属性 ==========
   chatDisplayBorderSize?: number;      // 聊天框边框宽, WC3 单位 (1 vendor)
   chatDisplayLineHeight?: number;      // 聊天框行高 (1 vendor)
   chatDisplayEditBoxRef?: string;      // 聊天框输入框子 frame 名 (1 vendor)
   chatDisplayScrollBarRef?: string;    // 聊天框滚动条子 frame 名 (1 vendor)
   
-  // ========== SPRITE / MODEL 属性 ==========
+ // ========== SPRITE / MODEL 属性 ==========
   backgroundArt?: string;              // 模型文件路径 (.mdx/.mdl)
   layerStyle?: string;                 // 图层样式 "NOSHADING|IGNORETRACKEVENTS"
   cameraYaw?: number;                  // MODEL: 相机水平旋转角度（弧度）
   cameraPitch?: number;                // MODEL: 相机俯仰角度（弧度）
   cameraDistance?: number;             // MODEL: 相机距离
   
-  // ========== BACKDROP 背景属性 ==========
+ // ========== BACKDROP 背景属性 ==========
   useActiveContext?: boolean;          // UseActiveContext 标志 (120 vendor)
   backdropBackground?: string;         // 背景纹理
   backdropTileBackground?: boolean;    // 平铺背景
@@ -285,19 +285,19 @@ export interface FrameData {
   backdropCornerSize?: number;         // 角尺寸
   backdropBlendAll?: boolean;          // 混合所有层
   
-  // ========== TEXTURE 属性 ==========
+ // ========== TEXTURE 属性 ==========
   textureFile?: string;                // 纹理文件路径
   texCoord?: [number, number, number, number]; // 纹理坐标 [left, right, top, bottom]
   alphaMode?: 'DISABLE' | 'ALPHAKEY' | 'BLEND' | 'ADD';    // Alpha混合模式
   decorateFileNames?: boolean;         // 装饰文件名
   
-  // ========== 功能属性 ==========
+ // ========== 功能属性 ==========
   trigVar?: string;                    // 触发器变量名
   arrayId?: string;                    // 数组ID
   isRelative?: boolean;                // 保留兼容性
   layer?: string;                      // 图层名称
   
-  // ===== FDF 扩展数据 =====
+ // ===== FDF 扩展数据 =====
   fdfMetadata?: FDFMetadata;           // FDF 元数据
   fdfTexture?: FDFTextureData;         // FDF 纹理数据
   fdfString?: FDFStringData;           // FDF 文本数据
@@ -341,22 +341,22 @@ export interface StylePreset {
   category?: string; // 分类：按钮、文本、背景等
   createdAt: number; // 创建时间戳
   style: {
-    // 纹理
+ // 纹理
     texture?: string;
     backdropBackground?: string;
     
-    // 文本
+ // 文本
     text?: string;
     textScale?: number;
     textColor?: string;
     horAlign?: 'left' | 'center' | 'right';
     verAlign?: 'start' | 'center' | 'flex-end';
     
-    // 尺寸
+ // 尺寸
     width?: number;
     height?: number;
     
-    // 类型
+ // 类型
     type?: FrameType;
   };
 }
@@ -391,21 +391,20 @@ export interface ProjectData {
   hideButtonBar: boolean;
   hidePortrait: boolean;
   hideChat: boolean;
-  appInterface: string;
   backgroundImage?: string;
   
-  // 核心数据
+ // 核心数据
   frames: Record<string, FrameData>;
   rootFrameIds: string[];
   
-  // FDF 模板库
+ // FDF 模板库
   fdfTemplates?: Record<string, FDFTemplate>;
   
-  // 种族纹理配置
+ // 种族纹理配置
   currentRace?: 'Human' | 'Orc' | 'NightElf' | 'Undead' | 'Default';
   war3Skins?: War3Skins | null;
   
-  // 辅助数据
+ // 辅助数据
   tableArrays: TableArrayData[];
   circleArrays: CircleArrayData[];
   guides?: GuideLine[];

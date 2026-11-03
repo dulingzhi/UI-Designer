@@ -54,14 +54,14 @@ const makeFrame = (id: string, overrides: Partial<FrameData> = {}): FrameData =>
 
 describe('projectStore 帧操作', () => {
   beforeEach(() => {
-    // 先 reset UI 状态，再 seed project（顺序踩坑已记录于 AGENTS.md）
+ // 先 reset UI 状态，再 seed project（顺序踩坑已记录于 AGENTS.md）
     useUIStore.getState().reset?.();
     useProjectStore.setState({ project: null as never });
     useProjectStore.getState().setProject({
       version: 2, libraryName: 'T', originMode: 'gameui', exportVersion: 'reforged',
       backgroundImage: '', hideGameUI: false, hideHeroBar: false, hideMiniMap: false,
       hideResources: false, hideButtonBar: false, hidePortrait: false, hideChat: false,
-      appInterface: '', frames: {}, rootFrameIds: [],
+ frames: {}, rootFrameIds: [],
       tableArrays: [], circleArrays: [], guides: [], stylePresets: [],
     } as never);
   });
@@ -125,7 +125,7 @@ describe('projectStore 帧操作', () => {
 
   it('addFrame 到无 children 字段的父帧不崩溃（导入 FDF 场景）', () => {
     const s = useProjectStore.getState();
-    // 父帧无 children（导入 FDF 的真实形状）
+ // 父帧无 children（导入 FDF 的真实形状）
     s.addFrame(makeFrame('p0') as FrameData & { children?: string[] });
     const p0 = useProjectStore.getState().project!.frames['p0'];
     delete (p0 as any).children; // 模拟导入帧缺可选字段
@@ -160,7 +160,7 @@ describe('projectStore 数组编辑器', () => {
       version: 2, libraryName: 'T', originMode: 'gameui', exportVersion: 'reforged',
       backgroundImage: '', hideGameUI: false, hideHeroBar: false, hideMiniMap: false,
       hideResources: false, hideButtonBar: false, hidePortrait: false, hideChat: false,
-      appInterface: '', frames: {}, rootFrameIds: [],
+ frames: {}, rootFrameIds: [],
       tableArrays: [], circleArrays: [], guides: [], stylePresets: [],
     } as never);
   });
@@ -215,7 +215,7 @@ describe('projectStore 数组编辑器', () => {
     const p = useProjectStore.getState().project!;
     expect(p.frames['a1'].texture).toBe('red.png');
     expect(p.frames['a2'].texture).toBe('red.png');
-    // 非目标帧不受影响
+ // 非目标帧不受影响
     expect(p.frames['a1'].name).toBe('Frame_a1');
   });
 
@@ -247,7 +247,7 @@ describe('projectStore 数组编辑器', () => {
     const gid = s.createGroup('G1', ['f1', 'f2']);
     expect(gid).toMatch(/^group_/);
     expect(useProjectStore.getState().project!.frameGroups).toHaveLength(1);
-    // 重复添加去重
+ // 重复添加去重
     s.addFramesToGroup(gid, ['f2', 'f3']);
     expect((useProjectStore.getState().project!.frameGroups![0] as any).frameIds).toEqual(['f1', 'f2', 'f3']);
     s.removeFramesFromGroup(gid, ['f1']);
@@ -272,9 +272,9 @@ describe('projectStore 数组编辑器', () => {
     s.addFrame(makeFrame('r2', { texture: 'unrelated.png' }));
     await s.setRace('Orc');
     const p = useProjectStore.getState().project!;
-    // r1: Human 路径反查键名 BTN_Hero → Orc 纹理
+ // r1: Human 路径反查键名 BTN_Hero → Orc 纹理
     expect(p.frames['r1'].texture).toBe('Orc\\BTN_OrcHero.dds');
-    // r2: 无关纹理不动
+ // r2: 无关纹理不动
     expect(p.frames['r2'].texture).toBe('unrelated.png');
     expect(p.currentRace).toBe('Orc');
   });

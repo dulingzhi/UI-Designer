@@ -31,7 +31,6 @@ function makeProject(): ProjectData {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: undefined,
     frames: {
       f1: {
         id: 'f1',
@@ -103,7 +102,7 @@ describe('loadProject', () => {
   });
 
   it('loads and migrates a project from the chosen path', async () => {
-    // Provide a project missing anchors to trigger migration default creation.
+ // Provide a project missing anchors to trigger migration default creation.
     const raw = {
       version: 1,
       libraryName: 'Lib',
@@ -129,7 +128,7 @@ describe('loadProject', () => {
     const result = await loadProject();
     expect(result?.path).toBe('C:\\p\\my.w3ui');
     const f1 = result!.project.frames['f1'];
-    // Migration rebuilt children from parentId.
+ // Migration rebuilt children from parentId.
     expect(f1.children).toEqual(['f2']);
     expect(f1.anchors).toBeDefined();
     expect(f1.anchors!.length).toBe(1);
@@ -200,8 +199,8 @@ describe('loadProjectFromPath', () => {
   });
 
   it('dedupes children already present in the children array', async () => {
-    // Two frames both list a duplicated child reference; migration rebuilds
-    // children from parentId and must not push a duplicate.
+ // Two frames both list a duplicated child reference; migration rebuilds
+ // children from parentId and must not push a duplicate.
     const raw = {
       version: 1,
       libraryName: 'Lib',
@@ -225,7 +224,7 @@ describe('loadProjectFromPath', () => {
     };
     fsMocks.readTextFile.mockResolvedValue(JSON.stringify(raw));
     const result = await loadProjectFromPath('C:\\a.w3ui');
-    // b and c both reference parent a; no duplicate entries.
+ // b and c both reference parent a; no duplicate entries.
     expect(result!.project.frames['a'].children).toEqual(['b', 'c']);
   });
 
@@ -335,9 +334,9 @@ describe('loadProjectFromPath 悬空 parentId 迁移', () => {
       },
     }));
     const { project } = await loadProjectFromPath('C:\\p.w3ui');
-    // 悬空引用被清理（不再随再次保存永久化）
+ // 悬空引用被清理（不再随再次保存永久化）
     expect(project.frames.b.parentId).toBe(null);
-    // 有效父子关系不受影响
+ // 有效父子关系不受影响
     expect(project.frames.a.children).toEqual([]);
   });
 

@@ -5,8 +5,8 @@ import { ProjectData } from '../types';
 // DEFAULT_HOT_RELOAD_CONFIG calls getDefaultHotReloadConfig -> localStorage.getItem).
 const localStorageMock = vi.hoisted(() => {
   const m = new Map<string, string>();
-  // Prime war3_install_path so the module-import-time call to
-  // getDefaultHotReloadConfig() takes the war3Path (truthy) branch.
+ // Prime war3_install_path so the module-import-time call to
+ // getDefaultHotReloadConfig() takes the war3Path (truthy) branch.
   m.set('war3_install_path', 'D:/Games\\War3');
   const store = {
     getItem: (k: string) => (m.has(k) ? m.get(k)! : null),
@@ -59,7 +59,6 @@ function makeProject(): ProjectData {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: undefined as never,
     frames: {},
     rootFrameIds: [],
     tableArrays: [],
@@ -85,13 +84,13 @@ describe('hotReloadExporter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock.clear();
-    // hotReloadExporter uses window.setTimeout for debounce; provide it in Node
+ // hotReloadExporter uses window.setTimeout for debounce; provide it in Node
     vi.stubGlobal('window', { setTimeout, clearTimeout });
   });
 
   describe('DEFAULT_HOT_RELOAD_CONFIG', () => {
     it('builds war3-derived paths when war3_install_path is set at import', () => {
-      // war3_install_path primed to 'D:/Games\\War3' before import -> truthy branch of getDefaultHotReloadConfig
+ // war3_install_path primed to 'D:/Games\\War3' before import -> truthy branch of getDefaultHotReloadConfig
       const cfg = DEFAULT_HOT_RELOAD_CONFIG;
       expect(cfg.outputPath).toBe('D:\\Games\\War3\\UI-Designer\\ui_generated.lua');
       expect(cfg.loaderPath).toBe('D:\\Games\\War3\\UI-Designer\\ui_loader.lua');
@@ -109,7 +108,7 @@ describe('hotReloadExporter', () => {
       const cfg = mod.DEFAULT_HOT_RELOAD_CONFIG;
       expect(cfg.outputPath).toBe('C:\\Users\\bob\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua');
       expect(cfg.loaderPath).toBe('C:\\Users\\bob\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_loader.lua');
-      // getHotReloadExporter() with no arg reaches the config||DEFAULT fallback (fresh globalExporter is null)
+ // getHotReloadExporter() with no arg reaches the config||DEFAULT fallback (fresh globalExporter is null)
       const exp = mod.getHotReloadExporter();
       expect((exp as unknown as { config: HotReloadConfig }).config.outputPath).toBe(
         'C:\\Users\\bob\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua'
@@ -167,10 +166,10 @@ describe('hotReloadExporter', () => {
       await e.export(makeProject(), true);
       expect(fsMocks.mkdir).toHaveBeenCalled();
       expect(fsMocks.writeTextFile).toHaveBeenCalledTimes(2);
-      // output + loader written
+ // output + loader written
       expect(fsMocks.writeTextFile.mock.calls[0][0]).toBe('C:\\out\\UI-Designer\\ui_generated.lua');
       expect(fsMocks.writeTextFile.mock.calls[1][0]).toBe('C:\\out\\UI-Designer\\ui_loader.lua');
-      // both contents are non-empty Lua
+ // both contents are non-empty Lua
       expect(fsMocks.writeTextFile.mock.calls[0][1]).toContain('UI Designer');
       expect(fsMocks.writeTextFile.mock.calls[1][1]).toContain('加载器脚本');
     });
@@ -182,7 +181,7 @@ describe('hotReloadExporter', () => {
       const e = new HotReloadExporter(config());
       const p1 = e.export(makeProject());
       await idle();
-      // second call while isExporting
+ // second call while isExporting
       await e.export(makeProject());
       expect(fsMocks.writeTextFile).not.toHaveBeenCalled();
       release!();
@@ -262,7 +261,7 @@ describe('hotReloadExporter', () => {
       e.exportDebounced(makeProject());
       e.exportDebounced(makeProject()); // second call resets timer
       await new Promise((r) => setTimeout(r, 40));
-      // exactly one export ran
+ // exactly one export ran
       expect(fsMocks.writeTextFile).toHaveBeenCalledTimes(2);
     });
 
@@ -300,17 +299,17 @@ describe('hotReloadExporter', () => {
       fsMocks.writeTextFile.mockResolvedValue(undefined as never);
       const e = new HotReloadExporter(config());
 
-      // 第一次导出：挂在 mkdir
+ // 第一次导出：挂在 mkdir
       const p1 = e.export(makeProject());
       await idle();
-      // 导出期间的"新编辑"触发第二次导出 → 被 isExporting 跳过但记录 pending
+ // 导出期间的"新编辑"触发第二次导出 → 被 isExporting 跳过但记录 pending
       await e.export(makeProject());
       expect(fsMocks.writeTextFile).not.toHaveBeenCalled();
-      // 放行第一次导出 → 完成后应补充导出
+ // 放行第一次导出 → 完成后应补充导出
       release!();
       await p1;
       await new Promise((r) => setTimeout(r, 0));
-      // 补充导出走完整链路：写 UI + 写 loader
+ // 补充导出走完整链路：写 UI + 写 loader
       expect(fsMocks.writeTextFile).toHaveBeenCalledTimes(2);
     });
 
@@ -329,7 +328,7 @@ describe('hotReloadExporter', () => {
       release!();
       await p1;
       await new Promise((r) => setTimeout(r, 0));
-      // 补充导出在 mkdir 失败被捕获：p1 自身写 2 次（UI+loader），补充导出未追加第三次
+ // 补充导出在 mkdir 失败被捕获：p1 自身写 2 次（UI+loader），补充导出未追加第三次
       expect(fsMocks.writeTextFile).toHaveBeenCalledTimes(2);
       expect(err).toHaveBeenCalled();
       err.mockRestore();

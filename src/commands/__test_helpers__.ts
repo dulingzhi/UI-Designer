@@ -39,7 +39,6 @@ export function makeTestProject(
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: 'dark',
     backgroundImage: '/backgrounds/wc3-with-ui.png',
     frames: patch.frames,
     rootFrameIds: patch.rootFrameIds,

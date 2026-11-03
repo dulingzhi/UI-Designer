@@ -7,11 +7,11 @@ import { war3ProcessManager } from '../utils/war3ProcessManager';
 interface ProjectState {
   project: ProjectData;
   
-  // 项目操作
+ // 项目操作
   setProject: (project: ProjectData) => void;
   resetProject: () => void;
   
-  // Frame操作
+ // Frame操作
   addFrame: (frame: FrameData) => void;
   addFrames: (frames: FrameData[]) => void;
   updateFrame: (id: string, updates: Partial<FrameData>) => void;
@@ -19,16 +19,16 @@ interface ProjectState {
   deleteFrame: (id: string) => void;
   getFrame: (id: string) => FrameData | undefined;
   
-  // 锁定操作
+ // 锁定操作
   toggleFrameLock: (id: string) => void;
   
-  // 可见性操作
+ // 可见性操作
   toggleFrameVisibility: (id: string) => void;
   
-  // 通用设置
+ // 通用设置
   updateGeneralSettings: (settings: Partial<Pick<ProjectData, 'libraryName' | 'originMode' | 'exportVersion' | 'backgroundImage' | 'hideGameUI' | 'hideHeroBar' | 'hideMiniMap' | 'hideResources' | 'hideButtonBar' | 'hidePortrait' | 'hideChat'>>) => void;
   
-  // Array操作
+ // Array操作
   addTableArray: (array: TableArrayData) => void;
   updateTableArray: (id: string, updates: Partial<TableArrayData>) => void;
   removeTableArray: (id: string) => void;
@@ -37,27 +37,27 @@ interface ProjectState {
   updateCircleArray: (id: string, updates: Partial<CircleArrayData>) => void;
   removeCircleArray: (id: string) => void;
   
-  // 参考线操作
+ // 参考线操作
   addGuide: (guide: GuideLine) => void;
   updateGuide: (id: string, updates: Partial<GuideLine>) => void;
   removeGuide: (id: string) => void;
   clearGuides: () => void;
   
-  // 样式预设操作
+ // 样式预设操作
   addStylePreset: (preset: StylePreset) => void;
   updateStylePreset: (id: string, updates: Partial<StylePreset>) => void;
   removeStylePreset: (id: string) => void;
   applyStylePreset: (presetId: string, targetFrameIds: string[]) => void;
   saveFrameAsPreset: (frameId: string, name: string, category?: string) => void;
   
-  // 控件组合操作
+ // 控件组合操作
   createGroup: (name: string, frameIds: string[]) => string;
   updateGroup: (id: string, updates: Partial<FrameGroup>) => void;
   removeGroup: (id: string) => void;
   addFramesToGroup: (groupId: string, frameIds: string[]) => void;
   removeFramesFromGroup: (groupId: string, frameIds: string[]) => void;
   
-  // 种族纹理操作
+ // 种族纹理操作
   setRace: (race: 'Human' | 'Orc' | 'NightElf' | 'Undead' | 'Default') => void;
   loadWar3Skins: (content: string) => void;
 }
@@ -75,7 +75,6 @@ const createDefaultProject = (): ProjectData => ({
   hideButtonBar: false,
   hidePortrait: false,
   hideChat: false,
-  appInterface: 'dark',
   frames: {},
   rootFrameIds: [],
   fdfTemplates: {},  // FDF 模板库
@@ -90,12 +89,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   project: createDefaultProject(),
 
   setProject: (project) => {
-    // 修复所有控件的锚点和children字段
+ // 修复所有控件的锚点和children字段
     const fixedFrames: Record<string, FrameData> = {};
     
-    // 第一步：确保每个控件都有必要的字段
+ // 第一步：确保每个控件都有必要的字段
     Object.entries(project.frames).forEach(([id, frame]) => {
-      // 确保每个控件都有锚点数组
+ // 确保每个控件都有锚点数组
       if (!frame.anchors || frame.anchors.length === 0) {
         fixedFrames[id] = {
           ...frame,
@@ -111,13 +110,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     });
     
-    // 第二步：重建父子关系索引（修复可能损坏的children数组）
-    // 先清空所有children数组
+ // 第二步：重建父子关系索引（修复可能损坏的children数组）
+ // 先清空所有children数组
     Object.values(fixedFrames).forEach(frame => {
       frame.children = [];
     });
     
-    // 根据每个控件的parentId重建父控件的children数组
+ // 根据每个控件的parentId重建父控件的children数组
     Object.entries(fixedFrames).forEach(([id, frame]) => {
       if (frame.parentId && fixedFrames[frame.parentId]) {
         if (!fixedFrames[frame.parentId].children.includes(id)) {
@@ -139,9 +138,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   }),
 
   addFrame: (frame) => set((state) => {
-    // round 108 修复（幽灵帧缺陷）：parentId 悬空（父已被删/手编辑存档指向不存在帧）时，
-    // 原实现既不挂父 children 也不入 rootFrameIds——副本存在却不可见不可选。
-    // 归一化为根帧（与 fileOperations 迁移的悬空 parentId 清理语义一致）。
+ // round 108 修复（幽灵帧缺陷）：parentId 悬空（父已被删/手编辑存档指向不存在帧）时，
+ // 原实现既不挂父 children 也不入 rootFrameIds——副本存在却不可见不可选。
+ // 归一化为根帧（与 fileOperations 迁移的悬空 parentId 清理语义一致）。
     const parentExists = frame.parentId && state.project.frames[frame.parentId];
     const normalizedFrame = frame.parentId && !parentExists
       ? { ...frame, parentId: null }
@@ -152,7 +151,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       [normalizedFrame.id]: normalizedFrame,
     };
 
-    // 如果有父控件，需要更新父控件的children数组
+ // 如果有父控件，需要更新父控件的children数组
     if (normalizedFrame.parentId) {
       const parentFrame = state.project.frames[normalizedFrame.parentId];
       updatedFrames[normalizedFrame.parentId] = {
@@ -165,7 +164,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       project: {
         ...state.project,
         frames: updatedFrames,
-        // 没有父控件（null/undefined/悬空归一化）则添加到根节点
+ // 没有父控件（null/undefined/悬空归一化）则添加到根节点
         rootFrameIds: !normalizedFrame.parentId
           ? [...state.project.rootFrameIds, normalizedFrame.id]
           : state.project.rootFrameIds,
@@ -173,26 +172,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     };
   }),
 
-  // 批量添加控件（用于FDF导入）
+ // 批量添加控件（用于FDF导入）
   addFrames: (frames) => set((state) => {
     const updatedFrames = { ...state.project.frames };
     const newRootFrameIds = [...state.project.rootFrameIds];
     
-    // 先添加所有控件
+ // 先添加所有控件
     for (const frame of frames) {
       updatedFrames[frame.id] = frame;
       
-      // 如果没有父控件，添加到根节点
+ // 如果没有父控件，添加到根节点
       if (!frame.parentId) {
         newRootFrameIds.push(frame.id);
       }
     }
     
-    // 然后建立父子关系
+ // 然后建立父子关系
     for (const frame of frames) {
       if (frame.parentId && updatedFrames[frame.parentId]) {
         const parentFrame = updatedFrames[frame.parentId];
-        // 确保不重复添加（children 是可选字段：导入 FDF 的帧可能没有）
+ // 确保不重复添加（children 是可选字段：导入 FDF 的帧可能没有）
         if (!(parentFrame.children ?? []).includes(frame.id)) {
           updatedFrames[frame.parentId] = {
             ...parentFrame,
@@ -215,12 +214,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const frame = state.project.frames[id];
     if (!frame) return state;
 
-    // 清除缓存（因为frame可能被修改）
+ // 清除缓存（因为frame可能被修改）
     clearPositionCache();
 
-    // round 112 修复（幽灵帧同族第 8 处）：parentId 变更指向已删除的帧时
-    // 归一化为根帧——与 addFrame/fileOperations 清理语义一致。
-    // 原实现不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧复发。
+ // round 112 修复（幽灵帧同族第 8 处）：parentId 变更指向已删除的帧时
+ // 归一化为根帧——与 addFrame/fileOperations 清理语义一致。
+ // 原实现不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧复发。
     const changingParent = 'parentId' in updates && updates.parentId !== frame.parentId;
     const newParentId: string | null = changingParent && updates.parentId && !state.project.frames[updates.parentId]
       ? null
@@ -233,11 +232,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         : { ...frame, ...updates },
     };
 
-    // 如果更新了parentId，需要同步更新父子关系
+ // 如果更新了parentId，需要同步更新父子关系
     if (changingParent) {
       const oldParentId = frame.parentId;
 
-      // 从旧父控件的children中移除
+ // 从旧父控件的children中移除
       if (oldParentId && updatedFrames[oldParentId]) {
         const oldParent = updatedFrames[oldParentId];
         updatedFrames[oldParentId] = {
@@ -246,7 +245,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         };
       }
 
-      // 添加到新父控件的children中
+ // 添加到新父控件的children中
       if (newParentId && updatedFrames[newParentId]) {
         const newParent = updatedFrames[newParentId];
         updatedFrames[newParentId] = {
@@ -256,14 +255,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     }
 
-    // 更新rootFrameIds（以归一化后的 newParentId 为准——悬空已归一化为根）
+ // 更新rootFrameIds（以归一化后的 newParentId 为准——悬空已归一化为根）
     let newRootFrameIds = state.project.rootFrameIds;
     if (changingParent) {
       if (newParentId === null && !newRootFrameIds.includes(id)) {
-        // 变为根控件
+ // 变为根控件
         newRootFrameIds = [...newRootFrameIds, id];
       } else if (newParentId !== null && newRootFrameIds.includes(id)) {
-        // 从根控件变为子控件
+ // 从根控件变为子控件
         newRootFrameIds = newRootFrameIds.filter(fid => fid !== id);
       }
     }
@@ -285,7 +284,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     
     if (!frame) return state;
 
-    // 更新子元素的父级引用（children 是可选字段：导入 FDF 的帧可能没有）
+ // 更新子元素的父级引用（children 是可选字段：导入 FDF 的帧可能没有）
     const updatedFrames = { ...remainingFrames };
     (frame.children ?? []).forEach(childId => {
       if (updatedFrames[childId]) {
@@ -296,7 +295,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     });
 
-    // 从父控件的children数组中移除当前控件
+ // 从父控件的children数组中移除当前控件
     if (frame.parentId && updatedFrames[frame.parentId]) {
       const parentFrame = updatedFrames[frame.parentId];
       updatedFrames[frame.parentId] = {
@@ -315,7 +314,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     };
   }),
 
-  // deleteFrame 是 removeFrame 的别名
+ // deleteFrame 是 removeFrame 的别名
   deleteFrame: (id) => get().removeFrame(id),
 
   getFrame: (id) => get().project.frames[id],
@@ -409,7 +408,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
   })),
 
-  // 参考线操作
+ // 参考线操作
   addGuide: (guide) => set((state) => ({
     project: {
       ...state.project,
@@ -440,7 +439,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
   })),
 
-  // 样式预设管理
+ // 样式预设管理
   addStylePreset: (preset) => set((state) => ({
     project: {
       ...state.project,
@@ -518,7 +517,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     };
   }),
 
-  // 控件组合管理
+ // 控件组合管理
   createGroup: (name, frameIds) => {
     const groupId = `group_${Date.now()}`;
     const newGroup: FrameGroup = {
@@ -576,23 +575,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
   })),
 
-  // 种族纹理操作
+ // 种族纹理操作
   setRace: async (race) => {
     const state = get();
     if (!state.project.war3Skins) return;
     
     const { findTextureKey, getTextureForRace } = await import('../utils/war3SkinsParser');
     
-    // 遍历所有控件，更新种族相关纹理
+ // 遍历所有控件，更新种族相关纹理
     Object.entries(state.project.frames).forEach(([id, frame]) => {
       const updates: Partial<FrameData> = {};
       
-      // 检查 texture
+ // 检查 texture
       if (frame.texture) {
-        // 先尝试将 texture 作为键名直接获取
+ // 先尝试将 texture 作为键名直接获取
         let newPath = getTextureForRace(state.project.war3Skins!, race, frame.texture);
         
-        // 如果不存在，尝试通过路径反向查找键名
+ // 如果不存在，尝试通过路径反向查找键名
         if (!newPath) {
           const key = findTextureKey(state.project.war3Skins!, frame.texture);
           if (key) {
@@ -610,7 +609,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
     });
     
-    // 更新种族状态
+ // 更新种族状态
     set((state) => ({
       project: {
         ...state.project,
@@ -650,20 +649,20 @@ let previousProject: ProjectData | null = null;
 useProjectStore.subscribe((state) => {
   const currentProject = state.project;
   
-  // 首次初始化，跳过
+ // 首次初始化，跳过
   if (previousProject === null) {
     previousProject = currentProject;
     return;
   }
   
-  // 检查 project 是否真的发生了变化
+ // 检查 project 是否真的发生了变化
   if (previousProject === currentProject) {
     return;
   }
   
   previousProject = currentProject;
   
-  // 异步触发热重载导出（只在War3进程运行时）
+ // 异步触发热重载导出（只在War3进程运行时）
   setTimeout(async () => {
     const currentPid = war3ProcessManager.getCurrentPid();
     if (!currentPid) {
@@ -681,8 +680,8 @@ useProjectStore.subscribe((state) => {
     
     const hotReloadConfigStr = localStorage.getItem('hotReloadConfig');
     if (hotReloadConfigStr) {
-      // round 118：损坏 JSON（手编辑/localStorage 异常）不得在异步上下文抛
-      // 未捕获 rejection——那会让自动导出链路静默死亡。损坏回落默认配置。
+ // round 118：损坏 JSON（手编辑/localStorage 异常）不得在异步上下文抛
+ // 未捕获 rejection——那会让自动导出链路静默死亡。损坏回落默认配置。
       try {
         const config = JSON.parse(hotReloadConfigStr);
         getHotReloadExporter(config).exportDebounced(currentProject);

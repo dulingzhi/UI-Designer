@@ -59,7 +59,6 @@ function seedProject(frames: Record<string, FrameData>, rootFrameIds: string[]) 
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: '',
     backgroundImage: '',
     frames,
     rootFrameIds,

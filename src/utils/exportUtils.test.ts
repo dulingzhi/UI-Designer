@@ -33,7 +33,6 @@ function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: '',
     frames: {},
     rootFrameIds: [],
     tableArrays: [],
@@ -114,7 +113,7 @@ describe('exportUtils', () => {
       await exportToFDF(standardProject('worldframe'), true);
       expect(fdfMocks.exportEnhanced).toHaveBeenCalled();
       expect(fsMocks.writeTextFile).toHaveBeenCalled();
-      // Header inserted before first 'Frame "'>0 occurrence
+ // Header inserted before first 'Frame "'>0 occurrence
       const content = fsMocks.writeTextFile.mock.calls[0][1] as string;
       expect(content).toContain('Origin Mode: worldframe');
       expect(content).toContain('Frame "Panel"');
@@ -202,12 +201,12 @@ describe('exportUtils', () => {
         rootFrameIds: ['root2'],
       });
 
-      // worldframe root -> WorldFrameWar3
+ // worldframe root -> WorldFrameWar3
       const wf = makeProject({ originMode: 'worldframe', frames: {}, rootFrameIds: [] });
       const wfRoot = frame({ id: 'w', name: 'W', type: FrameType.FRAME, anchors: [] });
       wf.frames = { w: wfRoot };
       wf.rootFrameIds = ['w'];
-      // consoleui root -> ConsoleUI
+ // consoleui root -> ConsoleUI
       const cu = makeProject({ originMode: 'consoleui', frames: {}, rootFrameIds: [] });
       const cuRoot = frame({ id: 'c', name: 'C', type: FrameType.FRAME, anchors: [] });
       cu.frames = { c: cuRoot };
@@ -225,11 +224,11 @@ describe('exportUtils', () => {
       const contents = fsMocks.writeTextFile.mock.calls.map((c) => c[1] as string);
       expect(contents.join('|')).toContain('WorldFrameWar3');
       expect(contents.join('|')).toContain('ConsoleUI');
-      // parent resolution shows parent's name (TargetFrame is target of rel anchor not parent)
+ // parent resolution shows parent's name (TargetFrame is target of rel anchor not parent)
       expect(contents[0]).toContain('TargetFrame');
-      // fontSize default 0.012 for text with horAlign but no textScale
+ // fontSize default 0.012 for text with horAlign but no textScale
       expect(contents[0]).toContain('FrameFont "MasterFont", 0.012');
-      // getFrameTypeName cases
+ // getFrameTypeName cases
       expect(contents[0]).toContain('Frame "SLIDER" "Plain" {');
       expect(contents[0]).toContain('Frame "BUTTON" "ScriptBtn" {');
       expect(contents[0]).toContain('Frame "SLIDER" "HorBar" {');
@@ -318,9 +317,9 @@ describe('exportUtils', () => {
     function makeCanvasWithBlob(blob: { arrayBuffer: () => Promise<ArrayBuffer> } | null): FakeCanvas {
       return { toBlob: (cb) => cb(blob) };
     }
-    // exportToPNG does not await the toBlob callback, and its body awaits a dynamic
-    // import('@tauri-apps/plugin-fs') (a real module-resolution macrotask), so we flush
-    // both microtasks and a macrotask before asserting on the tick.
+ // exportToPNG does not await the toBlob callback, and its body awaits a dynamic
+ // import('@tauri-apps/plugin-fs') (a real module-resolution macrotask), so we flush
+ // both microtasks and a macrotask before asserting on the tick.
     async function flush() {
       for (let i = 0; i < 20; i++) await Promise.resolve();
       await new Promise((r) => setTimeout(r, 0));

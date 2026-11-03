@@ -3,9 +3,9 @@
  *
  * 审计 `exportUtils.generateFrameFDF` 发现：
  * 1. **文本引号未转义**：`Text "${frame.text}"` 直接插入，文本含 `"` 时会截断字符串，
- *    产物变成非法 FDF（且不会报错，静默产出坏文件）。
+ * 产物变成非法 FDF（且不会报错，静默产出坏文件）。
  * 2. **`horAlign` 分支只输出 `FrameFont`**：既没有输出对齐属性，又把字体名硬编码成
- *    `MasterFont`、字号取 `textScale`——用户设的对齐完全丢失。
+ * `MasterFont`、字号取 `textScale`——用户设的对齐完全丢失。
  * 3. **`verAlign` 完全没有导出**。
  * 4. **纹理属性 `texCoord` / `alphaMode` / `decorateFileNames` 未导出**。
  */
@@ -38,7 +38,7 @@ function proj(frames: FrameData[]): ProjectData {
     version: 2, libraryName: 'Lib', originMode: 'gameui', exportVersion: 'reforged',
     hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
     hideButtonBar: false, hidePortrait: false, hideChat: false,
-    appInterface: '', frames: rec,
+ frames: rec,
     rootFrameIds: frames.filter((f) => !f.parentId).map((f) => f.id),
   } as unknown as ProjectData;
 }
@@ -55,8 +55,8 @@ describe('文本引号必须转义，产物才能被 parseFdf 回读', () => {
   it('TEXT_FRAME 的文本含双引号时，回读后文本**不被截断**', async () => {
     const t = mkFrame({ id: 't1', name: 'Txt', type: FrameType.TEXT_FRAME, text: 'He said "hi"' });
     const c = await content([t]);
-    // 探针实测：未转义时 parser 不抛错，但把文本静默截断成 "He said "（"hi" 丢失）——
-    // 这才是真正危险的地方：产物看起来"能解析"，内容却是错的。
+ // 探针实测：未转义时 parser 不抛错，但把文本静默截断成 "He said "（"hi" 丢失）——
+ // 这才是真正危险的地方：产物看起来"能解析"，内容却是错的。
     const file = parseFdf(c);
     const txt = file.frames[0]; // 顶层帧（exportUtils 以 rootFrameIds 为顶层）
     expect(txt).toBeDefined();

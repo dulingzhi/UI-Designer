@@ -40,7 +40,7 @@ describe('真实全量 FDF 导出→导入大样本验证', () => {
         const proj = {
           version: 2, libraryName: 'RT', originMode: 'gameui', exportVersion: 'reforged',
           hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
-          hideButtonBar: false, hidePortrait: false, hideChat: false, appInterface: '',
+          hideButtonBar: false, hidePortrait: false, hideChat: false,
           frames, rootFrameIds: fds.filter((f: any) => !f.parentId).map((f: any) => f.id),
         } as unknown as ProjectData;
 

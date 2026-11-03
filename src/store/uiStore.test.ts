@@ -73,7 +73,6 @@ function makeTestProject(patch: {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: 'dark',
     backgroundImage: '/backgrounds/wc3-with-ui.png',
     frames: patch.frames,
     rootFrameIds: patch.rootFrameIds,
@@ -84,15 +83,15 @@ function makeTestProject(patch: {
 
 describe('STYLE_PROPERTIES', () => {
   it('包含所有预期的样式属性类别', () => {
-    // 文本属性
+ // 文本属性
     expect(STYLE_PROPERTIES).toContain('textColor');
     expect(STYLE_PROPERTIES).toContain('textScale');
     expect(STYLE_PROPERTIES).toContain('font');
     expect(STYLE_PROPERTIES).toContain('fontSize');
     expect(STYLE_PROPERTIES).toContain('fontFlags');
-    // 纹理属性
+ // 纹理属性
     expect(STYLE_PROPERTIES).toContain('texture');
-    // Backdrop 属性
+ // Backdrop 属性
     expect(STYLE_PROPERTIES).toContain('backdropBackground');
     expect(STYLE_PROPERTIES).toContain('backdropTileBackground');
     expect(STYLE_PROPERTIES).toContain('backdropBackgroundSize');
@@ -157,7 +156,7 @@ describe('copyStyleToClipboard', () => {
     expect(clipboard).not.toBeNull();
     expect('font' in clipboard!).toBe(false);
     expect('fontSize' in clipboard!).toBe(false);
-    // 其他属性仍存在
+ // 其他属性仍存在
     expect(clipboard!.textColor).toBe('#ff0000');
   });
 
@@ -226,9 +225,9 @@ describe('pasteStyleFromClipboard', () => {
       }),
     });
 
-    // 先复制源样式
+ // 先复制源样式
     useUIStore.getState().copyStyleToClipboard(source.id);
-    // 再粘贴到目标
+ // 再粘贴到目标
     useUIStore.getState().pasteStyleFromClipboard([target.id]);
 
     const updated = useProjectStore.getState().project.frames[target.id];
@@ -321,18 +320,18 @@ describe('选择类 action（round 105 补齐，编辑器核心交互）', () =>
         frames: { a: makeTestFrame({ id: 'a' }), b: makeTestFrame({ id: 'b' }) },
         rootFrameIds: ['a', 'b'],
       }),
-      // frameGroups 不在 makeTestProject 里，直接补
+ // frameGroups 不在 makeTestProject 里，直接补
     } as never);
     useProjectStore.setState((s) => ({
       project: { ...s.project, frameGroups: [{ id: 'g1', name: 'G', createdAt: 0, frameIds: ['a', 'b'] }] },
     }));
 
-    // 先造一个旧选中残留
+ // 先造一个旧选中残留
     useUIStore.getState().selectFrame('old-frame');
     useUIStore.getState().selectGroup('g1');
 
     expect(useUIStore.getState().selectedFrameIds).toEqual(['a', 'b']);
-    // 修复点：selectedFrameId 必须同步为最后成员，而非残留 'old-frame'
+ // 修复点：selectedFrameId 必须同步为最后成员，而非残留 'old-frame'
     expect(useUIStore.getState().selectedFrameId).toBe('b');
   });
 

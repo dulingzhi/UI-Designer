@@ -59,7 +59,6 @@ function seedProject(frames: Record<string, FrameData>, rootFrameIds: string[]) 
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: '',
     backgroundImage: '',
     frames,
     rootFrameIds,
@@ -82,7 +81,7 @@ describe('updateFrame parentId 悬空归一化（round 112）', () => {
 
   it('拖拽到已删除的父 → 归一化为根帧（parentId 置空 + 入 rootFrameIds）', () => {
     useProjectStore.getState().addFrame(makeFrame('moving', null));
-    // 此时 'deleted' 不存在于 frames
+ // 此时 'deleted' 不存在于 frames
     useProjectStore.getState().updateFrame('moving', { parentId: 'deleted' });
 
     const state = useProjectStore.getState().project;

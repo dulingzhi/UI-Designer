@@ -89,7 +89,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   const { selectedFrameId, selectedFrameIds, clipboard, styleClipboard, copyToClipboard } = useUIStore();
   const { executeCommand, undo, redo, canUndo, canRedo } = useCommandStore();
 
-  // FDF导入处理函数
+ // FDF导入处理函数
   const handleImportFDF = async () => {
     try {
       const frames = await importFromFDF();
@@ -104,7 +104,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   };
 
-  // 增强的 FDF 导入（保留元数据）
+ // 增强的 FDF 导入（保留元数据）
   const handleImportFDFEnhanced = async () => {
     try {
       const frames = await importFromFDFEnhanced();
@@ -119,7 +119,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   };
 
-  // 批量导入 FDF 模板库
+ // 批量导入 FDF 模板库
   const handleImportFDFTemplates = async () => {
     try {
       const count = await importFDFFolder();
@@ -133,7 +133,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   };
 
-  // 导出处理函数
+ // 导出处理函数
   const handleExportFDF = () => {
     exportToFDF(project, false, showAlert); // 标准模式
   };
@@ -147,21 +147,21 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   const handleExportPNG = () => {
-    // 需要从 Canvas 组件获取 canvas 元素
-    // 暂时使用简化方案
+ // 需要从 Canvas 组件获取 canvas 元素
+ // 暂时使用简化方案
     const canvas = document.getElementById('main-canvas') as HTMLCanvasElement | null;
     exportToPNG(canvas, showAlert);
   };
 
-  // 加载最近打开的文件
+ // 加载最近打开的文件
   useEffect(() => {
     const loadRecentFiles = async () => {
       try {
         const stored = localStorage.getItem('recentFiles');
         if (stored) {
           const parsed = JSON.parse(stored);
-          // round 117：类型验证——手编辑损坏成非数组（如合法 JSON 字符串）时，
-          // 后续 filter 会抛 TypeError。非数组一律回落空列表。
+ // round 117：类型验证——手编辑损坏成非数组（如合法 JSON 字符串）时，
+ // 后续 filter 会抛 TypeError。非数组一律回落空列表。
           if (Array.isArray(parsed)) {
             setRecentFiles(parsed);
           }
@@ -173,7 +173,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     loadRecentFiles();
   }, []);
 
-  // 添加到最近文件列表
+ // 添加到最近文件列表
   const addToRecentFiles = (filePath: string) => {
     const updatedRecent = [
       filePath,
@@ -183,7 +183,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     localStorage.setItem('recentFiles', JSON.stringify(updatedRecent));
   };
 
-  // 点击外部关闭菜单
+ // 点击外部关闭菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuBarRef.current && !menuBarRef.current.contains(event.target as Node)) {
@@ -197,7 +197,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   }, [activeMenu]);
 
-  // 快捷键：Ctrl+1 切换项目树，Ctrl+2 切换属性面板
+ // 快捷键：Ctrl+1 切换项目树，Ctrl+2 切换属性面板
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === '1') {
@@ -213,7 +213,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showProjectTree, showPropertiesPanel, setShowProjectTree, setShowPropertiesPanel]);
 
-  // 监听首选项快捷键事件
+ // 监听首选项快捷键事件
   useEffect(() => {
     const handleOpenPreferences = () => setShowPreferences(true);
     window.addEventListener('openPreferences', handleOpenPreferences);
@@ -232,11 +232,11 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   const handleOpenRecent = async (filePath: string) => {
-    // round 142：加载前未保存确认（r131 只做了关窗防护，加载前同样丢修改）
+ // round 142：加载前未保存确认（r131 只做了关窗防护，加载前同样丢修改）
     if (useUIStore.getState().dirty && !confirm('当前项目有未保存的修改，加载将覆盖。确定继续？')) return;
     try {
       const result = await loadProjectFromPath(filePath);
-      // round 131：加载成功后清除 dirty（App 的 project 变化 effect 会先置 true，此事件随后清除）
+ // round 131：加载成功后清除 dirty（App 的 project 变化 effect 会先置 true，此事件随后清除）
       if (result) {
         setProject(result.project);
       window.dispatchEvent(new CustomEvent('project-state-reset'));
@@ -245,7 +245,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       }
     } catch (error) {
       showAlert({ title: '错误', message: `加载文件失败: ${error}\n文件路径: ${filePath}`, type: 'danger' });
-      // 从最近列表中移除失败的文件
+ // 从最近列表中移除失败的文件
       setRecentFiles((prev) => {
         const updated = prev.filter((f) => f !== filePath);
         localStorage.setItem('recentFiles', JSON.stringify(updated));
@@ -262,7 +262,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     setActiveMenu(null);
   };
 
-  // 文件操作
+ // 文件操作
   const handleNewProject = () => {
     setShowNewProjectConfirm(true);
   };
@@ -280,7 +280,6 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       hideButtonBar: false,
       hidePortrait: false,
       hideChat: false,
-      appInterface: '',
       frames: {},
       rootFrameIds: [],
       fdfTemplates: {},
@@ -293,7 +292,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   };
 
   const handleOpen = async () => {
-    // round 142：加载前未保存确认
+ // round 142：加载前未保存确认
     if (useUIStore.getState().dirty && !confirm('当前项目有未保存的修改，加载将覆盖。确定继续？')) return;
     try {
       const result = await loadProject();
@@ -333,7 +332,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   };
 
-  // 编辑操作
+ // 编辑操作
   const handleCopy = () => {
     if (selectedFrameId) {
       copyToClipboard(selectedFrameId);
@@ -342,7 +341,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   const handlePaste = () => {
     if (clipboard) {
-      // 生成新的ID并粘贴控件
+ // 生成新的ID并粘贴控件
       const generateNewId = (baseName: string): string => {
         let counter = 1;
         let newId = baseName;
@@ -359,16 +358,16 @@ export const MenuBar: React.FC<MenuBarProps> = ({
           ...frame,
           name: newId,
           parentId: parentId,
-          // 偏移位置，避免完全重叠
+ // 偏移位置，避免完全重叠
           x: frame.x + 0.02,
           y: frame.y + 0.02,
           children: [] as string[],
         };
 
-        // 先添加当前frame
+ // 先添加当前frame
         project.frames[newId] = newFrame;
 
-        // 递归处理子控件
+ // 递归处理子控件
         if (frame.children && Array.isArray(frame.children)) {
           const childIds = frame.children.map((child: any) => 
             pasteFrameRecursive(child, newId)
@@ -385,7 +384,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       }
       
       setProject({ ...project });
-      // 选中新粘贴的控件
+ // 选中新粘贴的控件
       const { selectFrame } = useUIStore.getState();
       selectFrame(newRootId);
     }
@@ -405,7 +404,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   const handleDelete = () => {
     if (selectedFrameIds.length > 0) {
-      // 过滤掉锁定的控件
+ // 过滤掉锁定的控件
       const targets = selectedFrameIds.filter(id => {
         const frame = project.frames[id];
         return frame && !frame.locked;
@@ -415,11 +414,11 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         return; // 所有控件都被锁定
       }
       
-      // 如果提供了全局删除请求回调，使用它
+ // 如果提供了全局删除请求回调，使用它
       if (onDeleteRequest) {
         onDeleteRequest(targets);
       } else {
-        // 否则使用本地确认框
+ // 否则使用本地确认框
         setDeleteTargets(targets);
         setShowDeleteConfirm(true);
       }
@@ -428,10 +427,10 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   const confirmDelete = () => {
     if (deleteTargets.length === 1) {
-      // 单个删除
+ // 单个删除
       executeCommand(new RemoveFrameCommand(deleteTargets[0]));
     } else {
-      // 批量删除（一次 undo 就能全部恢复）
+ // 批量删除（一次 undo 就能全部恢复）
       executeCommand(new BatchRemoveFrameCommand(deleteTargets));
     }
     setShowDeleteConfirm(false);
@@ -443,7 +442,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     setDeleteTargets([]);
   };
 
-  // 视图操作
+ // 视图操作
   const handleZoomIn = () => {
     canvasRef?.current?.setScale((prev) => Math.min(5, prev * 1.2));
   };
@@ -460,7 +459,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     canvasRef?.current?.centerCanvas();
   };
 
-  // 对齐操作
+ // 对齐操作
   const handleAlign = (type: 'left' | 'right' | 'top' | 'bottom' | 'centerH' | 'centerV') => {
     if (selectedFrameIds.length > 0) {
       executeCommand(new AlignCommand(selectedFrameIds, type));
@@ -473,7 +472,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
     }
   };
 
-  // 层级操作
+ // 层级操作
   const handleZIndex = (action: 'moveUp' | 'moveDown' | 'bringToFront' | 'sendToBack') => {
     if (selectedFrameId) {
       executeCommand(new ZIndexCommand(selectedFrameId, action));
@@ -481,7 +480,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   };
 
 
-  // 菜单定义
+ // 菜单定义
   const menus: Record<string, MenuItem[]> = {
     file: [
       {
@@ -650,7 +649,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         label: '清除参考线',
         shortcut: 'Ctrl+;',
         action: () => {
-        // round 141：清参考线入 undo（Ctrl+; 误按不可恢复的防护；MenuBar 与快捷键同款）
+ // round 141：清参考线入 undo（Ctrl+; 误按不可恢复的防护；MenuBar 与快捷键同款）
         const proj = useProjectStore.getState();
         const snapshot = { ...proj.project };
         clearGuides();
@@ -753,7 +752,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         label: '快捷键',
         shortcut: 'Ctrl+/',
         action: () => {
-          // 触发快捷键帮助
+ // 触发快捷键帮助
           window.dispatchEvent(new Event('openShortcutHelp'));
         }
       },
@@ -761,7 +760,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       {
         label: '检查更新',
         action: () => {
-          // 调用全局的 checkForUpdates 函数
+ // 调用全局的 checkForUpdates 函数
           if ((window as any).checkForUpdates) {
             (window as any).checkForUpdates();
           }

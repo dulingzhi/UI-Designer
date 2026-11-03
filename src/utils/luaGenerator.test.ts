@@ -15,7 +15,6 @@ function makeProject(overrides: Partial<ProjectData> = {}): ProjectData {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: undefined as never,
     frames: {},
     rootFrameIds: [],
     tableArrays: [],
@@ -59,9 +58,9 @@ describe('LuaUIGenerator', () => {
 
     it('defaults libraryName and originMode when absent', () => {
       const project = makeProject({ frames: {}, rootFrameIds: [] });
-      // @ts-expect-error force missing optional header fields
+ // @ts-expect-error force missing optional header fields
       delete project.libraryName;
-      // @ts-expect-error force missing optional header fields
+ // @ts-expect-error force missing optional header fields
       delete project.originMode;
       const out = new LuaUIGenerator(project).generate();
       expect(out).toContain('Untitled');
@@ -120,7 +119,7 @@ describe('LuaUIGenerator', () => {
       const out = new LuaUIGenerator(project).generate();
       expect(out).toContain('-- Sprite 模型');
       expect(out).toContain('API.SetModel(frame, "spr.mdx", 0)');
-      // NOT treated as MODEL
+ // NOT treated as MODEL
       expect(out).not.toMatch(/CreateModelFrame/);
     });
 
@@ -171,7 +170,7 @@ describe('LuaUIGenerator', () => {
         maxChars: 0,
         children: ['t2c'],
       });
-      // omit textScale (default), fontFlags absent, maxChars falsy but textLength set
+ // omit textScale (default), fontFlags absent, maxChars falsy but textLength set
       const child = frame({ id: 't2c', name: 'T2Child', type: FrameType.FRAME, parentId: 'f', children: ['ghost'] });
       const project = makeProject({ frames: { f, t2c: child }, rootFrameIds: ['f'] });
       project.frames.ghost = undefined as never;
@@ -181,7 +180,7 @@ describe('LuaUIGenerator', () => {
       expect(out).toContain('API.SetTextAlignment(frame, 0)'); // default align 0
       expect(out).toContain('API.SetFont(frame, "f", 0.500, 0)'); // no fontFlags -> '0'
       expect(out).toContain('API.SetTextSizeLimit(frame, 7)'); // textLength used
-      // the 'ghost' child id is not present in project.frames and is silently skipped
+ // the 'ghost' child id is not present in project.frames and is silently skipped
       expect(out).toContain('T2Child');
     });
 
@@ -209,7 +208,7 @@ describe('LuaUIGenerator', () => {
     });
 
     it('slider with partial fields covers min/max, step and init-value negative branches', () => {
-      // type 16 but only some optional fields set (covers the false side of each SLIDER sub-if)
+ // type 16 but only some optional fields set (covers the false side of each SLIDER sub-if)
       const a = frame({ id: 'a', name: 'SMin', type: 16, minValue: 0, maxValue: 100 });
       const b = frame({ id: 'b', name: 'SStep', type: 16, stepSize: 5 });
       const c = frame({ id: 'c', name: 'SInit', type: 16, sliderInitialValue: 50 });
@@ -223,7 +222,7 @@ describe('LuaUIGenerator', () => {
     });
 
     it('bare TEXT frame covers falsy text attribute branches', () => {
-      // TEXT_FRAME with text but none of fontJustificationH/font/fontSize/maxChars/textLength
+ // TEXT_FRAME with text but none of fontJustificationH/font/fontSize/maxChars/textLength
       const f = frame({ id: 'f', name: 'BareText', type: FrameType.TEXT_FRAME, text: 'plain' });
       const project = makeProject({ frames: { f }, rootFrameIds: ['f'] });
       const out = new LuaUIGenerator(project).generate();
@@ -234,7 +233,7 @@ describe('LuaUIGenerator', () => {
     });
 
     it('bare TEXT with no text covers text-text false side', () => {
-      // both fontJustification/font set but no text handled elsewhere; ensure a TEXT frame with no text doesn't crash
+ // both fontJustification/font set but no text handled elsewhere; ensure a TEXT frame with no text doesn't crash
       const f = frame({ id: 'f', name: 'NoText', type: FrameType.TEXT_FRAME });
       const project = makeProject({ frames: { f }, rootFrameIds: ['f'] });
       const out = new LuaUIGenerator(project).generate();
@@ -278,9 +277,9 @@ describe('LuaUIGenerator', () => {
       });
       const project = makeProject({ frames: { f }, rootFrameIds: ['f'] });
       const out = new LuaUIGenerator(project).generate();
-      // texCoord 定义为 [left, right, top, bottom] = [0, 32, 16, 48]；
-      // 引擎 DzFrameSetTexCoord(f, l, r, t, b) 要求 right 在 top 之前。
-      // 旧断言写成 (0, 16, 32, 48)，把 right/top 互换——那正是被修复的 bug。
+ // texCoord 定义为 [left, right, top, bottom] = [0, 32, 16, 48]；
+ // 引擎 DzFrameSetTexCoord(f, l, r, t, b) 要求 right 在 top 之前。
+ // 旧断言写成 (0, 16, 32, 48)，把 right/top 互换——那正是被修复的 bug。
       expect(out).toContain('API.SetTexCoord(frame, 0, 32, 16, 48)');
       expect(out).toContain('API.SetVertexColor(frame, ');
     });

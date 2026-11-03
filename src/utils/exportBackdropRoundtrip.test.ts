@@ -27,7 +27,7 @@ function proj(frames: FrameData[]): ProjectData {
     version: 2, libraryName: 'Lib', originMode: 'gameui', exportVersion: 'reforged',
     hideGameUI: false, hideHeroBar: false, hideMiniMap: false, hideResources: false,
     hideButtonBar: false, hidePortrait: false, hideChat: false,
-    appInterface: '', frames: rec,
+ frames: rec,
     rootFrameIds: frames.filter((f) => !f.parentId).map((f) => f.id),
   } as unknown as ProjectData;
 }
@@ -48,13 +48,13 @@ describe('FDF 导出 round-trip：产物必须能被内核 parser 重新解析',
     await exportToFDF(proj([bd]), false, () => {});
     const content = fsMocks.writeTextFile.mock.calls.at(-1)![1] as string;
 
-    // 内核 parser 必须能吃下这份产物（不抛错、能拿到帧）
+ // 内核 parser 必须能吃下这份产物（不抛错、能拿到帧）
     const file = parseFdf(content);
     expect(file.frames.length).toBeGreaterThan(0);
     const frame = file.frames.find((f) => f.name === 'FullBackdrop');
     expect(frame).toBeDefined();
 
-    // 回读后的属性值应与写入值一致
+ // 回读后的属性值应与写入值一致
     const propMap = new Map<string, string | undefined>();
     for (const p of frame!.props) propMap.set(p.key, p.args.map((a) => a.s ?? '').join(' '));
 

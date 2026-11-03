@@ -61,7 +61,7 @@ function fullProject(): ProjectData {
     decorateFileNames: true,
     locked: false,
     visible: true,
-    // 有意保留的 undefined 字段（消费方等价语义）
+ // 有意保留的 undefined 字段（消费方等价语义）
     text: undefined,
     textColor: undefined,
   } as unknown as FrameData;
@@ -96,7 +96,6 @@ function fullProject(): ProjectData {
     hideButtonBar: false,
     hidePortrait: false,
     hideChat: false,
-    appInterface: '',
     backgroundImage: '/backgrounds/wc3-with-ui.png',
     frames: { root1: parent, child1: child },
     rootFrameIds: ['root1'],
@@ -125,23 +124,23 @@ describe('saveProject/loadProjectFromPath 序列化保真（round 115）', () =>
     vi.mocked(open).mockResolvedValue('C:\\tmp\\test.w3ui');
     const { project } = await loadProjectFromPath('C:\\tmp\\test.w3ui');
 
-    // 结构
+ // 结构
     expect(Object.keys(project.frames).sort()).toEqual(['child1', 'root1']);
     expect(project.rootFrameIds).toEqual(['root1']);
-    // 父子
+ // 父子
     expect(project.frames['root1'].children).toEqual(['child1']);
     expect(project.frames['child1'].parentId).toBe('root1');
-    // 定义过的字段值
+ // 定义过的字段值
     expect(project.frames['child1'].text).toBe('Hello "WC3"');
     expect(project.frames['root1'].backdropBackground).toBe('UI\\Widgets\\bg2.blp');
-    // 通用设置
+ // 通用设置
     expect(project.hideGameUI).toBe(true);
     expect(project.libraryName).toBe('MYLIB');
-    // 组与参考线
+ // 组与参考线
     expect(project.frameGroups).toHaveLength(1);
     expect(project.frameGroups![0].frameIds).toEqual(['child1']);
     expect(project.guides).toHaveLength(1);
-    // round 168：非空数组字段保真（防未来改白名单序列化静默丢失）
+ // round 168：非空数组字段保真（防未来改白名单序列化静默丢失）
     expect(project.tableArrays).toHaveLength(1);
     expect(project.circleArrays).toHaveLength(1);
     expect(project.stylePresets).toHaveLength(1);
@@ -206,7 +205,7 @@ describe('手编辑存档 parentId 环打破（round 129）', () => {
   });
 
   it('parentId 互指环（A↔B）→ 切根打破，children 无互含（渲染不假死）', async () => {
-    // A.parentId=B, B.parentId=A——重建 children 后会互含，collectIds/renderTreeNode 递归死循环
+ // A.parentId=B, B.parentId=A——重建 children 后会互含，collectIds/renderTreeNode 递归死循环
     const cyclic = {
       ...fullProject(),
       frames: {
@@ -221,11 +220,11 @@ describe('手编辑存档 parentId 环打破（round 129）', () => {
 
     const { project } = await loadProjectFromPath('C:\\tmp\\cycle.w3ui');
 
-    // 环被打破：至少一个环成员切根（parentId 清空），children 链不再互指
+ // 环被打破：至少一个环成员切根（parentId 清空），children 链不再互指
     const parentIds = Object.values(project.frames).map(f => f.parentId ?? null);
     const hasNull = parentIds.includes(null);
     expect(hasNull).toBe(true);
-    // children 重建后无环：从任一帧沿 children 走最多 frames.length 步必终止
+ // children 重建后无环：从任一帧沿 children 走最多 frames.length 步必终止
     for (const startId of Object.keys(project.frames)) {
       let current = startId;
       let steps = 0;
@@ -238,7 +237,7 @@ describe('手编辑存档 parentId 环打破（round 129）', () => {
       }
       expect(steps).toBeLessThan(guard);
     }
-    // rootFrameIds 由迁移重建（至少含被切根的帧）
+ // rootFrameIds 由迁移重建（至少含被切根的帧）
     expect(project.rootFrameIds.length).toBeGreaterThan(0);
   });
 });
