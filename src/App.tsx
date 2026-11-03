@@ -1,4 +1,6 @@
 import React from 'react';
+// 决策项 4：启动即解析系统用户名，消除热重载默认路径的个人硬编码回落
+import { invoke } from '@tauri-apps/api/core';
 import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { MenuBar } from './components/MenuBar';
@@ -35,6 +37,23 @@ function AppContent() {
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0, wc3X: 0, wc3Y: 0 });
   const [canvasScale, setCanvasScale] = React.useState(1);
   const { showAlert, AlertComponent } = useAlert();
+
+  // 决策项 4：启动即填充 system_username（Tauri 环境；浏览器 dev 无 Tauri 静默跳过）。
+  // HotReloadPanel 打开时 getDefaultHotReloadConfig() 已能读到正确用户名。
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const username = await invoke<string>('get_username');
+        if (!cancelled && username && !localStorage.getItem('system_username')) {
+          localStorage.setItem('system_username', username);
+        }
+      } catch {
+        // 非 Tauri 环境（浏览器 dev/测试）无此命令——静默跳过
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const executeCommand = useCommandStore(state => state.executeCommand);
   const { project } = useProjectStore();
   const { selectedFrameId } = useUIStore();

@@ -16,16 +16,23 @@ export interface HotReloadConfig {
 
 /**
  * 获取默认的热重载配置
- * 根据War3路径和用户文档路径生成默认路径
+ * 根据War3路径和用户文档路径生成默认路径。
+ *
+ * 决策项 4 重构：原 `DEFAULT_HOT_RELOAD_CONFIG` 模块常量在 import 时刻求值，
+ * 早于 App/HotReloadPanel 的 `get_username` 异步填充，导致首次打开面板时
+ * 落到硬编码用户名 '81468'。改为**函数**（每次调用现值求值）后：
+ * App 启动 useEffect 填充 system_username → 面板打开时（useState 惰性初始化）
+ * 已读到正确值；填充完成后再刷新一次 config（见 HotReloadPanel）。
+ * 回落值改为中性 'DefaultUser'（仅非 Tauri/未填充环境触达，不写任何真实用户目录）。
  */
-function getDefaultHotReloadConfig(): HotReloadConfig {
+export function getDefaultHotReloadConfig(): HotReloadConfig {
   // 尝试从localStorage获取War3路径
   const war3Path = localStorage.getItem('war3_install_path');
-  
+
   let outputPath: string;
   let loaderPath: string;
   let testMapPath: string;
-  
+
   if (war3Path) {
     // War3 1.27 路径 (从设置中获取的War3安装目录)
     // 规范化路径，确保使用反斜杠
@@ -35,8 +42,8 @@ function getDefaultHotReloadConfig(): HotReloadConfig {
     testMapPath = `${normalizedPath}\\Maps\\Test\\test.w3x`;
   } else {
     // War3 Reforged 路径 (默认文档目录)
-    // 尝试从环境变量获取用户名，否则使用默认值
-    const username = localStorage.getItem('system_username') || '81468';
+    // 用户名由 App 启动时 get_username 填充（决策项 4）；无系统信息时中性回落
+    const username = localStorage.getItem('system_username') || 'DefaultUser';
     outputPath = `C:\\Users\\${username}\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua`;
     loaderPath = `C:\\Users\\${username}\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_loader.lua`;
     testMapPath = `C:\\Users\\${username}\\Documents\\Warcraft III\\Maps\\Test\\test.w3x`;
@@ -51,8 +58,6 @@ function getDefaultHotReloadConfig(): HotReloadConfig {
     debounceMs: 500
   };
 }
-
-export const DEFAULT_HOT_RELOAD_CONFIG: HotReloadConfig = getDefaultHotReloadConfig();
 
 export class HotReloadExporter {
   private config: HotReloadConfig;

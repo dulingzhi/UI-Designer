@@ -360,6 +360,11 @@ function generateFrameFDF(
     const [r, g, b] = frame.editCursorColor;
     lines.push(`${indentStr}    EditCursorColor ${r} ${g} ${b},`);
   }
+  // EditBorderSize：WC3 数值属性（真实 FDF 例：整数 4 / 小数 0.009）。
+  // 数值 toString 无科学计数法风险（值域 0..16，远大于 1e-7 阈值）。
+  if (typeof frame.editBorderSize === 'number' && Number.isFinite(frame.editBorderSize) && frame.editBorderSize > 0) {
+    lines.push(`${indentStr}    EditBorderSize ${frame.editBorderSize},`);
+  }
 
   // SLIDER 系（真实 FDF 实证：SliderMinValue/MaxValue/InitialValue/StepSize 各 13 次，
   // 数值型）。注意 FDF 模板名是 SliderStepSize —— 与运行时 API FrameSetStepValue

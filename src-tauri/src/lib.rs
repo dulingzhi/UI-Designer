@@ -318,7 +318,6 @@ fn extract_template_map(_app_handle: tauri::AppHandle, war3_path: String, map_na
 pub fn run() {
     tauri::Builder::default()
         .manage(tcp_server::TcpServerState::new())
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

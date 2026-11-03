@@ -181,3 +181,21 @@ describe('未设置时不输出（不产生空属性）', () => {
     expect(c).not.toContain('FontShadowColor');
   });
 });
+
+describe('EditBorderSize 导出（决策项 2 闭环）', () => {
+  it('editBorderSize 数值输出为 EditBorderSize 行（真实 FDF 例：整数 4）', async () => {
+    const text = await content([mkFrame({ id: 'e1', name: 'E1', type: FrameType.EDITBOX, editBorderSize: 4 })]);
+    expect(text).toContain('EditBorderSize 4,');
+  });
+
+  it('小数值 0.009 原样输出（无科学计数法）', async () => {
+    const text = await content([mkFrame({ id: 'e1', name: 'E1', type: FrameType.EDITBOX, editBorderSize: 0.009 })]);
+    expect(text).toContain('EditBorderSize 0.009,');
+    expect(text).not.toMatch(/EditBorderSize \d(\.\d+)?e[+-]/i);
+  });
+
+  it('未设置/零值不输出该行', async () => {
+    const text = await content([mkFrame({ id: 'e1', name: 'E1', type: FrameType.EDITBOX })]);
+    expect(text).not.toContain('EditBorderSize');
+  });
+});

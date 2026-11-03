@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProjectData } from '../types';
 
 // localStorage must exist BEFORE hotReloadExporter.ts is imported (module-level
-// DEFAULT_HOT_RELOAD_CONFIG calls getDefaultHotReloadConfig -> localStorage.getItem).
+// getDefaultHotReloadConfig() calls localStorage.getItem (decision 4: function, not import-time const).
 const localStorageMock = vi.hoisted(() => {
   const m = new Map<string, string>();
  // Prime war3_install_path so the module-import-time call to
@@ -41,7 +41,7 @@ vi.mock('./kkweDetector', () => ({
 
 import {
   HotReloadExporter,
-  DEFAULT_HOT_RELOAD_CONFIG,
+  getDefaultHotReloadConfig,
   getHotReloadExporter,
   HotReloadConfig,
 } from './hotReloadExporter';
@@ -88,10 +88,10 @@ describe('hotReloadExporter', () => {
     vi.stubGlobal('window', { setTimeout, clearTimeout });
   });
 
-  describe('DEFAULT_HOT_RELOAD_CONFIG', () => {
-    it('builds war3-derived paths when war3_install_path is set at import', () => {
- // war3_install_path primed to 'D:/Games\\War3' before import -> truthy branch of getDefaultHotReloadConfig
-      const cfg = DEFAULT_HOT_RELOAD_CONFIG;
+  describe('getDefaultHotReloadConfig', () => {
+    it('war3_install_path 优先：war3 路径派生输出目录', () => {
+      localStorageMock.setItem('war3_install_path', 'D:/Games\\War3');
+      const cfg = getDefaultHotReloadConfig();
       expect(cfg.outputPath).toBe('D:\\Games\\War3\\UI-Designer\\ui_generated.lua');
       expect(cfg.loaderPath).toBe('D:\\Games\\War3\\UI-Designer\\ui_loader.lua');
       expect(cfg.testMapPath).toBe('D:\\Games\\War3\\Maps\\Test\\test.w3x');
@@ -100,28 +100,28 @@ describe('hotReloadExporter', () => {
       expect(cfg.debounceMs).toBe(500);
     });
 
-    it('fresh import without war3 path uses username documents path (system_username set)', async () => {
+    it('system_username 已设置时按用户文档路径生成', () => {
       localStorageMock.clear();
       localStorageMock.setItem('system_username', 'bob');
-      vi.resetModules();
-      const mod = await import('./hotReloadExporter');
-      const cfg = mod.DEFAULT_HOT_RELOAD_CONFIG;
+      const cfg = getDefaultHotReloadConfig();
       expect(cfg.outputPath).toBe('C:\\Users\\bob\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua');
       expect(cfg.loaderPath).toBe('C:\\Users\\bob\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_loader.lua');
- // getHotReloadExporter() with no arg reaches the config||DEFAULT fallback (fresh globalExporter is null)
-      const exp = mod.getHotReloadExporter();
-      expect((exp as unknown as { config: HotReloadConfig }).config.outputPath).toBe(
-        'C:\\Users\\bob\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua'
-      );
     });
 
-    it('fresh import defaults username to 81468 when system_username absent', async () => {
+    it('决策项 4：无任何系统信息时回落中性 DefaultUser（不再硬编码个人用户名 81468）', () => {
       localStorageMock.clear();
-      vi.resetModules();
-      const mod = await import('./hotReloadExporter');
-      expect(mod.DEFAULT_HOT_RELOAD_CONFIG.outputPath).toBe(
-        'C:\\Users\\81468\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua'
-      );
+      const cfg = getDefaultHotReloadConfig();
+      expect(cfg.outputPath).toBe('C:\\Users\\DefaultUser\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua');
+      expect(cfg.outputPath).not.toContain('81468');
+    });
+
+    it('决策项 4：函数语义——localStorage 变化后再次调用读出新值（旧常量冻结 import 时刻）', () => {
+      localStorageMock.clear();
+      const before = getDefaultHotReloadConfig();
+      localStorageMock.setItem('system_username', 'carol');
+      const after = getDefaultHotReloadConfig();
+      expect(before.outputPath).not.toBe(after.outputPath);
+      expect(after.outputPath).toContain('carol');
     });
   });
 

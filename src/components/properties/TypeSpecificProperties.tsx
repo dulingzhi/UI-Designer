@@ -322,6 +322,18 @@ export const TypeSpecificProperties: React.FC<TypeSpecificPropertiesProps> = ({
             onChange={(value) => handleChange('editBorderColor', value)}
           />
 
+          {/* EditBorderSize 是 WC3 数值属性（真实 FDF 例：4 整数 / 0.009 小数），
+              渲染端 editBoxBorder.getEditBoxBorderInsetPx 消费，导出端输出 EditBorderSize */}
+          <Slider
+            label="边框宽度 (EditBorderSize)"
+            value={selectedFrame.editBorderSize ?? 0}
+            onChange={(value) => handleChange('editBorderSize', value > 0 ? value : undefined)}
+            min={0}
+            max={16}
+            step={0.001}
+            showInput={true}
+          />
+
           <Slider
             label="最大字符数"
             value={selectedFrame.maxChars ?? 256}

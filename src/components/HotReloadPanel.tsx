@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { detectKKWE, launchMapWithKKWE, type KKWEInfo } from '../utils/kkweDetector';
-import { getHotReloadExporter, DEFAULT_HOT_RELOAD_CONFIG, type HotReloadConfig } from '../utils/hotReloadExporter';
+import { getHotReloadExporter, getDefaultHotReloadConfig, type HotReloadConfig } from '../utils/hotReloadExporter';
 import { useProjectStore } from '../store/projectStore';
 import { war3ProcessManager } from '../utils/war3ProcessManager';
 import { useHotReloadSync } from '../hooks/useHotReloadSync';
@@ -16,7 +16,7 @@ interface HotReloadPanelProps {
 export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
   const { status, startServer } = useHotReloadSync();
   const [kkweInfo, setKkweInfo] = useState<KKWEInfo>({ installed: false });
-  const [config, setConfig] = useState<HotReloadConfig>(DEFAULT_HOT_RELOAD_CONFIG);
+  const [config, setConfig] = useState<HotReloadConfig>(() => getDefaultHotReloadConfig());
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
   
@@ -31,11 +31,16 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
   
   // 初始化：检测 KKWE 并设置默认路径
   useEffect(() => {
-    // 获取并保存用户名
+    // 获取并保存用户名（决策项 4：填充后再刷新默认配置，
+    // 使首次打开面板即读到正确用户名路径而非硬编码回落）
     const initUsername = async () => {
       try {
         const username = await invoke<string>('get_username');
         localStorage.setItem('system_username', username);
+        // 仅当无已存配置时，用填充后的用户名重算默认配置
+        if (!localStorage.getItem('hotReloadConfig')) {
+          setConfig(getDefaultHotReloadConfig());
+        }
       } catch (error) {
         console.warn('无法获取系统用户名:', error);
       }
@@ -50,16 +55,16 @@ export const HotReloadPanel: React.FC<HotReloadPanelProps> = ({ onClose }) => {
       try {
         const parsed = JSON.parse(savedConfig);
         // 合并默认配置，确保所有字段都存在（兼容旧版本配置）
-        const mergedConfig = { ...DEFAULT_HOT_RELOAD_CONFIG, ...parsed };
+        const mergedConfig = { ...getDefaultHotReloadConfig(), ...parsed };
         setConfig(mergedConfig);
         getHotReloadExporter(mergedConfig);
       } catch (e) {
         console.error('加载热重载配置失败:', e);
-        setConfig(DEFAULT_HOT_RELOAD_CONFIG);
+        setConfig(getDefaultHotReloadConfig());
       }
     } else {
       // 使用默认配置（已经根据War3路径动态生成）
-      setConfig(DEFAULT_HOT_RELOAD_CONFIG);
+      setConfig(getDefaultHotReloadConfig());
     }
   }, []);
   
