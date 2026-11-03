@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   readTextFile: vi.fn(),
@@ -15,6 +15,7 @@ vi.mock('./fdf', () => ({
 
 import { FDFTemplateManager, templateManager } from './fdfTemplates';
 import { FDFNodeType, FDFProperty, FDFFrameDefinition } from './fdfAst';
+import { FrameType, type FrameData } from '../types';
 
 function prop(name: string, value: any): FDFProperty {
   return { type: FDFNodeType.PROPERTY, name, value };
@@ -347,5 +348,46 @@ describe('FDFTemplateManager', () => {
         EmptyVal: null,
       });
     });
+  });
+});
+
+describe('决策项 3：applyTemplate 继承属性写回可编辑字段', () => {
+  let manager: FDFTemplateManager;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    manager = new FDFTemplateManager();
+    manager.registerTemplate('MyTpl', frameDef('MyTpl', [
+      prop('BackdropBackground', stringLit('UI\\Widgets\\Bg')),
+      prop('BackdropEdgeFile', stringLit('UI\\Widgets\\Edge')),
+      prop('ControlBackdrop', stringLit('ControlTpl')),
+      prop('Width', numLit(0.2)),
+    ]));
+    manager.registerTemplate('EmptyTpl', frameDef('EmptyTpl', [
+      prop('BackdropBackground', stringLit('')),
+    ]));
+  });
+
+  const mkFrame = (): FrameData => ({
+    id: 'f1', name: 'F1', type: FrameType.BACKDROP,
+    x: 0, y: 0, width: 0.1, height: 0.1, anchors: [], children: [],
+  } as unknown as FrameData);
+
+  it('命中白名单的属性写回可编辑字段（属性面板可见）', () => {
+    const frame = manager.applyTemplate(mkFrame(), 'MyTpl');
+    expect(frame.backdropBackground).toBe('UI\\Widgets\\Bg');
+    expect(frame.backdropEdgeFile).toBe('UI\\Widgets\\Edge');
+    expect(frame.controlBackdrop).toBe('ControlTpl');
+  });
+
+  it('非白名单属性（Width 等几何）不写回，仅留 rawProperties', () => {
+    const frame = manager.applyTemplate(mkFrame(), 'MyTpl');
+    expect(frame.fdfMetadata?.rawProperties?.['Width']).toBeDefined();
+  });
+
+  it('空串值不覆盖已有字段', () => {
+    const base = { ...mkFrame(), backdropBackground: 'existing' };
+    const frame = manager.applyTemplate(base, 'EmptyTpl');
+    expect(frame.backdropBackground).toBe('existing');
   });
 });

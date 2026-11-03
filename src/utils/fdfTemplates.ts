@@ -9,6 +9,47 @@ import { parseFDFToAST } from './fdf';
 import { FrameData, FDFTemplate, FDFTextureData, FDFStringData, FDFBackdropData } from '../types';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 
+/**
+ * 决策项 3：模板属性写回可编辑字段的白名单（与 fdfImport.enhanceFrameWithFDF 同语义——
+ * 只写"编辑器有对应可编辑字段"的属性；几何 Width/Height 语义复杂不在此列）。
+ * 键为 FDF 属性名，值为 FrameData 字段名。
+ */
+const TEMPLATE_WRITEBACK_FIELDS: Record<string, string> = {
+  BackdropBackground: 'backdropBackground',
+  BackdropEdgeFile: 'backdropEdgeFile',
+  BackdropCornerFile: 'backdropCornerFile',
+  BackdropTopFile: 'backdropTopFile',
+  BackdropBottomFile: 'backdropBottomFile',
+  BackdropLeftFile: 'backdropLeftFile',
+  BackdropRightFile: 'backdropRightFile',
+  BackdropCornerFlags: 'backdropCornerFlags',
+  BackdropBackgroundSize: 'backdropBackgroundSize',
+  BackdropBackgroundInsets: 'backdropBackgroundInsets',
+  BackdropTileBackground: 'backdropTileBackground',
+  ControlBackdrop: 'controlBackdrop',
+  ControlDisabledBackdrop: 'controlDisabledBackdrop',
+  ControlPushedBackdrop: 'controlPushedBackdrop',
+  ControlMouseOverHighlight: 'controlMouseOverHighlight',
+  ControlStyle: 'controlStyle',
+  HighlightType: 'highlightType',
+  HighlightAlphaFile: 'highlightAlphaFile',
+  HighlightAlphaMode: 'highlightAlphaMode',
+  Text: 'text',
+};
+
+/**
+ * 把模板 rawProperties 中命中白名单的属性写回可编辑字段。
+ * 写回值 = rawProperties 值（字符串），undefined/空串不覆盖（同 fdfImport 惯例）。
+ */
+function writeBackTemplateFields(frame: FrameData, rawProperties: Record<string, any>): FrameData {
+  const patch: Record<string, any> = {};
+  for (const [fdfName, fieldName] of Object.entries(TEMPLATE_WRITEBACK_FIELDS)) {
+    const v = rawProperties[fdfName];
+    if (v !== undefined && v !== '') patch[fieldName] = v;
+  }
+  return Object.keys(patch).length > 0 ? { ...frame, ...patch } : frame;
+}
+
 export class FDFTemplateManager {
   private templates: Map<string, FDFFrameDefinition> = new Map();
   
@@ -151,7 +192,7 @@ export class FDFTemplateManager {
     const fdfString = extractTemplateString(properties);
     const fdfBackdrop = extractTemplateBackdrop(properties);
     
-    return {
+    const withMetadata: FrameData = {
       ...frame,
       fdfMetadata: {
         ...frame.fdfMetadata,
@@ -162,6 +203,8 @@ export class FDFTemplateManager {
       ...(fdfString && { fdfString }),
       ...(fdfBackdrop && { fdfBackdrop }),
     };
+    // 决策项 3：继承属性真写回可编辑字段——属性面板可见、导出按字段一致
+    return writeBackTemplateFields(withMetadata, rawProperties);
   }
   
   /**
