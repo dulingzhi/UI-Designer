@@ -9,13 +9,8 @@ pub struct BlpImageData {
     pub data: Vec<u8>, // RGBA 格式，每像素 4 字节
 }
 
-#[derive(serde::Serialize, Debug)]
-pub struct BlpInfo {
-    pub width: u32,
-    pub height: u32,
-    pub mipmap_count: usize,
-    pub format: String,
-}
+// 决策项 A3 收尾：BlpInfo 结构与 get_blp_info 函数已删——
+// 唯一消费方 get_blp_file_info 命令（前端零 invoke）随决策项 A3 移除。
 
 /// 解码 BLP 文件为 ImageData（RGBA 格式）
 pub fn decode_blp(blp_data: &[u8]) -> Result<BlpImageData, String> {
@@ -39,30 +34,6 @@ pub fn decode_blp(blp_data: &[u8]) -> Result<BlpImageData, String> {
         width,
         height,
         data: raw_data,
-    })
-}
-
-/// 获取 BLP 文件的 mipmap 信息
-pub fn get_blp_info(blp_data: &[u8]) -> Result<BlpInfo, String> {
-    let blp = ImageBlp::from_buf(blp_data)
-        .map_err(|e| format!("BLP 解析失败: {:?}", e))?;
-    
-    // blp crate 使用 compression 字段而不是 encoding
-    let format = match blp.compression {
-        1 => "JPEG",
-        2 => "Paletted",
-        3 => "DXT",
-        _ => "Unknown",
-    };
-    
-    // 计算 mipmap 数量（从 mipmaps 数组长度获取）
-    let mipmap_count = blp.mipmaps.len();
-    
-    Ok(BlpInfo {
-        width: blp.width,
-        height: blp.height,
-        mipmap_count,
-        format: format.to_string(),
     })
 }
 

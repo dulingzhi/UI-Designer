@@ -10,16 +10,6 @@ export interface BlpImageData {
 }
 
 /**
- * BLP 文件信息
- */
-export interface BlpInfo {
-  width: number;
-  height: number;
-  mipmap_count: number;
-  format: string; // "JPEG" | "Paletted" | "DXT1/DXT3/DXT5"
-}
-
-/**
  * MDX 顶点
  */
 export interface MdxVertex {
