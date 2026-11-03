@@ -32,6 +32,8 @@ interface UIState {
   
   // 剪贴板
   clipboard: FrameData | null;
+  // 决策项 5：多选复制剪贴板（顶层选择集快照，各含子树；与单帧 clipboard 并存）
+  clipboardFrames: FrameData[];
   styleClipboard: Partial<FrameData> | null;
   
   // 搜索高亮
@@ -60,6 +62,7 @@ interface UIState {
   
   // 剪贴板操作
   copyToClipboard: (frameId: string) => void;
+  copyFramesToClipboard: (frameIds: string[]) => void;
   copyStyleToClipboard: (frameId: string) => void;
   pasteStyleFromClipboard: (targetFrameIds: string[]) => void;
   
@@ -80,6 +83,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   selectedFrameId: null,
   selectedFrameIds: [],
   clipboard: null,
+  clipboardFrames: [],
   styleClipboard: null,
   highlightedFrameIds: [],
   showGrid: true,
@@ -144,6 +148,35 @@ export const useUIStore = create<UIState>((set, get) => ({
     };
 
     set({ clipboard: cloneFrameRecursive(frame) });
+  },
+
+  // 决策项 5：多选复制——仅复制"选择集内不含祖先"的顶层帧（避免父子双份），
+  // 各帧带完整子树快照；粘贴端 PasteFramesCommand 逐帧还原并保留相互 parent 关系。
+  copyFramesToClipboard: (frameIds) => {
+    const { project } = useProjectStore.getState();
+    const selected = frameIds.filter(id => project.frames[id]);
+    const hasAncestorInSet = (id: string): boolean => {
+      let p = project.frames[id]?.parentId ?? null;
+      while (p) {
+        if (selected.includes(p)) return true;
+        p = project.frames[p]?.parentId ?? null;
+      }
+      return false;
+    };
+    const topIds = selected.filter(id => !hasAncestorInSet(id));
+    if (topIds.length === 0) return;
+
+    const cloneFrameRecursive = (f: FrameData): FrameData => {
+      return {
+        ...f,
+        children: f.children.map(childId => {
+          const childFrame = project.frames[childId];
+          return childFrame ? cloneFrameRecursive(childFrame) : null;
+        }).filter(Boolean) as any[],
+      };
+    };
+
+    set({ clipboardFrames: topIds.map(id => cloneFrameRecursive(project.frames[id])) });
   },
 
   copyStyleToClipboard: (frameId) => {

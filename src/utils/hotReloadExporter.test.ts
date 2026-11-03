@@ -115,6 +115,17 @@ describe('hotReloadExporter', () => {
       expect(cfg.outputPath).not.toContain('81468');
     });
 
+    it('决策项 4：无参 getHotReloadExporter 落到函数默认（覆盖 config||get 函数 fallback 分支）', async () => {
+      localStorageMock.clear();
+      localStorageMock.setItem('system_username', 'dave');
+      vi.resetModules();
+      const mod = await import('./hotReloadExporter');
+      const exp = mod.getHotReloadExporter();
+      expect((exp as unknown as { config: HotReloadConfig }).config.outputPath).toBe(
+        'C:\\Users\\dave\\Documents\\Warcraft III\\CustomMapData\\UI-Designer\\ui_generated.lua'
+      );
+    });
+
     it('决策项 4：函数语义——localStorage 变化后再次调用读出新值（旧常量冻结 import 时刻）', () => {
       localStorageMock.clear();
       const before = getDefaultHotReloadConfig();

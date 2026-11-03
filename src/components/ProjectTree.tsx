@@ -18,6 +18,26 @@ interface ProjectTreeProps {
   onDeleteRequest?: (targets: string[]) => void;
 }
 
+/**
+ * 决策项 6：键盘导航的可见节点序列（展开序 DFS）。
+ * 折叠节点的子树不计入序列；缺失帧（存档竞态）跳过。
+ */
+export function collectVisibleOrder(
+  frames: Record<string, { children?: string[] }>,
+  rootFrameIds: string[],
+  expanded: Set<string>
+): string[] {
+  const out: string[] = [];
+  const walk = (id: string) => {
+    const f = frames[id];
+    if (!f) return;
+    out.push(id);
+    if (expanded.has(id)) (f.children ?? []).forEach(walk);
+  };
+  rootFrameIds.forEach(walk);
+  return out;
+}
+
 export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteRequest }) => {
   const { project } = useProjectStore();
   const { selectedFrameId, selectFrame, setHighlightedFrames, clearHighlightedFrames } = useUIStore();
@@ -590,6 +610,43 @@ export const ProjectTree: React.FC<ProjectTreeProps> = ({ onClose, onDeleteReque
       className="project-tree" 
       ref={panelRef}
       style={{ width: `${width}px` }}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // 决策项 6：树内键盘导航。容器本地处理（焦点在树内才生效），
+        // stopPropagation 阻断冒泡到 document——避免与 useKeyboardShortcuts
+        // 的画布方向键微调双触发。
+        if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const order = collectVisibleOrder(project.frames, project.rootFrameIds, expandedNodes);
+        if (order.length === 0) return;
+        const curIdx = selectedFrameId ? order.indexOf(selectedFrameId) : -1;
+        const frameOf = (id: string) => project.frames[id];
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          const next = e.key === 'ArrowDown'
+            ? order[Math.min(order.length - 1, curIdx + 1)]
+            : order[Math.max(0, curIdx <= 0 ? 0 : curIdx - 1)];
+          if (next && next !== selectedFrameId) selectFrame(next);
+        } else if (e.key === 'ArrowLeft') {
+          const cur = selectedFrameId ? frameOf(selectedFrameId) : undefined;
+          if (cur && cur.children.length > 0 && expandedNodes.has(cur.id)) {
+            setExpandedNodes(prev => { const n = new Set(prev); n.delete(cur.id); return n; });
+          } else if (cur && cur.parentId) {
+            selectFrame(cur.parentId);
+          }
+        } else if (e.key === 'ArrowRight') {
+          const cur = selectedFrameId ? frameOf(selectedFrameId) : undefined;
+          if (cur && cur.children.length > 0) {
+            if (!expandedNodes.has(cur.id)) {
+              setExpandedNodes(prev => new Set(prev).add(cur.id));
+            } else {
+              selectFrame(cur.children[0]);
+            }
+          }
+        } else if (e.key === 'Enter') {
+          if (selectedFrameId) startRename(selectedFrameId);
+        }
+      }}
     >
       {/* 调整宽度的拖拽条 */}
       <div 

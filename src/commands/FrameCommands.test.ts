@@ -34,6 +34,8 @@ import {
   PasteFrameCommand,
   BatchRemoveFrameCommand,
   CopyStyleCommand,
+  CopyFramesCommand,
+  PasteFramesCommand,
   PasteStyleCommand,
 } from './FrameCommands';
 import { makeTestFrameFixed, makeTestProject } from './__test_helpers__';
@@ -352,5 +354,38 @@ describe('CopyStyleCommand / PasteStyleCommand', () => {
     const paste = new PasteStyleCommand(['locked']);
     paste.execute();
     expect(useProjectStore.getState().getFrame('locked')!.textColor).toBe('#00ff00');
+  });
+});
+
+describe('决策项 5：多选复制/粘贴', () => {
+  beforeEach(() => {
+    useUIStore.getState().clearSelection();
+    const { project } = useProjectStore.getState();
+    const f = (id: string, parentId: string | null = null): FrameData => ({ ...makeTestFrameFixed(id), parentId, children: [] });
+    useProjectStore.setState({ project: { ...project, frames: { a: f('a'), b: f('b'), c: f('c', 'a') }, rootFrameIds: ['a', 'b'] } });
+  });
+
+  it('CopyFramesCommand：父子同选时只复制顶层帧（避免双份）', () => {
+    new CopyFramesCommand(['a', 'b', 'c']).execute();
+    const { clipboardFrames } = useUIStore.getState();
+    expect(clipboardFrames.map(x => x.id)).toEqual(['a', 'b']);
+  });
+
+  it('PasteFramesCommand：多根帧粘贴+统一偏移，undo 全部删除', () => {
+    new CopyFramesCommand(['a', 'b']).execute();
+    const cmd = new PasteFramesCommand(0.1, 0.1);
+    cmd.execute();
+    const { project } = useProjectStore.getState();
+    const newIds = Object.keys(project.frames).filter(id => !['a', 'b', 'c'].includes(id));
+    expect(newIds.length).toBe(2);
+    const originals = ['a', 'b'].map(id => project.frames[id]);
+    expect(newIds.every(id => {
+      const f = project.frames[id];
+      const orig = originals.find(o => o.name === f.name.replace('_副本', ''));
+      return orig && Math.abs(f.x - (orig.x + 0.1)) < 1e-9 && Math.abs(f.y - (orig.y + 0.1)) < 1e-9;
+    })).toBe(true);
+    cmd.undo();
+    const after = useProjectStore.getState().project;
+    expect(Object.keys(after.frames).filter(id => !['a', 'b', 'c'].includes(id)).length).toBe(0);
   });
 });

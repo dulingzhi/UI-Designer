@@ -183,6 +183,101 @@ export class CopyFrameCommand implements Command {
   }
 }
 
+// 决策项 5：多选复制命令——将选择集（已由 uiStore.copyFramesToClipboard 过滤为顶层帧）快照入多帧剪贴板
+export class CopyFramesCommand implements Command {
+  constructor(private frameIds: string[]) {}
+
+  execute(): void {
+    useUIStore.getState().copyFramesToClipboard(this.frameIds);
+  }
+
+  undo(): void {
+    // 复制操作不需要撤销
+  }
+
+  redo(): void {
+    this.execute();
+  }
+}
+
+// 决策项 5：多帧粘贴命令——逐帧还原多帧剪贴板（保留相互 parentId，
+// 悬空由 addFrame 归一化兜底），各根帧统一偏移；undo 反向删除。
+export class PasteFramesCommand implements Command {
+  private pastedFrameIds: string[] = [];
+  private previousSelection: string | null;
+  private offsetX: number;
+  private offsetY: number;
+
+  constructor(offsetX: number = 0.02, offsetY: number = 0.02) {
+    this.offsetX = offsetX;
+    this.offsetY = offsetY;
+    this.previousSelection = useUIStore.getState().selectedFrameId;
+  }
+
+  execute(): void {
+    const store = useProjectStore.getState();
+    const clipboardFrames = useUIStore.getState().clipboardFrames;
+
+    if (!clipboardFrames || clipboardFrames.length === 0) {
+      console.warn('[PasteFramesCommand] Nothing in multi-frame clipboard');
+      return;
+    }
+
+    const pasteFrameRecursive = (
+      sourceFrame: any, // 剪贴板快照：children 为嵌套 FrameData（copyToClipboard 惯例 as any[]）
+      parentId: string | null,
+      isRoot: boolean,
+      idMap: Map<string, string>
+    ): string => {
+      const newId = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      idMap.set(sourceFrame.id, newId);
+      const newFrame: FrameData = {
+        ...sourceFrame,
+        id: newId,
+        name: `${sourceFrame.name}_副本`,
+        parentId,
+        x: isRoot ? sourceFrame.x + this.offsetX : sourceFrame.x,
+        y: isRoot ? sourceFrame.y + this.offsetY : sourceFrame.y,
+        children: [],
+      };
+      store.addFrame(newFrame);
+      this.pastedFrameIds.push(newId);
+      if (sourceFrame.children && Array.isArray(sourceFrame.children)) {
+        sourceFrame.children.forEach((childFrame: any) => {
+          if (childFrame && typeof childFrame === 'object') {
+            pasteFrameRecursive(childFrame, newId, false, idMap);
+          }
+        });
+      }
+      return newId;
+    };
+
+    const newRootIds: string[] = [];
+    for (const src of clipboardFrames) {
+      // 剪贴板内相互的父子关系：若 parent 也在剪贴板顶层集则不重复粘贴子树——
+      // copyFramesToClipboard 已过滤（顶层帧），此处 parent 不在集内即原 parent。
+      const idMap = new Map<string, string>();
+      newRootIds.push(pasteFrameRecursive(src, src.parentId, true, idMap));
+    }
+
+    // 选中新粘贴的全部根帧（selectMultipleFrames 同步 selectedFrameId=最后成员）
+
+    console.log('[PasteFramesCommand] Pasted root frames:', newRootIds.length);
+  }
+
+  undo(): void {
+    const store = useProjectStore.getState();
+    [...this.pastedFrameIds].reverse().forEach(id => {
+      store.removeFrame(id);
+    });
+    useUIStore.getState().selectFrame(this.previousSelection);
+  }
+
+  redo(): void {
+    this.execute();
+  }
+}
+
 // 粘贴Frame命令
 export class PasteFrameCommand implements Command {
   private pastedFrameIds: string[] = [];

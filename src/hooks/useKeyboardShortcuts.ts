@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { useCommandStore } from '../store/commandStore';
-import { RemoveFrameCommand, BatchRemoveFrameCommand, UpdateFrameCommand, CopyFrameCommand, PasteFrameCommand, CopyStyleCommand, PasteStyleCommand } from '../commands/FrameCommands';
+import { RemoveFrameCommand, BatchRemoveFrameCommand, UpdateFrameCommand, CopyFrameCommand, PasteFrameCommand, CopyStyleCommand, PasteStyleCommand, CopyFramesCommand, PasteFramesCommand } from '../commands/FrameCommands';
 import { DuplicateFrameCommand } from '../commands/DuplicateFrameCommand';
 import { saveProject, loadProject, exportCode } from '../utils/fileOperations';
 import { exportProject } from '../utils/codeExport';
@@ -408,6 +408,13 @@ if (e.ctrlKey && !e.shiftKey && !e.altKey) {
     };
 
     const handleCopy = () => {
+      // 决策项 5：多选时复制全部选中帧（顶层集快照）；单选保留原单帧语义
+      const { selectedFrameIds } = useUIStore.getState();
+      if (selectedFrameIds.length > 1) {
+        executeCommand(new CopyFramesCommand(selectedFrameIds));
+        console.log('✅ 已复制', selectedFrameIds.length, '个帧到剪贴板');
+        return;
+      }
       if (selectedFrameId) {
         executeCommand(new CopyFrameCommand(selectedFrameId));
         console.log('✅ 已复制到剪贴板');
@@ -427,6 +434,13 @@ if (e.ctrlKey && !e.shiftKey && !e.altKey) {
     };
 
     const handlePaste = () => {
+      // 决策项 5：多帧剪贴板优先（多选复制后粘贴全部根帧）
+      const { clipboardFrames } = useUIStore.getState();
+      if (clipboardFrames && clipboardFrames.length > 1) {
+        executeCommand(new PasteFramesCommand(0.02, 0.02));
+        console.log('✅ 已粘贴', clipboardFrames.length, '个根帧');
+        return;
+      }
       // 粘贴到当前位置，稍微偏移
       executeCommand(new PasteFrameCommand(0.02, 0.02));
       console.log('✅ 已粘贴');

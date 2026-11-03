@@ -209,7 +209,7 @@ let globalExporter: HotReloadExporter | null = null;
  */
 export function getHotReloadExporter(config?: HotReloadConfig): HotReloadExporter {
   if (!globalExporter) {
-    globalExporter = new HotReloadExporter(config || DEFAULT_HOT_RELOAD_CONFIG);
+    globalExporter = new HotReloadExporter(config || getDefaultHotReloadConfig());
   } else if (config) {
     globalExporter.updateConfig(config);
   }

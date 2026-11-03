@@ -29,6 +29,7 @@ export const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isOpen, onClose }) =
       { keys: 'Delete / Backspace', description: '删除选中控件' },
       { keys: 'Esc', description: '取消选择' },
       { keys: 'Ctrl+;', description: '清除所有参考线' },
+      { keys: '方向键（树内）', description: '项目树：上下移动选择，左右折叠/展开，Enter 重命名（焦点在树内时）' },
       { keys: 'Ctrl+,', description: '打开偏好设置' },
     ]},
     { category: '控件微调', items: [
