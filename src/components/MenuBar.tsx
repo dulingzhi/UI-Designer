@@ -553,13 +553,13 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         label: '撤销',
         shortcut: 'Ctrl+Z',
         action: undo,
-        disabled: !canUndo
+        disabled: !canUndo()
       },
       {
         label: '重做',
         shortcut: 'Ctrl+Y',
         action: redo,
-        disabled: !canRedo
+        disabled: !canRedo()
       },
       { separator: true },
       {
