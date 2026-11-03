@@ -189,6 +189,7 @@
 | ShortcutHelp 三验（224） | 通过 | 32 宣称零漂移；3 MISS 系正则误报 |
 | MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
+| templates.ts 补审（230） | 通过+清除 1 | 1197 行定性：52 模板+7 类（含 layout）+compositeTemplates 32 结构；getCategories 实含 layout（L835）——**r229 探针 slice 截断误判 P1，如实撤销**；getTemplateById 生产+测试零引用**删除**（-7 行）；SidePanel 消费链（templates/composite/getCategories/getTemplatesByCategory）完整 |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
