@@ -146,12 +146,12 @@
 | fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | FT 0-28 全覆盖；继承 visited 防护；applyTemplate 边界（产品决策） |
 | fdfImport.test mock 补齐 | test 侧修复 | mock templateManager 缺 loadTemplatesFromFile 致 tsc 测试侧 2 报错（生产无碍）；补 mock 后清零 |
 | 命令层 src/commands（9 文件全类） | 通过+1 边界 | 20 命令类全部有测试实例化（Frame 10/Align 3/AlignToCanvas/Size/ZIndex/Duplicate 2/Array 2）——无缺口。ZIndexCommand 语义：moveUp/Down 找相邻 z、边界 no-op 不写、bringToFront max+1/sendToBack min-1、undo/redo 存 old/new。**边界**：no-op 命令（已最高层再上移）仍入栈并清空 redo 栈——commandStore"新 execute 清 redo"设计语义的自然结果（类比 git empty commit），UX 细节记录不改。13 条 console.log 在用户操作路径非渲染热路径，保留 |
-| BackdropEdge.tsx+useTextureLoader | **删除死代码链** | 组件无任何 JSX 渲染点（WebGL 路径 SceneGraphManager.syncBackdropEdges 用 textureAtlas 取代）；useTextureLoader 唯一消费者是该孤儿、useTextureLoaderBatch 零消费。canvasHelpersWiring 相应用例随删（守卫 6 测）；useCanvasPan/useHotReloadSync 有活消费方（Canvas/HotReloadPanel）确认非死代码 |
-| constants.ts+App.tsx 接线 | 通过 | constants 6 值消费方 11 处；renderer/kernelScene 无硬编码绕过（kernel 用自身 UI_WIDTH/UI_HEIGHT，与编辑器 constants 的等价性由 5760 组穷举守卫锁定）；CANVAS_POINT 中心点 0.4/0.3 是 WC3 标准系自洽值非 magic number。App.tsx 快捷键/删除确认/面板切换接线已被 utilityPanelsWiring/canvasWiring/projectStore.test 覆盖 |
-| mpq_io.rs+tcp_server.rs | **修 1 缺陷**+1 缺口 | mpq_io：句柄缓存+listfile 缺失降级+has_file 快速路径+测试自包含 ✓；换路径清池链完整（setWar3Path→unloadAll→clear_mpq_cache→pool.clear）无泄漏。tcp_server：**bind 失败 is_running 卡 true**（后续 start 返回假成功，热重载静默失效）——已修 Arc<Mutex> 供 spawn 内复位。**环境缺口已解除（round 81）**：根因是 cmake crate 0.1.54 不识别 VS 18（非缺库）——`cargo update -p cmake --precise 0.1.58` + vcvars64.bat 环境下构建即通（`cmd /c "...vcvars64.bat >nul 2>&1 && cargo check/test"`）；cargo test **19/19 全绿**，此前 3 个 Rust 修复（tcp_server/mdx/blp）全部编译+测试验证通过 |
+| BackdropEdge+useTextureLoader | **删死链** | 组件零渲染点；hook 孤儿；canvasHelpersWiring 随删 |
+| constants.ts+App.tsx 接线 | 通过 | 消费 11 处；无硬编码绕过（5760 穷举锁） |
+| mpq_io+tcp_server | **修 1** | bind 失败 is_running 卡 true 已修；cargo 19/19 |
 | mdx_parser.rs 全文 | **修 1 DoS 缺陷** | VRTX/NRMS/UVBS/PVTX 数据循环用 read_f32().unwrap_or(0.0)——截断/损坏文件 count 巨大时 EOF 后静默产 0 循环数十亿次 push（内存爆炸/假死）；已改 ? 传播错误（12 处），损坏文件报错给前端而非假死。skip 类分支（GNDX/PTYP）保持 .ok()（seek 兜底无膨胀风险）。编译验证仍被 turbojpeg 环境阻塞（同上条缺口），花括号配对+残留扫描自检通过 |
 | blp_handler.rs 全文 | **修 1 panic 缺陷**+实证修正 | decode_blp_mipmap 在 mipmaps 为空时 "count - 1" usize 下溢 panic（debug 构建）——已加 count==0 提前报错。**round 103 实证修正**：blp-0.1.37 from_buf 返回 [Mipmap; MAX_MIPS].into_iter().collect()——mipmaps.len() 恒为 MAX_MIPS，**count==0 分支实证不可达**（"损坏 BLP 可能 mipmaps 为空"假设被源码证伪；防御代码无害保留）。错误链/越界检查/多 mip 解码旗标语义正确；91/91 前端 BLP 守卫覆盖真实解码路径。**边界**：get_blp_info 命令前端零消费（未接线 API 面，format 字符串仅展示用），保留不删（cargo 验证阻塞下减少 Rust 动作）；test_decode_blp 空壳如实记录（真实路径由前端守卫覆盖） |
-| fdfTransformer 旧路径抽查 | 通过+定性 | 70.7KB 双路径保留分支不做逐行全文审（30+ 视觉回归+roundtrip+importRoundtrip 43 测守卫其行为）；抽查几何核心：toPixels 恒等（编辑器世界坐标语义）与内核 toPixels（世界→像素）不同名不同义各得其所，世界矩形等价由 5760 守卫锁；Anchor 单点=绝对、SetPoint=相对 ✓；外部引用（UIParent/ConsoleUI/GameUI）删 relativeTo 画布绝对化与内核 __PARENT__ 顶层语义一致 ✓；同名多候选优先同父级（比内核精细）。3 条 console.log 在导入一次性路径非热路径，保留 |
+| fdfTransformer 旧路径抽查 | 通过+定性 | 43 测守卫；几何核心抽查；双路径各得其所 |
 | fdfLexer+fdfAst | 通过 | 数字/标识符全支持；纯类型无逻辑 |
 | Rust 损坏输入测试（round 82） | test 补齐 | mdx 截断 VRTX（count=3 无数据字节）必须报错而非产零顶点 + 合法 3 顶点解析/bounds 计算——fixture 首版缺 geoset_size 字段探针自错（GEOS 内布局 size+sub-chunks）。cargo test 19/19 全绿；tcp_server/blp 的行为由类型/早退结构保证不额外建测 |
 | hook 纯逻辑抽取（83-85） | test 抽取+feat | canvasViewTransforms 7 测/hotReloadLua 8 测；6 hook 缺口清零 |
@@ -164,13 +164,13 @@
 | uiStore 选择类 action 补测（round 105） | **修 1 不一致+1 防御** | 发现选择类 action（编辑器核心交互）零测试覆盖。selectGroup 两缺陷：①只设 selectedFrameIds 不同步 selectedFrameId——组选择后属性面板残留旧选中帧（与 selectMultipleFrames 语义不一致），已同步=最后成员 ②frameIds 无防御（手编辑存档缺字段 spread 抛错），已 ||[]。+6 测（单选/toggle 加移除/清空/组选同步/未知组 no-op/缺字段防御）。2100 测全绿 |
 | addFrame 幽灵帧修复（round 108） | **修 1 P1 缺陷** | 粘贴审计发现：复制子帧→删原父→Ctrl+V，PasteFrameCommand 以原 parentId 粘贴副本，addFrame 对悬空 parentId 不挂父也不入 rootFrameIds——**副本成幽灵帧**（存在但不可见不可选）。修复：addFrame 悬空 parentId 归一化为根帧（与 fileOperations 迁移清理语义统一）。+2 测（归一化/有效父不回归）。2104 测全绿 |
 | BatchRemove undo 恢复顺序修复（round 109） | **修 1 回归风险** | round 108 修复引入的回归面：undo 按用户选择序（Map 插入序）恢复，子先于父时子帧被归一化成根帧 → 与父 children 快照树断裂。修复：undo 按拓扑序（父先）恢复（迭代去依赖+环防御）。+2 测（跨层级删除树完整/兄弟多选不变）。2106 测全绿 |
-| Rust 补测与命令族核查（rounds 102/103/110/111 归并） | 通过 | tcp_server 4 测（State 契约/broadcast Err 语义/wire 序列化）+ resolve_username 抽纯函数 4 测（**空 USERNAME 视同缺失**——原 Ok("") 拼坏路径，行为改进）→ Rust 19/19；DuplicateFrame（redo 稳定快照）与 UpdateFrame（undo 按键精确采样/已删帧安全）核查通过；PasteFrame redo 重新生成 id 定性低危边界不修 |
+| Rust 补测与命令族（102-111） | 通过 | tcp_server 4 测+resolve_username 4 测；命令族核查完 |
 | updateFrame 悬空归一化修复（round 112） | **修 1 同族缺陷（第 8 处）** | parentId 变更路径无归一化：拖拽到已删父（悬空）不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧在 updateFrame 路径复发。修复：悬空归一化根帧（与 addFrame r108 统一），rootFrameIds 判定改用归一化值。+3 测（悬空/正常父/拖回根）。2109 测全绿 |
 | CreateFrame/重命名核查（114） | 通过 | 快照稳定；20 命令类核查完毕 |
 | 生产构建修复（120） | **修 1 P1** | tsconfig.build 修复 95 测试侧报错阻塞；vite 4.72s 绿 |
-| 编辑器健壮性收口（rounds 126-142 归并） | feat 3+修 10 | ①多选：组拖拽/方向键微调全员同步，组合命令一次 Ctrl+Z 全撤 ②存档环打破：手编辑 parentId 互指→migrate 切根+children/rootFrameIds 重建（渲染递归假死 P1）③NaN 防御矩阵：parseFloat/parseInt 输入面 14 处+guide 几何 ④组合命令族：组合模板/BatchEditPanel N 帧独立命令只撤一帧→组合命令；applyStylePreset/clearGuides/addGuide 直调 store 不可撤销→捕获型命令入 undo 栈（r141 只修了 add/clear；r143 补漏 updateGuide 拖动/removeGuide 单删 2 消费点；r144 终扫：右键锁定/可见性+组 CRUD 直调 store 定性低价值不修——同一菜单项再点即恢复，与 saveFrameAsPreset/setRace 同档，旁路清单 10 项全定性）⑤dirty 防护：beforeunload 拦截+project-state-reset 事件（监听 1/派发 8）+加载前 dirty 确认 3 处（dirty 迁 uiStore 同源，r145 补 2 测——store action 行为测试约定）。教训：r133 声称 4/4 实际 2/4——批量替换后必须 grep 验证 |
-| 构建与健壮性收口（115-125 归并） | 通过+修 8 | 存档链 2 测/缺失归一化/recentFiles 防御/hotReload try-catch；undo MAX=100 统一 3 旁路；tsconfig.build 修复生产构建；manualChunks three/react；stale closure 修复。r147-148 文档对账；r145 门禁疏漏修复→100×4 恢复；导出错误处理 3 入口 ✓ |
-| 宣称对账与补齐（90-157） | 修 2 误删+feat 多 | 双向对账；Ctrl+F；PNG 误删→恢复；防御=防重入 |
+| 编辑器健壮性收口（126-142） | feat 3+修 10 | 多选同步/存档环/NaN 矩阵/组合命令/dirty 防护 |
+| 构建与健壮性收口（115-125） | 通过+修 8 | 存档链/归一化/undo 上限/tsconfig.build/manualChunks |
+| 宣称对账与补齐（90-157） | 修 2 误删+feat | 双向对账；Ctrl+F；PNG 恢复 |
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
 | 生命周期清理域（165-166） | 修 1+排查 | rAF 清理；全成对 |
 | 夹具与接线核查域（168-173） | 补强+核查 | 夹具填非空；QUICKSTART 真实 |
@@ -188,6 +188,7 @@
 | .gitignore 核查（223） | 通过 | 6 路径 ignore ✓ |
 | ShortcutHelp 三验（224） | 通过 | 32 宣称零漂移；3 MISS 系正则误报 |
 | **决策项 13 项全部实施（236）** | 用户"都做"批准 | ①appInterface 删除（24 文件）②editBorderSize 两端闭环（UI+导出+3 测）③applyTemplate 写回已实施（20 键白名单与 enhanceFrameWithFDF 同语义，几何不写回，+3 测——初判"保持现状"被推翻重做）④热重载用户名重构（常量→函数+App 启动填充，81468→DefaultUser）⑤多选复制/粘贴（clipboardFrames+2 命令+2 测）⑥ProjectTree 键盘导航（方向键/Enter+纯函数 3 测）⑦⑧mdx 分歧收敛（远端分支删除，main TS 渲染器路径保留）⑨CSP 生产加固（devCsp 留空护 HMR）⑩capabilities 真收窄（opener 插件三处全删+dialog 三权限删，cargo 19/19）⑪lockfile 入库（29 文件+2233 行）⑫serializer 死代码删除（-90 行-7 测）——**"都做"下 fs:scope `**` 经功能核查保留**（热重载写任意 War3 目录+任意 MPQ 纹理读取为硬需求，收窄必破坏核心功能，如实记录不硬改） |
+| 功能完善批次（237） | 用户"按建议全部做"批准 | **A1 SliderLayout 两端闭环**——openwar3 widgets.ts L903 实证为 FDF 无值标志属性，**推翻旧账本"无模板属性"定性**；transformer flag 解析+UI Checkbox（boolean 错位修正）+导出 flag 行+4 测，运行时无方向 API 不接；**A2 validateFDF warnings**——原文引号奇偶预扫（token.value 已剥引号不可计数），+2 测；**A3 get_blp_file_info 删除**（rustBridge.getBLPInfo 连带）；**A4 formatFDF 有损删除**；**C1 blpData 二进制传输**——Rust Request+extract_raw 替代 JSON 数组 8 倍膨胀，parse_mdx_bytes 核心共用，mipmap 混合参数留 JSON；**C2 getFrameVersion 补目标帧 width/height**——基线 2132→**2134** |
 | MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
 | 盲区补审闭合（230-233） | **15/15 完成** | 4 全净+6 测试守卫确认（降级为账本未点名）+3 消费确认+2 定性（serializer 死代码候选=决策项 13）；**清除 1**（getTemplateById）；**教训：穷尽性判定=文件级语义映射+测试目录双查，缺一即假穷尽** |
