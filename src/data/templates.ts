@@ -815,13 +815,6 @@ export const getTemplatesByCategory = (category: string): FrameTemplate[] => {
 };
 
 /**
- * 根据ID获取模板
- */
-export const getTemplateById = (id: string): FrameTemplate | undefined => {
-  return templates.find(t => t.id === id);
-};
-
-/**
  * 获取所有类别
  */
 export const getCategories = (): { id: string; name: string; icon: string }[] => {
