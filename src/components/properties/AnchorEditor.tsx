@@ -37,7 +37,13 @@ export const AnchorEditor: React.FC<AnchorEditorProps> = ({
       )}
       
       <div className="anchors-list">
-        {(selectedFrame.anchors || createDefaultAnchors(selectedFrame.x, selectedFrame.y, selectedFrame.width, selectedFrame.height)).map((anchor, index) => {
+        {/* round 245 修复：原为 `selectedFrame.anchors || createDefaultAnchors(...)`，
+            但空数组是 truthy——导入的 FDF 帧（transformers 产出 anchors: []）拿不到默认锚点，
+            面板显示空锚点区。改为长度判定，保持"至少一个可见锚点"的兜底语义。 */}
+        {(selectedFrame.anchors && selectedFrame.anchors.length > 0
+          ? selectedFrame.anchors
+          : createDefaultAnchors(selectedFrame.x, selectedFrame.y, selectedFrame.width, selectedFrame.height)
+        ).map((anchor, index) => {
           // 检查当前锚点是否在冲突列表中
           const isConflicting = anchorConflicts.conflictingAnchors.includes(index);
           
