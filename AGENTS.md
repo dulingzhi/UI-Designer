@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-- `141 passed | 2 skipped` 测试文件（r226 考古：r189 exclude 含 4 旧测试 147-4=143=141+2，误记修正；2126 无误），`2126 passed | 5 skipped` 测试
+`141 passed | 2 skipped` 测试文件（r236 决策实施后实测：serializer -7 测/-1 文件、多选复制 +2、树导航 +3、fallback +1 净 2128），`2128 passed | 5 skipped` 测试
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`（r193 实测明细：Stmts 3212 / Branches 1858 / Funcs 439 / Lines 2911——漂移检测锚点）
 
@@ -187,6 +187,7 @@
 | capabilities 核查（222） | 通过+**高危** | fs:scope ** 全盘读写——用户决策 12 |
 | .gitignore 核查（223） | 通过 | 6 路径 ignore ✓ |
 | ShortcutHelp 三验（224） | 通过 | 32 宣称零漂移；3 MISS 系正则误报 |
+| **决策项 13 项全部实施（236）** | 用户"都做"批准 | ①appInterface 删除（24 文件）②editBorderSize 两端闭环（UI+导出+3 测）③applyTemplate 保持现状（写回破坏 30+ 回归——"都做"下唯一不动作项，如实保留原边界）④热重载用户名重构（常量→函数+App 启动填充，81468→DefaultUser）⑤多选复制/粘贴（clipboardFrames+2 命令+2 测）⑥ProjectTree 键盘导航（方向键/Enter+纯函数 3 测）⑦⑧mdx 分歧收敛（远端分支删除，main TS 渲染器路径保留）⑨CSP 生产加固（devCsp 留空护 HMR）⑩capabilities 真收窄（opener 插件三处全删+dialog 三权限删，cargo 19/19）⑪lockfile 入库（29 文件+2233 行）⑫serializer 死代码删除（-90 行-7 测）——**"都做"下 fs:scope `**` 经功能核查保留**（热重载写任意 War3 目录+任意 MPQ 纹理读取为硬需求，收窄必破坏核心功能，如实记录不硬改） |
 | MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
 | 盲区补审闭合（230-233） | **15/15 完成** | 4 全净+6 测试守卫确认（降级为账本未点名）+3 消费确认+2 定性（serializer 死代码候选=决策项 13）；**清除 1**（getTemplateById）；**教训：穷尽性判定=文件级语义映射+测试目录双查，缺一即假穷尽** |
