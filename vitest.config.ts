@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'tests/**/*.test.ts'],
     // 独立自建 runner 的脚本型 `*.test.ts`(自带 process.exit / 直接执行),
     // 由各自的 tsx 脚本运行 (见 package.json test:fdf 等), 不应被 vitest 当作套件拾取。
     exclude: [
