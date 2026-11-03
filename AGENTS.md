@@ -126,11 +126,11 @@
 | dataSource.ts | 通过 | loadList 降级可重试；大小写分层正确 |
 | rustBridge.ts | 通过+1 决策 | blpData 内存膨胀 8 倍（性能决策项） |
 | kkweDetector+Rust | 通过+2 边界 | 检测失败不可区分；PID 外部约定 |
-| fileOperations.ts | **修 1 缺陷** | 迁移不清理悬空 parentId → 再次保存永久化；已修（清理为 `''`，2 测） |
+| fileOperations.ts | **修 1 缺陷** | 迁移悬空 parentId 不清理→永久化；已修（2 测） |
 | snapUtils.ts | **删除死代码** | 零生产引用（真实路径 frameTransforms.snapRect）；342 行+34 测清除。**教训：零引用检查是盲区审计第一步** |
-| textureLoader.ts | **修 1 缺陷** | evictLRU 公式 `acc*1000+age` 淘汰 score 最小=刚加载项——**与 LRU 相反**；已改 `acc*maxCacheAge-age` + fake-timer 方向性 2 测。**测试认证 bug 第 4 例**（旧测试注释把 timestamp 当 age、不断言淘汰对象） |
-| war3ProcessManager | **修 1 耦合** | isCurrentProcessRunning 只查内存，漏 localStorage 恢复——隐式依赖调用方先调 getCurrentPid；已统一 |
-| mpqManager.ts | **修 1 竞态** | setWar3Path 无并发防护（WC3TextureBrowser:55 fire-and-forget + 用户改路径并发）→ **两路径档案混合加载**；已加代际守卫（loadGeneration 过期中止剩余档案），58 测 |
+| textureLoader.ts | **修 1 缺陷** | evictLRU 公式反 LRU；已改+方向性 2 测（认证 bug 第 4 例） |
+| war3ProcessManager | **修 1 耦合** | isCurrentProcessRunning 漏 localStorage 恢复；已统一 |
+| mpqManager.ts | **修 1 竞态** | setWar3Path 无并发防护→混合加载；代际守卫，58 测 |
 | blpDecoder.ts | 通过+1 改进 | JPEG 占位系设计；revoke 完整 |
 | war3SkinsParser+textureLoader | **修 2 缺陷** | openwar3 仲裁：1.27 war3skins.txt 值大量带成对引号（`Key="UI\..."`），两 parser 均无 unquote → **路径含引号字符全部失效**。已加 unquote（两处）；textureLoader 扁平映射改段落感知（[Default] 全表优先，种族段 override 不冒充全局；且旧实现"后缀过滤在 unquote 前"会全部误过滤带引号值——测试红抓出）。textureLoader.parseWar3Skins 与 war3SkinsParser.parseWar3Skins 是双实现（扁平 vs 结构化，语义不同故并存） |
 | Rust lib.rs（20 命令） | 通过 | extract_template_map 白名单+include_bytes!（无路径注入）；parse_mdx ? 错误链显式；BLP 三命令 map_err 完整；get_username USERNAME→USER 环境变量回退。与此前 kkwe/MPQ/BLP 分项审计合并后 Rust 侧全面收口 |
@@ -190,6 +190,7 @@
 | MenuBar/Toolbar handler 对账（225） | 通过 | 8+7 named 全定义（undo/redo 系 store 解构），28 内联无 stub |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
 | templates.ts 补审（230） | 通过+清除 1 | 1197 行定性：52 模板+7 类（含 layout）+compositeTemplates 32 结构；getCategories 实含 layout（L835）——**r229 探针 slice 截断误判 P1，如实撤销**；getTemplateById 生产+测试零引用**删除**（-7 行）；SidePanel 消费链（templates/composite/getCategories/getTemplatesByCategory）完整 |
+| 盲区批审 2/15（231） | 通过 | useAlert（状态型 hook，6 消费方全接——App 经 prop 传递）；AboutDialog（Tauri 动态版本）；RaceSwitcher（store 链接）——三文件全净 |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
