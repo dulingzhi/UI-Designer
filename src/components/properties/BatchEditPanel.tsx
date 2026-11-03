@@ -44,14 +44,21 @@ export const BatchEditPanel: React.FC<BatchEditPanelProps> = ({ onClose }) => {
       }
     });
     // round 140：多帧组合命令一次撤销（r139 同族）
+    // round 242 修复：原多帧分支只 pushCommand（只入栈不 execute）→
+    // 批量修改对多选帧完全不生效（单帧走 executeCommand 正常）。先执行再入栈。
+    // round 242：无选中帧时不产生任何命令（此前 cmds.length===0 入栈一条空组合命令，
+    // 造成 undo 栈出现"点了没反应"的幽灵步骤）
+    if (cmds.length === 0) return;
     if (cmds.length === 1) {
       executeCommand(cmds[0]);
     } else {
-      useCommandStore.getState().pushCommand({
+      const composite = {
         execute: () => cmds.forEach((c) => c.execute()),
         undo: () => [...cmds].reverse().forEach((c) => c.undo()),
         redo: () => cmds.forEach((c) => c.execute()),
-      });
+      };
+      composite.execute();
+      useCommandStore.getState().pushCommand(composite);
     }
   };
 

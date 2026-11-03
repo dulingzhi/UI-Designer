@@ -13,10 +13,15 @@ const src = readFileSync(join(__dirname, 'BatchEditPanel.tsx'), 'utf-8');
 
 describe('BatchEditPanel 接线守卫', () => {
   it('批量修改走 UpdateFrameCommand（可 undo，不裸改 store）', () => {
-    // r140：组合命令——cmds.push 收集，单帧 executeCommand / 多帧 pushCommand 一次撤销
+    // r140：组合命令——cmds.push 收集；单帧 executeCommand / 多帧 先 execute 再 pushCommand。
     expect(src).toContain("cmds.push(new UpdateFrameCommand(id, {");
-    expect(src).toContain("useCommandStore.getState().pushCommand({");
-    expect(src).toContain("useCommandStore();");
+    expect(src).toContain('const composite = {');
+    expect(src).toContain('composite.execute();');
+    expect(src).toContain('pushCommand(composite);');
+    // r242 修正：原断言只查 pushCommand 存在（把「只入栈不执行」缺陷当期望）；
+    // 现锁顺序语义 + 空选择防护，运行时由 batchEditRender.test.tsx 验证。
+    expect(src.indexOf('composite.execute();')).toBeLessThan(src.indexOf('pushCommand(composite);'));
+    expect(src).toContain('if (cmds.length === 0) return;');
   });
 
   it('修改统一经 handleBatchChange 单出口', () => {
