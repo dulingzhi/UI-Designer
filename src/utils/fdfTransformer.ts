@@ -765,6 +765,20 @@ export class FDFTransformer {
         if (typeof value === 'number') frame.sliderInitialValue = value;
         break;
 
+      case 'sliderlayouthorizontal':
+      case 'sliderlayoutvertical':
+        // FDF: `SliderLayoutHorizontal,` 无值标志（openwar3 widgets.ts hasFlag 实证）；
+        // parser 将无值属性 value 置为 Identifier "unknown"，也兼容显式 true。
+        {
+          const isH = prop.name.toLowerCase() === 'sliderlayouthorizontal';
+          const flagOn = value !== false && value !== 'false';
+          if (flagOn) {
+            if (isH) frame.sliderLayoutHorizontal = true;
+            else frame.sliderLayoutVertical = true;
+          }
+        }
+        break;
+
       case 'sliderminvalue':
         if (typeof value === 'number') frame.minValue = value;
         break;

@@ -75,3 +75,25 @@ describe('FDF Menu / Popup / EditBox 标量', () => {
     expect(parse(src)[0].editBorderColor).toEqual([51, 102, 153, 128]);
   });
 });
+
+describe('FDF SliderLayout 标志（决策项 A1 取证：openwar3 widgets.ts L903）', () => {
+  it('SliderLayoutHorizontal, 无值 flag → frame.sliderLayoutHorizontal = true', () => {
+    const src = `Frame "SLIDER" "S" {
+      Width 0.1, Height 0.05,
+      SliderLayoutHorizontal,
+    }`;
+    const f = parse(src)[0];
+    expect(f.sliderLayoutHorizontal).toBe(true);
+    expect(f.sliderLayoutVertical).toBeUndefined();
+  });
+
+  it('SliderLayoutVertical, 无值 flag → frame.sliderLayoutVertical = true', () => {
+    const src = `Frame "SLIDER" "S" {
+      Width 0.1, Height 0.05,
+      SliderLayoutVertical,
+    }`;
+    const f = parse(src)[0];
+    expect(f.sliderLayoutVertical).toBe(true);
+    expect(f.sliderLayoutHorizontal).toBeUndefined();
+  });
+});

@@ -2,7 +2,7 @@
  * FDF 解析器测试示例
  */
 
-import { parseFDF, exportFDF, validateFDF, formatFDF } from '../utils/fdf';
+import { parseFDF, exportFDF, validateFDF } from '../utils/fdf';
 
 // 测试 FDF 文本
 const testFDF = `
@@ -93,14 +93,9 @@ export function testFDFParser() {
     });
     console.log(exportedFDF);
     console.log('');
-    
-    // 4. 格式化 FDF
-    console.log('4. 格式化 FDF:');
-    const formattedFDF = formatFDF(testFDF, {
-      indent: '\t',
-      includeComments: true,
-    });
-    console.log(formattedFDF);
+
+    // 4. 格式化 FDF —— formatFDF（旧 transformer 有损）已随决策项 A4 删除
+    console.log('4. 格式化 FDF: (formatFDF removed — lossy path deleted)');
     
   } catch (error) {
     console.error('  解析失败:', error);

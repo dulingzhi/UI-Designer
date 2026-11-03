@@ -5,7 +5,6 @@ const fdfMocks = vi.hoisted(() => ({
   parseFDF: vi.fn(),
   exportFDF: vi.fn(),
   validateFDF: vi.fn(),
-  formatFDF: vi.fn(),
 }));
 
 vi.mock('./fdf', () => fdfMocks);
@@ -40,14 +39,12 @@ describe('testFDFParser', () => {
     fdfMocks.validateFDF.mockReturnValue({ valid: true, errors: [], warnings: [] });
     fdfMocks.parseFDF.mockReturnValue(frames);
     fdfMocks.exportFDF.mockReturnValue('exported...');
-    fdfMocks.formatFDF.mockReturnValue('formatted...');
 
     testFDFParser();
 
     expect(fdfMocks.validateFDF).toHaveBeenCalled();
     expect(fdfMocks.parseFDF).toHaveBeenCalled();
     expect(fdfMocks.exportFDF).toHaveBeenCalled();
-    expect(fdfMocks.formatFDF).toHaveBeenCalled();
     expect(log).toHaveBeenCalled();
     log.mockRestore();
   });
@@ -61,7 +58,6 @@ describe('testFDFParser', () => {
     fdfMocks.validateFDF.mockReturnValue({ valid: true, errors: [], warnings: [] });
     fdfMocks.parseFDF.mockReturnValue(frames);
     fdfMocks.exportFDF.mockReturnValue('out');
-    fdfMocks.formatFDF.mockReturnValue('fmt');
 
     testFDFParser();
     expect(log).toHaveBeenCalled();

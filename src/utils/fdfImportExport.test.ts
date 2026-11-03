@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   parseFDF: vi.fn(),
   exportFDF: vi.fn(),
   validateFDF: vi.fn(),
-  formatFDF: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open }));
@@ -18,7 +17,6 @@ vi.mock('./fdf', () => ({
   parseFDF: mocks.parseFDF,
   exportFDF: mocks.exportFDF,
   validateFDF: mocks.validateFDF,
-  formatFDF: mocks.formatFDF,
 }));
 // fdfExporter likely has no Tauri deps but guard anyway
 import * as fdfImportExport from './fdfImportExport';
@@ -41,7 +39,6 @@ describe('fdfImportExport barrel', () => {
     expect(typeof fdfImportExport.parseFDFToAST).toBe('function');
     expect(typeof fdfImportExport.exportFDF).toBe('function');
     expect(typeof fdfImportExport.validateFDF).toBe('function');
-    expect(typeof fdfImportExport.formatFDF).toBe('function');
   });
 
   it('delegates importFromFDFText to the underlying implementation', () => {

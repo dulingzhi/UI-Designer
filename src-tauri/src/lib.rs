@@ -45,37 +45,38 @@ fn clear_mpq_cache() -> Result<(), String> {
 
 /// 解码 BLP 图像为 PNG base64
 #[tauri::command]
-fn decode_blp_to_png(blp_data: Vec<u8>) -> Result<String, String> {
+fn decode_blp_to_png(request: tauri::ipc::Request) -> Result<String, String> {
+    let blp_data = extract_raw(request)?;
     blp_handler::decode_blp_to_png_base64(&blp_data)
 }
 
 /// 解码 BLP 图像为 RGBA 数据（用于前端）
 #[tauri::command]
-fn decode_blp_to_rgba(blp_data: Vec<u8>) -> Result<blp_handler::BlpImageData, String> {
+fn decode_blp_to_rgba(request: tauri::ipc::Request) -> Result<blp_handler::BlpImageData, String> {
+    let blp_data = extract_raw(request)?;
     blp_handler::decode_blp(&blp_data)
-}
-
-/// 获取 BLP 文件信息
-#[tauri::command]
-fn get_blp_file_info(blp_data: Vec<u8>) -> Result<blp_handler::BlpInfo, String> {
-    blp_handler::get_blp_info(&blp_data)
 }
 
 /// 解码 BLP 指定 mipmap 层级
 #[tauri::command]
-fn decode_blp_mipmap_level(blp_data: Vec<u8>, level: usize) -> Result<blp_handler::BlpImageData, String> {
+fn decode_blp_mipmap_level(request: tauri::ipc::Request, level: usize) -> Result<blp_handler::BlpImageData, String> {
+    let blp_data = extract_raw(request)?;
     blp_handler::decode_blp_mipmap(&blp_data, level)
 }
 
 /// 解析 MDX/MDL 模型文件，返回几何数据的 JSON
-#[tauri::command]
-fn parse_mdx_file(mdx_data: Vec<u8>) -> Result<String, String> {
+/// 决策项 C1：MDX 解析核心（字节数组 → JSON 字符串），命令层共用
+fn parse_mdx_bytes(mdx_data: Vec<u8>) -> Result<String, String> {
     let mut parser = MdxParser::new(mdx_data)?;
     let model = parser.parse()?;
-    
-    // 转换为 JSON
     serde_json::to_string(&model)
         .map_err(|e| format!("JSON 序列化失败: {}", e))
+}
+
+#[tauri::command]
+fn parse_mdx_file(request: tauri::ipc::Request) -> Result<String, String> {
+    let mdx_data = extract_raw(request)?;
+    parse_mdx_bytes(mdx_data)
 }
 
 /// 从 MPQ 中读取并解析 MDX 文件
@@ -85,7 +86,7 @@ fn parse_mdx_from_mpq(archive_path: String, file_name: String) -> Result<String,
     let mdx_data = read_mpq_file(archive_path, file_name)?;
     
     // 解析 MDX
-    parse_mdx_file(mdx_data)
+    parse_mdx_bytes(mdx_data)
 }
 
 /// 从本地文件系统读取并解析 MDX 文件
@@ -98,7 +99,7 @@ fn parse_mdx_from_file(file_path: String) -> Result<String, String> {
         .map_err(|e| format!("无法读取文件 {}: {}", file_path, e))?;
     
     // 解析 MDX
-    parse_mdx_file(mdx_data)
+    parse_mdx_bytes(mdx_data)
 }
 
 /// 用户名解析纯逻辑（可单测）：USERNAME 优先，USER 回退，双无报错。
@@ -314,6 +315,16 @@ fn extract_template_map(_app_handle: tauri::AppHandle, war3_path: String, map_na
     Ok(target_file.to_string_lossy().to_string())
 }
 
+/// 决策项 C1：从 invoke raw body 提取二进制数据。
+/// 前端 `invoke(cmd, uint8array)` 走 Tauri 2 raw binary 通道（InvokeBody::Raw），
+/// 替代 JSON number[] 的 8 倍膨胀传输。
+fn extract_raw(request: tauri::ipc::Request) -> Result<Vec<u8>, String> {
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes.to_vec()),
+        _ => Err("expected raw binary body (pass Uint8Array as invoke body)".to_string()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -329,7 +340,7 @@ pub fn run() {
             clear_mpq_cache,
             decode_blp_to_png,
             decode_blp_to_rgba,
-            get_blp_file_info,
+
             decode_blp_mipmap_level,
             parse_mdx_file,
             parse_mdx_from_mpq,

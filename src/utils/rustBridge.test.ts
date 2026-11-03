@@ -50,7 +50,6 @@ const rustBridge = await import('./rustBridge');
 const {
   decodeBLPToPNG,
   decodeBLPToRGBA,
-  getBLPInfo,
   decodeBLPMipmap,
   parseMDX,
   parseMDXFromMPQ,
@@ -67,9 +66,7 @@ describe('rustBridge', () => {
       coreMocks.invoke.mockResolvedValue('data:image/png;base64,DEAD');
       const result = await decodeBLPToPNG(sampleBlp);
       expect(result).toBe('data:image/png;base64,DEAD');
-      expect(coreMocks.invoke).toHaveBeenCalledWith('decode_blp_to_png', {
-        blpData: [0x42, 0x4c, 0x50, 0x31],
-      });
+      expect(coreMocks.invoke).toHaveBeenCalledWith('decode_blp_to_png', sampleBlp);
     });
   });
 
@@ -78,22 +75,10 @@ describe('rustBridge', () => {
       coreMocks.invoke.mockResolvedValue({ width: 2, height: 2, data: [1, 2, 3, 4] });
       const result = await decodeBLPToRGBA(sampleBlp);
       expect(result).toEqual({ width: 2, height: 2, data: [1, 2, 3, 4] });
-      expect(coreMocks.invoke).toHaveBeenCalledWith('decode_blp_to_rgba', {
-        blpData: [0x42, 0x4c, 0x50, 0x31],
-      });
+      expect(coreMocks.invoke).toHaveBeenCalledWith('decode_blp_to_rgba', sampleBlp);
     });
   });
 
-  describe('getBLPInfo', () => {
-    it('invokes get_blp_file_info with raw bytes', async () => {
-      const info = { width: 1, height: 1, mipmap_count: 5, format: 'DXT1' };
-      coreMocks.invoke.mockResolvedValue(info);
-      await expect(getBLPInfo(sampleBlp)).resolves.toEqual(info);
-      expect(coreMocks.invoke).toHaveBeenCalledWith('get_blp_file_info', {
-        blpData: [0x42, 0x4c, 0x50, 0x31],
-      });
-    });
-  });
 
   describe('decodeBLPMipmap', () => {
     it('passes level through to invoke', async () => {
@@ -112,9 +97,7 @@ describe('rustBridge', () => {
       coreMocks.invoke.mockResolvedValue(JSON.stringify(model));
       const result = await parseMDX(sampleBlp);
       expect(result).toEqual(model);
-      expect(coreMocks.invoke).toHaveBeenCalledWith('parse_mdx_file', {
-        mdxData: [0x42, 0x4c, 0x50, 0x31],
-      });
+      expect(coreMocks.invoke).toHaveBeenCalledWith('parse_mdx_file', sampleBlp);
     });
   });
 

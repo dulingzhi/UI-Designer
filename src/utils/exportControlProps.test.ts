@@ -199,3 +199,15 @@ describe('EditBorderSize 导出（决策项 2 闭环）', () => {
     expect(text).not.toContain('EditBorderSize');
   });
 });
+
+describe('SliderLayout 标志导出（决策项 A1）', () => {
+  it('sliderLayoutHorizontal=true 输出无值 flag 行', async () => {
+    const text = await content([mkFrame({ id: 's1', name: 'S1', type: FrameType.SLIDER, sliderLayoutHorizontal: true })]);
+    expect(text).toContain('SliderLayoutHorizontal,');
+  });
+
+  it('未设置不输出 flag 行', async () => {
+    const text = await content([mkFrame({ id: 's2', name: 'S2', type: FrameType.SLIDER })]);
+    expect(text).not.toContain('SliderLayout');
+  });
+});

@@ -30,5 +30,4 @@ export {
   parseFDFToAST,
   exportFDF,
   validateFDF,
-  formatFDF,
 } from './fdf';

@@ -77,33 +77,23 @@ export interface MdxModel {
  * 解码 BLP 文件为 PNG base64（直接用于 <img> 标签）
  */
 export async function decodeBLPToPNG(blpData: Uint8Array): Promise<string> {
-  return invoke<string>('decode_blp_to_png', {
-    blpData: Array.from(blpData),
-  });
+  return invoke<string>('decode_blp_to_png', blpData);
 }
 
 /**
  * 解码 BLP 文件为 RGBA 数据
  */
 export async function decodeBLPToRGBA(blpData: Uint8Array): Promise<BlpImageData> {
-  return invoke<BlpImageData>('decode_blp_to_rgba', {
-    blpData: Array.from(blpData),
-  });
+  return invoke<BlpImageData>('decode_blp_to_rgba', blpData);
 }
 
-/**
- * 获取 BLP 文件信息（不解码图像数据）
- */
-export async function getBLPInfo(blpData: Uint8Array): Promise<BlpInfo> {
-  return invoke<BlpInfo>('get_blp_file_info', {
-    blpData: Array.from(blpData),
-  });
-}
 
 /**
  * 解码 BLP 指定 mipmap 层级
  */
 export async function decodeBLPMipmap(blpData: Uint8Array, level: number): Promise<BlpImageData> {
+  // 权衡：本命令需 level+bytes 混合参数，Tauri 2 raw body 不支持混合——
+  // 保持 JSON 数组（低频调用，膨胀可接受）；高频三命令已改 raw binary
   return invoke<BlpImageData>('decode_blp_mipmap_level', {
     blpData: Array.from(blpData),
     level,
@@ -114,9 +104,7 @@ export async function decodeBLPMipmap(blpData: Uint8Array, level: number): Promi
  * 解析 MDX 文件
  */
 export async function parseMDX(mdxData: Uint8Array): Promise<MdxModel> {
-  const jsonStr = await invoke<string>('parse_mdx_file', {
-    mdxData: Array.from(mdxData),
-  });
+  const jsonStr = await invoke<string>('parse_mdx_file', mdxData);
   return JSON.parse(jsonStr);
 }
 

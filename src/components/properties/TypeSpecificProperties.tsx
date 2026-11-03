@@ -361,21 +361,26 @@ export const TypeSpecificProperties: React.FC<TypeSpecificPropertiesProps> = ({
             showInput={true}
           />
 
-          <TextArea
-            label="水平布局"
-            value={typeof selectedFrame.sliderLayoutHorizontal === 'string' ? selectedFrame.sliderLayoutHorizontal : ''}
-            onChange={(value) => handleChange('sliderLayoutHorizontal', value || undefined)}
-            rows={2}
-            placeholder="水平布局设置"
-          />
+          {/* 决策项 A1：SliderLayoutHorizontal/Vertical 是 FDF 无值标志属性
+              （openwar3 widgets.ts hasFlag 实证），boolean 语义；导出输出 flag 行，
+              运行时无 API 不接（引擎方向由模板声明制） */}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={!!selectedFrame.sliderLayoutHorizontal}
+              onChange={(e) => handleChange('sliderLayoutHorizontal', e.target.checked || undefined)}
+            />
+            <span>水平布局 (SliderLayoutHorizontal)</span>
+          </label>
 
-          <TextArea
-            label="垂直布局"
-            value={typeof selectedFrame.sliderLayoutVertical === 'string' ? selectedFrame.sliderLayoutVertical : ''}
-            onChange={(value) => handleChange('sliderLayoutVertical', value || undefined)}
-            rows={2}
-            placeholder="垂直布局设置"
-          />
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={!!selectedFrame.sliderLayoutVertical}
+              onChange={(e) => handleChange('sliderLayoutVertical', e.target.checked || undefined)}
+            />
+            <span>垂直布局 (SliderLayoutVertical)</span>
+          </label>
         </section>
       )}
 

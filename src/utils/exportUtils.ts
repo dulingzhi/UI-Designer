@@ -382,6 +382,16 @@ function generateFrameFDF(
     lines.push(`${indentStr}    SliderStepSize ${frame.stepSize},`);
   }
 
+  // 决策项 A1：SliderLayoutHorizontal/Vertical 是 FDF 无值标志属性
+  // （openwar3 widgets.ts L903 hasFlag 实证——Options 屏 SLIDER 均 SliderLayoutHorizontal）。
+  // 输出 flag 行（无值），运行时无方向 API 不接（引擎方向由模板声明制）。
+  if (frame.sliderLayoutHorizontal) {
+    lines.push(`${indentStr}    SliderLayoutHorizontal,`);
+  }
+  if (frame.sliderLayoutVertical) {
+    lines.push(`${indentStr}    SliderLayoutVertical,`);
+  }
+
   // 模板引用型（真实 FDF 实证，与 ControlBackdrop 同款照实输出模板名；
   // 引用解析由引擎按名处理，找不到属用户数据问题）
   if (frame.sliderThumbButtonFrameRef) {

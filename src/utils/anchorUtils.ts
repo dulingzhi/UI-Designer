@@ -51,7 +51,11 @@ function getFrameVersion(frame: FrameData, allFrames?: Record<string, FrameData>
             parts.push(
               anchor.relativeTo,
               targetFrame.x.toFixed(3),
-              targetFrame.y.toFixed(3)
+              targetFrame.y.toFixed(3),
+              // 决策项 C2：目标帧尺寸入缓存键——RIGHT/BOTTOM 系锚点依赖目标右缘/底缘，
+              // 目标尺寸变化时缓存版本必须失效（此前仅 x/y，防御性缺失）。
+              targetFrame.width.toFixed(3),
+              targetFrame.height.toFixed(3)
             );
           }
         }

@@ -33,7 +33,7 @@ vi.mock('./fdfKernelScene', () => ({
   buildKernelLayoutFrameData: h.kernelMocks.buildKernelLayoutFrameData,
 }));
 
-const { parseFDF, parseFDFToAST, exportFDF, validateFDF, formatFDF } = await import('./fdf');
+const { parseFDF, parseFDFToAST, exportFDF, validateFDF } = await import('./fdf');
 
 const frames: FrameData[] = [
   {
@@ -164,27 +164,17 @@ describe('validateFDF', () => {
   });
 });
 
-describe('formatFDF', () => {
-  it('parses, transforms, and re-exports', () => {
-    expect(formatFDF('FrameText')).toBe('fdf text');
-    expect(h.parserMocks.FDFParser).toHaveBeenCalled();
-    expect(h.transformerMocks.FDFTransformer).toHaveBeenCalledWith();
-    expect(h.exporterMocks.FDFExporter).toHaveBeenCalledWith(undefined);
+
+describe('决策项 A2：validateFDF warnings 通道', () => {
+  it('引号成对的正常 FDF 无 warning', () => {
+    const r = validateFDF('Frame "BUTTON" "B" {\n  Width 0.1,\n}');
+    expect(r.valid).toBe(true);
+    expect(r.warnings).toEqual([]);
   });
 
-  it('forwards export options to the exporter', () => {
-    formatFDF('T', { includePosition: false });
-    expect(h.exporterMocks.FDFExporter).toHaveBeenCalledWith({ includePosition: false });
-  });
-
-  it('logs and rethrows formatting errors', () => {
-    const errObj = new Error('fmt boom');
-    h.exporterMocks.FDFExporter.mockImplementation(function () {
-      throw errObj;
-    });
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(() => formatFDF('T')).toThrow(errObj);
-    expect(log).toHaveBeenCalledWith('FDF 格式化错误:', errObj);
-    log.mockRestore();
+  it('奇数引号产生 warning（可能未闭合字符串）', () => {
+    const r = validateFDF('Frame "BUTTON "B" {\n}');
+    expect(r.warnings.length).toBeGreaterThan(0);
+    expect(r.warnings[0]).toContain('奇数');
   });
 });

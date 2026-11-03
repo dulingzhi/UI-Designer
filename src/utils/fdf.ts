@@ -101,6 +101,17 @@ export function validateFDF(fdfText: string): {
     const lexer = new FDFLexer(fdfText);
     const tokens = lexer.tokenize();
     
+    // 引号配对预扫：对原文计数（token.value 已剥离引号字符串定界符，不能用于计数）；
+    // 注释中的引号可能造成罕见误报——warning 非阻断，可接受。
+    const quoteCount = (fdfText.match(/"/g) || []).length;
+    if (quoteCount % 2 !== 0) {
+      warnings.push('引号数量为奇数——可能存在未闭合字符串（lexer 可能已容错截断）');
+    }
+    if (quoteCount % 2 !== 0) {
+      warnings.push('引号数量为奇数——可能存在未闭合字符串（lexer 可能已容错截断）');
+    }
+    
+    
     const parser = new FDFParser(tokens);
     parser.parse();
     
@@ -119,30 +130,6 @@ export function validateFDF(fdfText: string): {
   }
 }
 
-/**
- * FDF 格式化器
- * 
- * @param fdfText FDF 文本内容
- * @param options 导出选项
- * @returns 格式化后的 FDF 文本
- */
-export function formatFDF(fdfText: string, options?: ExportOptions): string {
-  try {
-    // 先解析为 AST
-    const ast = parseFDFToAST(fdfText);
-    
-    // 转换为 FrameData
-    const transformer = new FDFTransformer();
-    const frames = transformer.transform(ast);
-    
-    // 重新导出（格式化）
-    const exporter = new FDFExporter(options);
-    return exporter.export(frames);
-  } catch (error) {
-    console.error('FDF 格式化错误:', error);
-    throw error;
-  }
-}
 
 // 导出所有类型和工具
 export * from './fdfAst';
