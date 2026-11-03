@@ -138,12 +138,12 @@
 | fdfParser.old.ts | **删除死代码** | `.old.` 命名旧解析器实现，零生产引用（真实路径 fdfParser.ts 内核）；8.4KB+18 测清除。testMdxParser/fdfTest 是有意的控制台调试工具（非死代码）保留 |
 | backdropEdgeRenderer.ts | **删除死代码** | 全部导出（BackdropEdgeRenderer/renderBackdropEdge）生产零引用；BackdropEdge.tsx 组件实际用 textureAtlas（WebGL 路径），本文件是被取代的 canvas 2D 旧实现；6.6KB+11 测清除 |
 | textureAtlas.ts | **修 1 缺陷** | extractSubTextures 缓存键 `${url}_${subSize}` 不含 layout——同纹理换布局命中错误缓存返回错误部件；已加 `JSON.stringify(layout)` 进键（removeCacheEntry 同步签名）。**测试认证 bug 第 5 例**：既有测试名直接写 "reuses cache cacheKey layout-independent"、注释明示 "cache key ignores layout"——缺陷被认证为期望。HORIZONTAL_BORDER_LAYOUT 的 TODO(P1) Hexrays 索引顺序差异已有诚实记录，不动 |
-| coordinateService+fdfImportExport | 通过+删死函数 | 数学由 5760 组穷举守卫覆盖；clampWc3/clampWc3Size 生产零引用（真实钳制在 frameTransforms.clampRectToCanvas）删除；转换函数有生产引用保留。fdfImportExport 是 MenuBar 用的纯 re-export facade |
+| coordinateService+fdfImportExport | 通过+删死函数 | 5760 穷举覆盖；clamp 死函数删除 |
 | anchorUtils.ts | **修 1 性能缺陷** | 求解主路径 21 条 console.log 在 SceneGraphManager.sync 热路径上（1371 帧真实数据每次同步数千条日志，性能+控制台淹没真实 warn）；已删热路径 log，保留 warn 与 updateAnchorsFromBounds 编辑路径 log。另：getFrameVersion 缓存键缺目标帧 width/height，属防御性缺失非当前缺陷（updateFrame 全量清缓存保证失效），未来做精细化失效必须补 |
-| fdf.ts 统一入口 | 通过+2 边界 | 双路径分支与 AGENTS.md 决策一致；parseFDFToAST 被 fdfImport/fdfTemplates 生产消费。边界：①validateFDF 的 warnings 恒空（预留通道未实现，仅 dev 工具消费）②formatFDF 经旧 transformer 有损风险但生产零引用（仅 fdfTest） |
+| fdf.ts 统一入口 | 通过+2 边界 | 双路径一致；warnings 恒空；formatFDF 有损但零消费 |
 | fdfExporter.roundtrip（新守卫） | 通过+守卫补齐 | 真实守卫只覆盖 lossless 分支（真实数据全带 rawProperties）——新 3 测覆盖**标准分支**（无 metadata）：Enhanced 导出→importFromFDFText→字段/转义/层级往返成立。Width 归一化语义（0.3/0.8=0.375 父宽比，渲染 ×父宽还原）以语义链断言。两次探针自身错误（parseFdf 返回 FdfFile 误用、regex 数帧类型标签而非帧名）——探针教训第 N 次验证 |
 | fdfIncludeResolver.ts | **删除死代码** | Node-only（fs/path import，浏览器/Tauri webview 不可用）+ 生产零引用；真实模板继承走 fdfTemplates.templateManager 路径。191 行+14 测清除 |
-| fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | mapFrameType FT 0-28 全覆盖（+100/101 别名）；exportTexture 的 TexCoord 顺序/AlphaMode/DecorateFileNames 与 exportUtils 一致；escapeString 数组多元素空格连接。fdfTemplates：循环继承 visited 防护、多级继承合并顺序正确（子覆盖父）。**边界**：applyTemplate 继承属性只进 fdfMetadata.rawProperties（不写可编辑字段）——导入带 INHERITS 的帧其继承 backdrop 在属性面板不可见，lossless 导出靠 rawProperties 保真，改动需产品决策 |
+| fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | FT 0-28 全覆盖；继承 visited 防护；applyTemplate 边界（产品决策） |
 | fdfImport.test mock 补齐 | test 侧修复 | mock templateManager 缺 loadTemplatesFromFile 致 tsc 测试侧 2 报错（生产无碍）；补 mock 后清零 |
 | 命令层 src/commands（9 文件全类） | 通过+1 边界 | 20 命令类全部有测试实例化（Frame 10/Align 3/AlignToCanvas/Size/ZIndex/Duplicate 2/Array 2）——无缺口。ZIndexCommand 语义：moveUp/Down 找相邻 z、边界 no-op 不写、bringToFront max+1/sendToBack min-1、undo/redo 存 old/new。**边界**：no-op 命令（已最高层再上移）仍入栈并清空 redo 栈——commandStore"新 execute 清 redo"设计语义的自然结果（类比 git empty commit），UX 细节记录不改。13 条 console.log 在用户操作路径非渲染热路径，保留 |
 | BackdropEdge.tsx+useTextureLoader | **删除死代码链** | 组件无任何 JSX 渲染点（WebGL 路径 SceneGraphManager.syncBackdropEdges 用 textureAtlas 取代）；useTextureLoader 唯一消费者是该孤儿、useTextureLoaderBatch 零消费。canvasHelpersWiring 相应用例随删（守卫 6 测）；useCanvasPan/useHotReloadSync 有活消费方（Canvas/HotReloadPanel）确认非死代码 |
@@ -191,6 +191,7 @@
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
 | templates.ts 补审（230） | 通过+清除 1 | 1197 行定性：52 模板+7 类（含 layout）+compositeTemplates 32 结构；getCategories 实含 layout（L835）——**r229 探针 slice 截断误判 P1，如实撤销**；getTemplateById 生产+测试零引用**删除**（-7 行）；SidePanel 消费链（templates/composite/getCategories/getTemplatesByCategory）完整 |
 | 盲区批审 2/15（231） | 通过 | useAlert（状态型 hook，6 消费方全接——App 经 prop 传递）；AboutDialog（Tauri 动态版本）；RaceSwitcher（store 链接）——三文件全净 |
+| renderer 小文件批审 5-10/15（232） | 通过+**盲区降级** | 6 文件全部有 tests/visual-regression 专属测试（57 it/90 expect，stub 0）+SceneGraphManager 单主消费——**纯盲区定性降级为账本未点名**；纯函数模块健康 |
 | 仓库状态与总账（196-200） | 通过+**定性修正** | main 干净；feature=架构分歧；git 总账 513 提交 |
 | Tauri 配置核查（199） | 通过+1 决策 | 版本一致；CSP null（用户决策） |
 | skipped（205） | 通过 | 5 skipped 有据 |
