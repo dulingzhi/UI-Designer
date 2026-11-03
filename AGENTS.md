@@ -110,7 +110,7 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-`2254 passed | 5 skipped` 测试（r250 canvasHelpers +12）
+`2263 passed | 5 skipped` 测试（r251 补漏 +9）
 - 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
 - `All files` 覆盖：`100 / 100 / 100 / 100`（r193 实测明细：Stmts 3212 / Branches 1858 / Funcs 439 / Lines 2911——漂移检测锚点）
 
@@ -123,7 +123,7 @@
 
 | 模块 | 结果 | 核心结论 |
 |---|---|---|
-| dataSource.ts | 通过 | loadList 降级可重试；大小写分层正确 |
+| dataSource.ts | 通过 | loadList 可重试 |
 | rustBridge.ts | 通过+1 决策 | blpData 内存膨胀 8 倍（性能决策项） |
 | kkweDetector+Rust | 通过+2 边界 | 检测失败不可区分；PID 外部约定 |
 | fileOperations.ts | **修 1** | 迁移悬空 parentId 不清理→永久化；已修（2 测） |
@@ -131,14 +131,14 @@
 | textureLoader.ts | **修 1** | evictLRU 反 LRU；已改+方向性 2 测 |
 | war3ProcessManager | **修 1** | isCurrentProcessRunning 漏 localStorage 恢复；已统一 |
 | mpqManager.ts | **修 1** | setWar3Path 并发→混合加载；代际守卫，58 测 |
-| blpDecoder.ts | 通过 | JPEG 占位系设计 |
+| blpDecoder.ts | 通过 | JPEG 占位设计 |
 | war3SkinsParser+textureLoader | **修 2** | skins 值带引号需 unquote（两处）；扁平映射段落感知 |
 | Rust lib.rs（20 命令） | 通过 | 白名单/include_bytes!/错误链/环境变量回退 |
-| codeExport 数值格式化 | 通过 | toFixed 全保护；0 值防御兜底 |
+| codeExport 数值 | 通过 | toFixed 全保护 |
 | fdfParser.old.ts | **删死代码** | 零引用；8.4KB+18 测清除 |
 | backdropEdgeRenderer.ts | **删死代码** | 零引用；6.6KB+11 测清除 |
 | textureAtlas.ts | **修 1** | 缓存键不含 layout；已加 JSON 进键（认证 bug 第 5 例） |
-| coordinateService+fdfImportExport | 通过+删死函数 | 5760 穷举覆盖；clamp 死函数删除 |
+| coordService | 通过+删死函数 | 5760 穷举 |
 | anchorUtils.ts | **修 1** | 热路径 21 条 console.log 已删；C2 补齐缓存键 |
 | fdf.ts 统一入口 | 通过+2 边界 | 双路径一致；warnings 恒空；formatFDF 有损但零消费 |
 | fdfExporter.roundtrip | 通过+守卫 | 标准分支 3 测；Width 归一化语义链 |
@@ -152,30 +152,30 @@
 | mdx_parser.rs | **修 1 DoS** | read_f32 unwrap_or(0) 巨大 count 死循环；改 ? 传播 12 处 |
 | blp_handler.rs | **修 1 panic** | mipmaps 空下溢；A3 已清 get_blp_info 死码 |
 | fdfTransformer 旧路径抽查 | 通过+定性 | 43 测守卫；几何核心抽查；双路径各得其所 |
-| fdfLexer+fdfAst | 通过 | 数字/标识符全支持；纯类型无逻辑 |
-| Rust 损坏输入测试（round 82） | test 补齐 | mdx 截断 VRTX（count=3 无数据字节）必须报错而非产零顶点 + 合法 3 顶点解析/bounds 计算——fixture 首版缺 geoset_size 字段探针自错（GEOS 内布局 size+sub-chunks）。cargo test 19/19 全绿；tcp_server/blp 的行为由类型/早退结构保证不额外建测 |
+| fdfLexer+fdfAst | 通过 | 全支持 |
+| Rust 损坏输入（82） | test 补齐 | mdx 截断须报错 |
 | hook 纯逻辑抽取（83-85） | test 抽取+feat | canvasViewTransforms 7 测/hotReloadLua 8 测；6 hook 缺口清零 |
-| 交互面与数据链核查（88-106） | 通过 | 十一次核查：修饰键/CustomEvent/画布/Toolbar/localStorage/uiStore/右键/DebugPanel/mpq/commandStore |
+| 交互面核查（88-106） | 通过 | 十一次核查 |
 | useKeyboardShortcuts（87） | **修 1** | Shift 精细步长恒 false；已加独立分支 |
 | 帮助面板虚标（90） | **修 1** | Ctrl+X/±/0 无实现；已补 |
-| 帮助面板反向对账（round 91） | docs 补全 | 已实现但未列：Ctrl+A 全选/Ctrl+Shift+A 反选/Ctrl+; 清参考线/Ctrl+, 偏好设置——补入 ShortcutHelp 编辑操作类。双向对账完成（宣称≠实现 r90 + 实现≠宣称 r91），帮助面板与 hook 全量一致 |
+| 帮助反向对账（91） | docs | 双向对账完成 |
 | MenuBar 虚标（92） | **修 1 误判**+补 4 快捷键 | App.tsx 独立监听器已实现；真虚标仅 Ctrl+1/2/9// |
 | 偏好设置死链（97） | **修 1** | 5/6 项零消费；实时同步+删 theme/language |
 | uiStore 选择类（105） | **修 1**+1 防御 | selectGroup 未同步 selectedFrameId；frameIds 防御 |
 | addFrame 幽灵帧（108） | **修 1 P1** | 悬空 parentId→幽灵帧；归一化根帧 |
 | BatchRemove undo（109） | **修 1** | 按拓扑序恢复（父先） |
-| Rust 补测与命令族（102-111） | 通过 | tcp_server 4 测+resolve_username 4 测；命令族核查完 |
+| Rust 补测（102-111） | 通过 | 4+4 测 |
 | updateFrame 悬空归一化修复（round 112） | **修 1 同族缺陷（第 8 处）** | parentId 变更路径无归一化：拖拽到已删父（悬空）不挂 children 又不入 rootFrameIds（仅对 null 判定）→ 幽灵帧在 updateFrame 路径复发。修复：悬空归一化根帧（与 addFrame r108 统一），rootFrameIds 判定改用归一化值。+3 测（悬空/正常父/拖回根）。2109 测全绿 |
-| CreateFrame/重命名核查（114） | 通过 | 快照稳定；20 命令类核查完毕 |
+| CreateFrame（114） | 通过 | 20 命令类核查 |
 | 生产构建修复（120） | **修 1 P1** | tsconfig.build 修复 95 测试侧报错阻塞；vite 4.72s 绿 |
 | 编辑器健壮性收口（126-142） | feat 3+修 10 | 多选同步/存档环/NaN 矩阵/组合命令/dirty 防护 |
 | 构建与健壮性收口（115-125） | 通过+修 8 | 存档链/归一化/undo 上限/tsconfig.build/manualChunks |
-| 宣称对账与补齐（90-157） | 修 2 误删+feat | 双向对账；Ctrl+F；PNG 恢复 |
+| 宣称对账（90-157） | 修 2 误删 | 双向对账 |
 | 锚定缩放体系（rounds 159-161 归并） | feat 3 入口统一 | Alt+滚轮鼠标锚定（computeWheelZoomAt 数学 offset'=offset+w(scale-scale')+ref 镜像接线+3 测）→ handle setScale 视口中心锚定（r160）→ 右下角 ±/重置按钮抽出 zoomTo 统一（r161，原直调原始 setScale 绕过接口）——三入口行为一致，computeWheelScale 降为内部步进函数；coverage 复验 100×4 |
-| 生命周期（165-166） | 修 1 | rAF 清理 |
+| 生命周期（165-166） | 修 1 | rAF |
 | 夹具核查（168-173） | 补强 | 夹具非空 |
 | 组件定性（174-190） | 修 3+清 3 | key→path；孤儿清除 |
-| 技术债（195） | 通过 | TODO 1 处 |
+| 技术债（195） | 通过 | TODO 1 |
 | CSS 孤儿（208） | 清 310 行 | 配对扫描 |
 | CI 配置（210） | 通过+1 决策 | pnpm vs bun |
 | tests（211） | 通过 | dev 脚本 |
@@ -190,7 +190,7 @@
 | **决策项 13 项全部实施（236）** | 用户"都做"批准 | ①appInterface 删除（24 文件）②editBorderSize 两端闭环（UI+导出+3 测）③applyTemplate 写回已实施（20 键白名单与 enhanceFrameWithFDF 同语义，几何不写回，+3 测——初判"保持现状"被推翻重做）④热重载用户名重构（常量→函数+App 启动填充，81468→DefaultUser）⑤多选复制/粘贴（clipboardFrames+2 命令+2 测）⑥ProjectTree 键盘导航（方向键/Enter+纯函数 3 测）⑦⑧mdx 分歧收敛（远端分支删除，main TS 渲染器路径保留）⑨CSP 生产加固（devCsp 留空护 HMR）⑩capabilities 真收窄（opener 插件三处全删+dialog 三权限删，cargo 19/19）⑪lockfile 入库（29 文件+2233 行）⑫serializer 死代码删除（-90 行-7 测）——**"都做"下 fs:scope `**` 经功能核查保留**（热重载写任意 War3 目录+任意 MPQ 纹理读取为硬需求，收窄必破坏核心功能，如实记录不硬改） |
 | 功能完善批次（237） | 用户"按建议全部做"批准 | **A1 SliderLayout 两端闭环**——openwar3 widgets.ts L903 实证为 FDF 无值标志属性，**推翻旧账本"无模板属性"定性**；transformer flag 解析+UI Checkbox（boolean 错位修正）+导出 flag 行+4 测，运行时无方向 API 不接；**A2 validateFDF warnings**——原文引号奇偶预扫（token.value 已剥引号不可计数），+2 测；**A3 get_blp_file_info 删除**（rustBridge.getBLPInfo 连带）；**A4 formatFDF 有损删除**；**C1 blpData 二进制传输**——Rust Request+extract_raw 替代 JSON 数组 8 倍膨胀，parse_mdx_bytes 核心共用，mipmap 混合参数留 JSON；**C2 getFrameVersion 补目标帧 width/height**——基线 2132→**2134** |
 | A3 收尾+mdx 补审（238） | "继续"轮 | blp_handler.rs get_blp_info/BlpInfo 删除（命令删除后的 Rust 内部死代码）+rustBridge 前端 BlpInfo 类型连带，cargo 19/19；**mdx 渲染器补审**：interpolation.ts（208L 纯数学）全文定性通过（Hermite 基函数标准/边界完备/t=0 兜底+单帧保持语义探针实证——2 处测试预期错系未读 unshift 兜底，非源码缺陷）+7 测；其余 6 文件 three.js 场景构件与 SceneGraphManager 同档由集成路径覆盖——**穷尽性缺口 mdx 角闭合，131→128 可单测生产文件全部定性**。基线 2134→**2141** |
-| jsdom 渲染级测试（239） | "继续"轮 | 引入 **jsdom 30.1.3 + @testing-library/react 16.3.3**（devDependencies，锁文件已入库）；vitest include 增 `src/**/*.test.tsx`；渲染级守卫 18 文件 113 测：`propertiesWiringRender.test.tsx`（4）+`propertyEditorsRender.test.tsx`（6，Switch 自定义 div 无 checkbox/FilePath 签名 string 非 undefined——断言须按实现修正）+`projectTreeRender.test.tsx`（4，**决策项 6 键盘导航首次端到端验证**：真实 DOM keyDown + 真实 store 联动，含折叠/展开与选中移动）+`toolbarRender.test.tsx`（4，undo/redo 真实禁用态与点击分发；title 含快捷键后缀须前缀匹配）——真渲染 TypeSpecificProperties 断言 backdrop 字段值可见 + **input 事件真触发 handleChange 回写**（此前 112 测 wiring 全为静态字符串断言，无法验证运行时可交互性）。**探针教训 4 则**：①`@vitest-environment jsdom` 必须在文件头部注释块（放 import 后无效→document undefined）②组件是具名导出（默认导入→Element type is invalid）③环境装好后须验证既有套件不受影响（实测 143/145 文件全绿）④键盘 handler 闭包读 render 时快照——测试须经 UI 触发 re-render（直接调 store 后不重渲染，handler 仍持旧值）。静态守卫保留为两层（静态锁字段覆盖+渲染锁可交互），不替换。基线→**2165** |
+| jsdom 渲染级测试（239） | "继续"轮 | 引入 **jsdom 30.1.3 + @testing-library/react 16.3.3**（devDependencies，锁文件已入库）；vitest include 增 `src/**/*.test.tsx`；渲染级守卫 19 文件 122 测：`propertiesWiringRender.test.tsx`（4）+`propertyEditorsRender.test.tsx`（6，Switch 自定义 div 无 checkbox/FilePath 签名 string 非 undefined——断言须按实现修正）+`projectTreeRender.test.tsx`（4，**决策项 6 键盘导航首次端到端验证**：真实 DOM keyDown + 真实 store 联动，含折叠/展开与选中移动）+`toolbarRender.test.tsx`（4，undo/redo 真实禁用态与点击分发；title 含快捷键后缀须前缀匹配）——真渲染 TypeSpecificProperties 断言 backdrop 字段值可见 + **input 事件真触发 handleChange 回写**（此前 112 测 wiring 全为静态字符串断言，无法验证运行时可交互性）。**探针教训 4 则**：①`@vitest-environment jsdom` 必须在文件头部注释块（放 import 后无效→document undefined）②组件是具名导出（默认导入→Element type is invalid）③环境装好后须验证既有套件不受影响（实测 143/145 文件全绿）④键盘 handler 闭包读 render 时快照——测试须经 UI 触发 re-render（直接调 store 后不重渲染，handler 仍持旧值）。静态守卫保留为两层（静态锁字段覆盖+渲染锁可交互），不替换。基线→**2165** |
 | **MenuBar canUndo 缺陷（241）** | **修 1 P1（渲染级首次抓到）** | `disabled: !canUndo` 取函数引用恒 false → 撤销/重做菜单项**永远不禁用**（应 `!canUndo()`）；同文件 Toolbar 写法正确，单点笔误。静态守卫只锁字符串存在（**把 bug 当期望锁死**），jsdom 真实 className 断言才暴露——**证明静态 wiring 的根本局限**。+menuBarRender.test.tsx（6 测：菜单展开/收起/禁用态/点击分发） |
 | 偏好/batchEdit（242） | **修 2 P1（渲染级第二次抓到）** | ①`preferencesRender`（5 测）验证 round 97 修复运行时成立（保存真同步 uiStore 三画布项）；探针纠错：`showAnchors` 不在 Preferences 契约内，不臆造断言。②`batchEditRender`（6 测）**抓到 P1**：多帧分支只 `pushCommand`（只入栈不 execute）→ **批量改宽高对多选帧完全不生效**（单帧正常），已改先 `composite.execute()` 再入栈；附带 `cmds.length===0` 空组合命令幽灵步骤已加 guard。③batchEditPanelWiring 旧断言**把缺陷当期望锁死**（只查 pushCommand 存在），已改锁顺序语义 |
 | arrayDialogs+hotReload（243） | 渲染级升级（无缺陷） | `arrayDialogsRender`（6 测）：默认参数提交、NaN 兜底回落 1、行×列>100 触发告警不直接创建、关闭回调；`hotReloadPanelRender`（5 测）：开关默认关闭、防抖数字输入、关闭回调。**探针纠错 2 处**：①Props 是 `onSubmit` 非 `onCreate`、提交键是 `type="submit"`②HotReload 面板无路径文本框（路径来自 KKWE 自动检测）、防抖输入非受控（DOM 值不回写）——**两处均按实现修正断言，不臆造期望**。本轮无缺陷发现（该两处实现正确） |
@@ -201,6 +201,7 @@
 | propertiesPanel（248） | **r242 P1 回归守卫落地** | `propertiesPanelRender`（6 测）验证三分支路由：无选中→空态（**不渲染编辑器**）/多选→BatchEditPanel（标题含控件数）/单选→单帧编辑器。**核心价值**：多选批量改宽度用例**同时断言三帧都变**——r242 修掉的"只入栈不执行"缺陷若复发会被立即捕获（此前该缺陷无回归守卫）。探针纠错 1 处：帧名渲染在 `<input value>` 非 textContent |
 | miscPanels（249） | 渲染级升级（无缺陷） | `miscPanelsRender`（10 测）：ConfirmDialog（标题/消息、确认/取消、**遮罩点击取消**、**内容区 stopPropagation 防误关**）；RaceSwitcher（**未加载 war3Skins 时 return null**=设计"无线可切"、展开下拉见 5 族、点击真调 `setRace`）；ResizeHandles（isSelected=true 渲染 **8 方向手柄**、false 不渲染、mousedown 第二参为方向串）。**探针纠错 3 处**：①类名 `.confirm-dialog-overlay`/`.confirm-dialog` ②**RaceSwitcher 在 `!project.war3Skins` 时 return null**，须显式构造完整 project——**对 `undefined` 浅展开得空对象是本轮 4 次反复失败的根因**③ResizeHandles props 仅 `isSelected`+`onResizeStart`（无坐标） |
 | canvasHelpers（250） | 渲染级升级（无缺陷） | `canvasHelpersRender`（12 测）：GuideLine（渲染元素、位置以像素体现、删除回调带 id、垂直参考线）；Ruler（**SVG `<line>`/`<text>` 刻度**、**刻度密度随 scale 真实变化**——scale=1 与 0.2 数量不同证明未硬编码、垂直标尺、WC3 坐标文本）；AnchorVisualizer（未选中不渲染/无锚点不崩溃/TL+BR 双锚点/坐标三位小数）。**探针纠错**：Ruler 用 SVG 非 div |
+| 补漏 3 组件（251） | 两层对齐 | **r250 结论自我修正**：核验发现静态 wiring 覆盖 29 组件、渲染级仅 26 → 补 `coverageGapsRender`（9 测）：DebugPanel（**需 `scale`+`isVisible`**，false 时 return null；**精度分层实测**——屏幕 `toFixed(0)`/WC3 `toFixed(5)`/选中帧 `toFixed(3)`，纠正"统一三位小数"误判）、LazyTexturePreview（jsdom 无 IntersectionObserver 走降级不加载）、FrameGroupPanel（读 **`project.frameGroups`** 非 `groups`）。**至此静态↔渲染两层一一对应** |
 | 浏览器可行性（240） | **docs/BROWSER_FEASIBILITY.md** | 22 生产文件依赖 @tauri-apps；**14 invoke 中 9 个可 WASM 化**（blp/mpq/mdx/template 纯字节解析），**3 个平台能力缺失**（get_username 隐私/socket 监听/进程 API）。有利：C1 raw binary 天然兼容 WASM、核心算法全 TS 侧、Rust 仅 933 行。**A=WASM 化（5-7 天）/B=纯 FDF 编辑器（1-2 天）/C=完整还原不可行**（平台边界非工程量）。建议先 B 再 A |
 | MenuBar/Toolbar 对账（225） | 通过 | 8+7 named 全定义 |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |
@@ -219,7 +220,7 @@
 **共性教训**：①零引用扫描先行；②pwsh 批量文本替换跨 CRLF 会静默未命中——替换后必须 grep 验证（tsc "参数未使用"曾救场）；③测试认证 bug 反复出现，方向性/淘汰对象级断言不可省。
 ### 组件层接线守卫汇总（rounds 27-47，结论）
 
-wiring 守卫两层：**20 个静态断言文件（114 测）+ 18 个 jsdom 渲染（113 测，r239-250）**。静态断言（读源码字符串）因未装 jsdom 而存在；r239 引入 jsdom 30.1.3+RTL 16.3.3 后新增 `propertiesWiringRender.test.tsx` 验证真渲染与 onChange 回写。剩余 19 个静态文件可逐步升级（每文件需 mock Tauri API/store 依赖）。
+wiring 守卫两层：**20 个静态断言文件（114 测）+ 19 个 jsdom 渲染（122 测，r239-251）**。静态断言（读源码字符串）因未装 jsdom 而存在；r239 引入 jsdom 30.1.3+RTL 16.3.3 后新增 `propertiesWiringRender.test.tsx` 验证真渲染与 onChange 回写。剩余 19 个静态文件可逐步升级（每文件需 mock Tauri API/store 依赖）。
 properties(13)/anchorEditor(6)/propertyEditors(5)/batchEdit(5)/arrayDialogs(6)/projectTree(8)/hotReloadPanel(5)/
 textureBrowser(6)/presetGroup(6)/preferences(5)/mdxViewer(5)/canvas(6)/toolbarMenuBar(5)/
 utilityPanels(5)/propertiesPanel(5)/sidePanel(5)/canvasHelpers(6)/anchorVizHandles(4)/miscPanels(4)。
