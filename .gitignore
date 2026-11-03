@@ -44,3 +44,6 @@ tests/ow3compare/browser/_psnr_*.png
 tests/ow3compare/browser/_t*.rgba
 tests/ow3compare/browser/_t*.meta.json
 tests/ow3compare/browser/_t*.png
+
+# 临时提交信息文件
+_msg.txt
