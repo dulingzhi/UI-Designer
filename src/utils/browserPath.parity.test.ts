@@ -49,6 +49,11 @@ Frame "TEXT" "Label" {
 `;
 
 describe('浏览器模式端到端：FDF 解析链路', () => {
+  // 超时放宽到 30s：本文件多个用例 `await import(...)` 会拉入内核
+  // parser/transformer/layout 整张模块图（冷启动实测 ~300ms，但高负载机器上
+  // 可达数秒）。这些用例断言的是**正确性**而非性能，默认 5s 会随机误报。
+  const E2E = 30_000;
+
   it('importFromFDFText 在浏览器模式解析真实 FDF（无 Tauri 依赖）', async () => {
     const { importFromFDFText } = await import('./fdfImport');
     const frames = importFromFDFText(SAMPLE_FDF);
@@ -59,7 +64,7 @@ describe('浏览器模式端到端：FDF 解析链路', () => {
     // 文本与对齐字段真写回（非仅 meta）
     const label = frames.find(f => f.name === 'Label')!;
     expect(label.text).toBe('Hello Browser');
-  });
+  }, E2E);
 
   it('parseFDF（内核 layout）在浏览器模式可用', async () => {
     const { parseFDF } = await import('./fdf');
@@ -69,7 +74,7 @@ describe('浏览器模式端到端：FDF 解析链路', () => {
     const bg = frames.find(f => f.name === 'Bg');
     expect(bg).toBeTruthy();
     expect(bg!.width).toBeGreaterThan(0);
-  });
+  }, E2E);
 
   it('exportToFDF 浏览器分支触发下载且产物可被再解析（往返闭合）', async () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
@@ -107,5 +112,5 @@ describe('浏览器模式端到端：FDF 解析链路', () => {
     const back = importFromFDFText(fdfText);
     expect(back.length).toBeGreaterThan(0);
     expect(back.some(f => f.name === 'Btn')).toBe(true);
-  });
+  }, E2E);
 });

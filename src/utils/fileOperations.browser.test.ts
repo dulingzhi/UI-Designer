@@ -8,6 +8,12 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// 超时放宽：`beforeEach` 调用 `vi.resetModules()`，因此**每个用例**的首次
+// `await import('./fileOperations')` 都要重新加载整张模块图（含 exportUtils/
+// fdfImport/内核 parser 等）。高负载机器上冷启动可达数秒，默认 5s 会随机误报。
+// 本文件断言的是**浏览器分支行为正确性**，不是性能。
+vi.setConfig({ testTimeout: 30_000 });
+
 const origUA = Object.getOwnPropertyDescriptor(window.navigator, 'userAgent');
 
 /** 强制进入"真实浏览器"判定（UA 去掉 jsdom 且无 Tauri）。 */

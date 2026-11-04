@@ -1,18 +1,37 @@
-//! Huffman compression implementation for MPQ archives (StormLib-compatible)
+//! MPQ Huffman 解压（StormLib `huff.cpp` 的 FGK 自适应变体）。
 //!
-//! This is a complete rewrite to match StormLib's linked list approach.
-//! Based on the algorithm from Ladislav Zezula's StormLib.
+//! ## 为什么必须重写（实证）
+//! 上游 `wow-mpq 0.3.2` 的这一份实现是**静态树**：先按权重表一次建树、
+//! 解码过程中**从不更新权重重平衡**。而 MPQ 的 Huffman 实际是
+//! **Faller-Gallager-Knuth 自适应**算法：
+//! - 遇到 NYT（0x101）符号时读一个原始字节，把它**插入为新分支**并重平衡；
+//! - 每解码一个符号都 `incWeightsAndRebalance`，权重沿父链递增并做兄弟交换。
+//!
+//! 静态树在**首个字节**就出错，此后整段码流走偏。war3.mpq 的实测表现是
+//! 输出退化成常量 `0x4E`（78），随后 ADPCM 报
+//! "Invalid ADPCM bit shift value: 78"——而同一份 ADPCM 在参考实现给出的
+//! 正确 Huffman 中间数据上**逐字节一致**（已用 `verify_adpcm` 证）。
+//!
+//! 结论：缺陷单点在 Huffman；ADPCM / ZLIB / MPQ 读取均正确。
+//!
+//! ## 与参考实现的关系
+//! 算法照 StormLib `huff.cpp`（Ladislav Zezula，MIT）。
+//! 参考实现 openwar3（mdx-m3-viewer `parsers/mpq/huffman.js`）是同一份的
+//! 忠实移植，本文件按其结构在 Rust 侧重写，并已与参考输出**逐字节对拍**。
+//!
+//! ## 数据流方向
+//! `decode` 内部用位流 LSB-first（与 StormLib `TInputStream` 一致）；
+//! 调用方（`decompress`）负责剥掉扇区开头的压缩掩码字节。
 
 use crate::{Error, Result};
 
-// Huffman tree constants
-const HUFF_ITEM_COUNT: usize = 0x203; // Number of items in the item pool
-const LINK_ITEM_COUNT: usize = 0x80; // Maximum number of quick-link items
-const HUFF_DECOMPRESS_ERROR: u32 = 0x1FF;
-
-// All weight tables from StormLib - these define the initial character frequencies
-const BYTE_TO_WEIGHT_00: [u8; 258] = [
-    0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+/// 数据分布类型 0..8 的初始字节权重表（StormLib `DataDistribution_*`，各 256 字节）。
+///
+/// 索引是「数据分布类型」（压缩流的第一个字节 & 0x0F），值是各字节的初始权重
+/// （0 表示该字节初始不出现，只能通过 NYT 动态插入）。
+/// 数据分布类型 0 的初始字节权重表。
+const DIST_0: [u8; 256] = [
+    0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -28,38 +47,38 @@ const BYTE_TO_WEIGHT_00: [u8; 258] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_01: [u8; 258] = [
-    0x54, 0x16, 0x16, 0x0D, 0x0C, 0x08, 0x06, 0x05, 0x06, 0x05, 0x06, 0x03, 0x04, 0x04, 0x03, 0x05,
-    0x0E, 0x0B, 0x14, 0x13, 0x13, 0x09, 0x0B, 0x06, 0x05, 0x04, 0x03, 0x02, 0x03, 0x02, 0x02, 0x02,
-    0x0D, 0x07, 0x09, 0x06, 0x06, 0x04, 0x03, 0x02, 0x04, 0x03, 0x03, 0x03, 0x03, 0x03, 0x02, 0x02,
+/// 数据分布类型 1 的初始字节权重表。
+const DIST_1: [u8; 256] = [
+    0x54, 0x16, 0x16, 0x0d, 0x0c, 0x08, 0x06, 0x05, 0x06, 0x05, 0x06, 0x03, 0x04, 0x04, 0x03, 0x05,
+    0x0e, 0x0b, 0x14, 0x13, 0x13, 0x09, 0x0b, 0x06, 0x05, 0x04, 0x03, 0x02, 0x03, 0x02, 0x02, 0x02,
+    0x0d, 0x07, 0x09, 0x06, 0x06, 0x04, 0x03, 0x02, 0x04, 0x03, 0x03, 0x03, 0x03, 0x03, 0x02, 0x02,
     0x09, 0x06, 0x04, 0x04, 0x04, 0x04, 0x03, 0x02, 0x03, 0x02, 0x02, 0x02, 0x02, 0x03, 0x02, 0x04,
     0x08, 0x03, 0x04, 0x07, 0x09, 0x05, 0x03, 0x03, 0x03, 0x03, 0x02, 0x02, 0x02, 0x03, 0x02, 0x02,
     0x03, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02,
-    0x06, 0x0A, 0x08, 0x08, 0x06, 0x07, 0x04, 0x03, 0x04, 0x04, 0x02, 0x02, 0x04, 0x02, 0x03, 0x03,
+    0x06, 0x0a, 0x08, 0x08, 0x06, 0x07, 0x04, 0x03, 0x04, 0x04, 0x02, 0x02, 0x04, 0x02, 0x03, 0x03,
     0x04, 0x03, 0x07, 0x07, 0x09, 0x06, 0x04, 0x03, 0x03, 0x02, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02,
-    0x0A, 0x02, 0x02, 0x03, 0x02, 0x02, 0x01, 0x01, 0x02, 0x02, 0x02, 0x06, 0x03, 0x05, 0x02, 0x03,
+    0x0a, 0x02, 0x02, 0x03, 0x02, 0x02, 0x01, 0x01, 0x02, 0x02, 0x02, 0x06, 0x03, 0x05, 0x02, 0x03,
     0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x03, 0x01, 0x01, 0x01,
-    0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x04, 0x04, 0x04, 0x07, 0x09, 0x08, 0x0C, 0x02,
+    0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x04, 0x04, 0x04, 0x07, 0x09, 0x08, 0x0c, 0x02,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x03,
     0x04, 0x01, 0x02, 0x04, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01,
     0x04, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-    0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x01, 0x01, 0x02, 0x02, 0x02, 0x06, 0x4B,
-    0x00, 0x00,
+    0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x01, 0x01, 0x02, 0x02, 0x02, 0x06, 0x4b,
 ];
 
-const BYTE_TO_WEIGHT_02: [u8; 258] = [
+/// 数据分布类型 2 的初始字节权重表。
+const DIST_2: [u8; 256] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x27, 0x00, 0x00, 0x23, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0xFF, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x01, 0x01, 0x06, 0x0E, 0x10, 0x04,
+    0xff, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x01, 0x01, 0x06, 0x0e, 0x10, 0x04,
     0x06, 0x08, 0x05, 0x04, 0x04, 0x03, 0x03, 0x02, 0x02, 0x03, 0x03, 0x01, 0x01, 0x02, 0x01, 0x01,
     0x01, 0x04, 0x02, 0x04, 0x02, 0x02, 0x02, 0x01, 0x01, 0x04, 0x01, 0x01, 0x02, 0x03, 0x03, 0x02,
     0x03, 0x01, 0x03, 0x06, 0x04, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x02, 0x01, 0x01,
-    0x01, 0x29, 0x07, 0x16, 0x12, 0x40, 0x0A, 0x0A, 0x11, 0x25, 0x01, 0x03, 0x17, 0x10, 0x26, 0x2A,
-    0x10, 0x01, 0x23, 0x23, 0x2F, 0x10, 0x06, 0x07, 0x02, 0x09, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00,
+    0x01, 0x29, 0x07, 0x16, 0x12, 0x40, 0x0a, 0x0a, 0x11, 0x25, 0x01, 0x03, 0x17, 0x10, 0x26, 0x2a,
+    0x10, 0x01, 0x23, 0x23, 0x2f, 0x10, 0x06, 0x07, 0x02, 0x09, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -68,31 +87,31 @@ const BYTE_TO_WEIGHT_02: [u8; 258] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_03: [u8; 258] = [
-    0xFF, 0x0B, 0x07, 0x05, 0x0B, 0x02, 0x02, 0x02, 0x06, 0x02, 0x02, 0x01, 0x04, 0x02, 0x01, 0x03,
+/// 数据分布类型 3 的初始字节权重表。
+const DIST_3: [u8; 256] = [
+    0xff, 0x0b, 0x07, 0x05, 0x0b, 0x02, 0x02, 0x02, 0x06, 0x02, 0x02, 0x01, 0x04, 0x02, 0x01, 0x03,
     0x09, 0x01, 0x01, 0x01, 0x03, 0x04, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01,
-    0x05, 0x01, 0x01, 0x01, 0x0D, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x05, 0x01, 0x01, 0x01, 0x0d, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x02, 0x01, 0x01, 0x03, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01, 0x01,
-    0x0A, 0x04, 0x02, 0x01, 0x06, 0x03, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x01, 0x01, 0x01,
+    0x0a, 0x04, 0x02, 0x01, 0x06, 0x03, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x01, 0x01, 0x01,
     0x05, 0x02, 0x03, 0x04, 0x03, 0x03, 0x03, 0x02, 0x01, 0x01, 0x01, 0x02, 0x01, 0x02, 0x03, 0x03,
     0x01, 0x03, 0x01, 0x01, 0x02, 0x05, 0x01, 0x01, 0x04, 0x03, 0x05, 0x01, 0x03, 0x01, 0x03, 0x03,
-    0x02, 0x01, 0x04, 0x03, 0x0A, 0x06, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-    0x02, 0x02, 0x01, 0x0A, 0x02, 0x05, 0x01, 0x01, 0x02, 0x07, 0x02, 0x17, 0x01, 0x05, 0x01, 0x01,
-    0x0E, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x02, 0x01, 0x04, 0x03, 0x0a, 0x06, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x02, 0x02, 0x01, 0x0a, 0x02, 0x05, 0x01, 0x01, 0x02, 0x07, 0x02, 0x17, 0x01, 0x05, 0x01, 0x01,
+    0x0e, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x06, 0x02, 0x01, 0x04, 0x05, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x07, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01, 0x01,
     0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x11,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_04: [u8; 258] = [
-    0xFF, 0xFB, 0x98, 0x9A, 0x84, 0x85, 0x63, 0x64, 0x3E, 0x3E, 0x22, 0x22, 0x13, 0x13, 0x18, 0x17,
+/// 数据分布类型 4 的初始字节权重表。
+const DIST_4: [u8; 256] = [
+    0xff, 0xfb, 0x98, 0x9a, 0x84, 0x85, 0x63, 0x64, 0x3e, 0x3e, 0x22, 0x22, 0x13, 0x13, 0x18, 0x17,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -108,14 +127,14 @@ const BYTE_TO_WEIGHT_04: [u8; 258] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_05: [u8; 258] = [
-    0xFF, 0xF1, 0x9D, 0x9E, 0x9A, 0x9B, 0x9A, 0x97, 0x93, 0x93, 0x8C, 0x8E, 0x86, 0x88, 0x80, 0x82,
-    0x7C, 0x7C, 0x72, 0x73, 0x69, 0x6B, 0x5F, 0x60, 0x55, 0x56, 0x4A, 0x4B, 0x40, 0x41, 0x37, 0x37,
-    0x2F, 0x2F, 0x27, 0x27, 0x21, 0x21, 0x1B, 0x1C, 0x17, 0x17, 0x13, 0x13, 0x10, 0x10, 0x0D, 0x0D,
-    0x0B, 0x0B, 0x09, 0x09, 0x08, 0x08, 0x07, 0x07, 0x06, 0x05, 0x05, 0x04, 0x04, 0x04, 0x19, 0x18,
+/// 数据分布类型 5 的初始字节权重表。
+const DIST_5: [u8; 256] = [
+    0xff, 0xf1, 0x9d, 0x9e, 0x9a, 0x9b, 0x9a, 0x97, 0x93, 0x93, 0x8c, 0x8e, 0x86, 0x88, 0x80, 0x82,
+    0x7c, 0x7c, 0x72, 0x73, 0x69, 0x6b, 0x5f, 0x60, 0x55, 0x56, 0x4a, 0x4b, 0x40, 0x41, 0x37, 0x37,
+    0x2f, 0x2f, 0x27, 0x27, 0x21, 0x21, 0x1b, 0x1c, 0x17, 0x17, 0x13, 0x13, 0x10, 0x10, 0x0d, 0x0d,
+    0x0b, 0x0b, 0x09, 0x09, 0x08, 0x08, 0x07, 0x07, 0x06, 0x05, 0x05, 0x04, 0x04, 0x04, 0x19, 0x18,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -128,19 +147,19 @@ const BYTE_TO_WEIGHT_05: [u8; 258] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_06: [u8; 258] = [
-    0xC3, 0xCB, 0xF5, 0x41, 0xFF, 0x7B, 0xF7, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+/// 数据分布类型 6 的初始字节权重表。
+const DIST_6: [u8; 256] = [
+    0xc3, 0xcb, 0xf5, 0x41, 0xff, 0x7b, 0xf7, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0xBF, 0xCC, 0xF2, 0x40, 0xFD, 0x7C, 0xF7, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xbf, 0xcc, 0xf2, 0x40, 0xfd, 0x7c, 0xf7, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x7A, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x7a, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -148,19 +167,19 @@ const BYTE_TO_WEIGHT_06: [u8; 258] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_07: [u8; 258] = [
-    0xC3, 0xD9, 0xEF, 0x3D, 0xF9, 0x7C, 0xE9, 0x1E, 0xFD, 0xAB, 0xF1, 0x2C, 0xFC, 0x5B, 0xFE, 0x17,
+/// 数据分布类型 7 的初始字节权重表。
+const DIST_7: [u8; 256] = [
+    0xc3, 0xd9, 0xef, 0x3d, 0xf9, 0x7c, 0xe9, 0x1e, 0xfd, 0xab, 0xf1, 0x2c, 0xfc, 0x5b, 0xfe, 0x17,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0xBD, 0xD9, 0xEC, 0x3D, 0xF5, 0x7D, 0xE8, 0x1D, 0xFB, 0xAE, 0xF0, 0x2C, 0xFB, 0x5C, 0xFF, 0x18,
+    0xbd, 0xd9, 0xec, 0x3d, 0xf5, 0x7d, 0xe8, 0x1d, 0xfb, 0xae, 0xf0, 0x2c, 0xfb, 0x5c, 0xff, 0x18,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x70, 0x6C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x70, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -168,710 +187,384 @@ const BYTE_TO_WEIGHT_07: [u8; 258] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
 ];
 
-const BYTE_TO_WEIGHT_08: [u8; 258] = [
-    0xBA, 0xC5, 0xDA, 0x33, 0xE3, 0x6D, 0xD8, 0x18, 0xE5, 0x94, 0xDA, 0x23, 0xDF, 0x4A, 0xD1, 0x10,
-    0xEE, 0xAF, 0xE4, 0x2C, 0xEA, 0x5A, 0xDE, 0x15, 0xF4, 0x87, 0xE9, 0x21, 0xF6, 0x43, 0xFC, 0x12,
+/// 数据分布类型 8 的初始字节权重表。
+const DIST_8: [u8; 256] = [
+    0xba, 0xc5, 0xda, 0x33, 0xe3, 0x6d, 0xd8, 0x18, 0xe5, 0x94, 0xda, 0x23, 0xdf, 0x4a, 0xd1, 0x10,
+    0xee, 0xaf, 0xe4, 0x2c, 0xea, 0x5a, 0xde, 0x15, 0xf4, 0x87, 0xe9, 0x21, 0xf6, 0x43, 0xfc, 0x12,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0xB0, 0xC7, 0xD8, 0x33, 0xE3, 0x6B, 0xD6, 0x18, 0xE7, 0x95, 0xD8, 0x23, 0xDB, 0x49, 0xD0, 0x11,
-    0xE9, 0xB2, 0xE2, 0x2B, 0xE8, 0x5C, 0xDD, 0x15, 0xF1, 0x87, 0xE7, 0x20, 0xF7, 0x44, 0xFF, 0x13,
+    0xb0, 0xc7, 0xd8, 0x33, 0xe3, 0x6b, 0xd6, 0x18, 0xe7, 0x95, 0xd8, 0x23, 0xdb, 0x49, 0xd0, 0x11,
+    0xe9, 0xb2, 0xe2, 0x2b, 0xe8, 0x5c, 0xdd, 0x15, 0xf1, 0x87, 0xe7, 0x20, 0xf7, 0x44, 0xff, 0x13,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x5F, 0x9E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x5f, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-// Weight tables lookup - all 9 tables that StormLib supports
-const WEIGHT_TABLES: [&[u8; 258]; 9] = [
-    &BYTE_TO_WEIGHT_00,
-    &BYTE_TO_WEIGHT_01,
-    &BYTE_TO_WEIGHT_02,
-    &BYTE_TO_WEIGHT_03,
-    &BYTE_TO_WEIGHT_04,
-    &BYTE_TO_WEIGHT_05,
-    &BYTE_TO_WEIGHT_06,
-    &BYTE_TO_WEIGHT_07,
-    &BYTE_TO_WEIGHT_08,
+const DATA_DISTRIBUTIONS: [&[u8; 256]; 9] = [
+    &DIST_0, &DIST_1, &DIST_2, &DIST_3, &DIST_4, &DIST_5, &DIST_6, &DIST_7, &DIST_8,
 ];
 
-/// Bit stream reader for Huffman decompression
-struct BitReader<'a> {
+/// 「数据是稀疏的」分布类型：不按常规做权重递增（StormLib `DATA_TYPE_SPARSE`）。
+const DATA_TYPE_SPARSE: u8 = 0x00;
+/// 解码失败哨兵（StormLib `HUFF_DECOMPRESS_ERROR`）。
+const HUFF_DECOMPRESS_ERROR: u16 = 0x1FF;
+/// 结束符号（StormLib `HUFF_END_OF_STREAM`）。
+const HUFF_END_OF_STREAM: u16 = 0x100;
+/// NYT（Not-Yet-Transmitted）：表示「下一个字节是原始字节，需插入树中」。
+const HUFF_NYT: u16 = 0x101;
+
+// ---------------------------------------------------------------------------
+// LSB-first 位流（对应 StormLib TInputStream）
+// ---------------------------------------------------------------------------
+
+struct BitStream<'a> {
     data: &'a [u8],
-    position: usize,
+    pos: usize,
     bit_buffer: u32,
     bit_count: u32,
 }
 
-impl<'a> BitReader<'a> {
+impl<'a> BitStream<'a> {
     fn new(data: &'a [u8]) -> Self {
         Self {
             data,
-            position: 0,
+            pos: 0,
             bit_buffer: 0,
             bit_count: 0,
         }
     }
 
-    fn get_bit(&mut self) -> Result<u32> {
+    /// 读 1 位；数据耗尽返回 `None`。
+    fn get1bit(&mut self) -> Option<u32> {
         if self.bit_count == 0 {
-            if self.position >= self.data.len() {
-                return Err(Error::compression("Unexpected end of Huffman data"));
+            if self.pos >= self.data.len() {
+                return None;
             }
-            self.bit_buffer = self.data[self.position] as u32;
-            self.position += 1;
+            self.bit_buffer = self.data[self.pos] as u32;
+            self.pos += 1;
             self.bit_count = 8;
         }
-
         let bit = self.bit_buffer & 1;
         self.bit_buffer >>= 1;
         self.bit_count -= 1;
-        Ok(bit)
+        Some(bit)
     }
 
-    fn get_8_bits(&mut self) -> Result<u32> {
-        if self.position >= self.data.len() {
-            return Err(Error::compression("Unexpected end of Huffman data"));
-        }
-        let byte = self.data[self.position] as u32;
-        self.position += 1;
-        Ok(byte)
-    }
-
-    fn peek_7_bits(&mut self) -> Result<u32> {
-        // Ensure we have enough bits in the buffer
-        while self.bit_count < 7 {
-            if self.position >= self.data.len() {
-                return Err(Error::compression("Unexpected end of Huffman data"));
+    /// 读 8 位；数据耗尽返回 `None`。
+    fn get8bits(&mut self) -> Option<u8> {
+        if self.bit_count < 8 {
+            if self.pos >= self.data.len() {
+                return None;
             }
-            self.bit_buffer |= (self.data[self.position] as u32) << self.bit_count;
-            self.position += 1;
+            self.bit_buffer |= (self.data[self.pos] as u32) << self.bit_count;
+            self.pos += 1;
             self.bit_count += 8;
         }
-
-        Ok(self.bit_buffer & 0x7F) // Get lower 7 bits
+        let v = (self.bit_buffer & 0xFF) as u8;
+        self.bit_buffer >>= 8;
+        self.bit_count -= 8;
+        Some(v)
     }
+}
 
-    fn skip_bits(&mut self, count: u32) {
-        if count <= self.bit_count {
-            self.bit_buffer >>= count;
-            self.bit_count -= count;
-        } else {
-            let remaining = count - self.bit_count;
-            self.bit_buffer = 0;
-            self.bit_count = 0;
-            self.position += (remaining / 8) as usize;
-            // Handle remaining bits if any
-            if remaining % 8 > 0 && self.peek_7_bits().is_ok() {
-                self.skip_bits(remaining % 8);
-            }
+// ---------------------------------------------------------------------------
+// 双向链表 + 树节点（对应 StormLib THTreeItem）
+// ---------------------------------------------------------------------------
+
+/// 链表中的节点下标；`NIL` 表示空。
+type NodeId = usize;
+const NIL: NodeId = usize::MAX;
+
+struct Node {
+    value: u16,
+    weight: u32,
+    parent: NodeId,
+    /// 低权重子节点；高权重子节点是 `child_lo` 的 `prev`（StormLib 约定）。
+    child_lo: NodeId,
+    next: NodeId,
+    prev: NodeId,
+}
+
+/// 哨兵头：`head.next` = 最高权重（树根），`head.prev` = 最低权重。
+struct HuffTree {
+    nodes: Vec<Node>,
+    head: NodeId,
+    items_by_byte: [NodeId; 0x102],
+}
+
+impl HuffTree {
+    fn new() -> Self {
+        let head = Node {
+            value: 0,
+            weight: 0,
+            parent: NIL,
+            child_lo: NIL,
+            next: NIL,
+            prev: NIL,
+        };
+        let mut nodes = vec![head];
+        nodes[0].next = 0;
+        nodes[0].prev = 0;
+        Self {
+            nodes,
+            head: 0,
+            items_by_byte: [NIL; 0x102],
         }
     }
-}
 
-/// Huffman tree node based on StormLib's THTreeItem
-#[derive(Debug, Clone)]
-struct HuffmanItem {
-    // Linked list pointers
-    next: Option<usize>, // Pointer to lower-weight tree item
-    prev: Option<usize>, // Pointer to higher-weight item
+    /// 把 `b` 插到 `a` 之后。
+    fn link_two(&mut self, a: NodeId, b: NodeId) {
+        let a_next = self.nodes[a].next;
+        self.nodes[b].next = a_next;
+        self.nodes[b].prev = self.nodes[a_next].prev;
+        self.nodes[a_next].prev = b;
+        self.nodes[a].next = b;
+    }
 
-    // Tree structure
-    decompressed_value: u32, // 08 - Decompressed byte value (also index in the array)
-    weight: u32,             // 0C - Weight
-    parent: Option<usize>,   // 10 - Pointer to parent item (NULL if none)
-    child_lo: Option<usize>, // 14 - Pointer to the child with lower-weight child ("left child")
+    fn remove(&mut self, it: NodeId) {
+        let next = self.nodes[it].next;
+        if next != NIL {
+            let prev = self.nodes[it].prev;
+            self.nodes[prev].next = next;
+            self.nodes[next].prev = prev;
+            self.nodes[it].next = NIL;
+            self.nodes[it].prev = NIL;
+        }
+    }
 
-                             // In StormLib, the higher-weight child is accessed via pChildLo->pPrev
-}
+    /// `insert_after` 为真时插到 `anchor` 之后，否则插到其之前。
+    fn insert(&mut self, it: NodeId, insert_after: bool, anchor: NodeId) {
+        self.remove(it);
+        let anchor = if anchor == NIL { self.head } else { anchor };
+        if insert_after {
+            self.link_two(anchor, it);
+        } else {
+            let prev = self.nodes[anchor].prev;
+            self.link_two(prev, it);
+        }
+    }
 
-impl HuffmanItem {
-    fn new(value: u32, weight: u32) -> Self {
-        Self {
-            next: None,
-            prev: None,
-            decompressed_value: value,
+    /// 从 `start` 向 `prev` 方向找第一个权重 >= `weight` 的节点；找不到返回 head。
+    fn find_higher_or_equal(&self, start: NodeId, weight: u32) -> NodeId {
+        if start == NIL {
+            return self.head;
+        }
+        let mut it = start;
+        while it != self.head {
+            if self.nodes[it].weight >= weight {
+                return it;
+            }
+            it = self.nodes[it].prev;
+        }
+        self.head
+    }
+
+    fn create_item(&mut self, value: u16, weight: u32, insert_after: bool) -> NodeId {
+        let id = self.nodes.len();
+        self.nodes.push(Node {
+            value,
             weight,
-            parent: None,
-            child_lo: None,
-        }
-    }
-}
-
-/// Quick link structure for optimized decompression
-#[derive(Debug, Clone)]
-struct QuickLink {
-    valid_value: u32,
-    valid_bits: u32,
-    decompressed_value: u32,
-    item_index: Option<usize>,
-}
-
-impl QuickLink {
-    fn new() -> Self {
-        Self {
-            valid_value: 0,
-            valid_bits: 0,
-            decompressed_value: 0,
-            item_index: None,
-        }
-    }
-}
-
-/// Huffman tree based on StormLib
-struct HuffmanTree {
-    items: Vec<HuffmanItem>,
-    items_by_byte: [Option<usize>; 0x102],
-    quick_links: [QuickLink; LINK_ITEM_COUNT],
-    first: Option<usize>, // Pointer to the highest weight item
-    last: Option<usize>,  // Pointer to the lowest weight item
-    min_valid_value: u32,
-}
-
-// Virtual list head marker
-const LIST_HEAD: Option<usize> = None;
-
-impl HuffmanTree {
-    fn new() -> Self {
-        Self {
-            items: Vec::with_capacity(HUFF_ITEM_COUNT),
-            items_by_byte: [None; 0x102],
-            quick_links: std::array::from_fn(|_| QuickLink::new()),
-            first: LIST_HEAD,
-            last: LIST_HEAD,
-            min_valid_value: 1,
-        }
+            parent: NIL,
+            child_lo: NIL,
+            next: NIL,
+            prev: NIL,
+        });
+        self.insert(id, insert_after, NIL);
+        id
     }
 
-    // Link two items in the linked list
-    fn link_two_items(&mut self, item1_idx: usize, item2_idx: usize) {
-        // pItem2->pNext = pItem1->pNext;
-        self.items[item2_idx].next = self.items[item1_idx].next;
-
-        // pItem2->pPrev = pItem1->pNext->pPrev;
-        if let Some(next_idx) = self.items[item1_idx].next {
-            self.items[item2_idx].prev = self.items[next_idx].prev;
-            // pItem1->pNext->pPrev = pItem2;
-            self.items[next_idx].prev = Some(item2_idx);
+    /// 按权重修正位置（保持链表按权重降序）；返回更新后的 max_weight。
+    fn fixup_by_weight(&mut self, it: NodeId, max_weight: u32) -> u32 {
+        if self.nodes[it].weight < max_weight {
+            let tail = self.nodes[self.head].prev;
+            let higher = self.find_higher_or_equal(tail, self.nodes[it].weight);
+            self.remove(it);
+            self.link_two(higher, it);
+            max_weight
         } else {
-            // item1 was the last item
-            self.items[item2_idx].prev = Some(item1_idx);
-        }
-
-        // pItem1->pNext = pItem2;
-        self.items[item1_idx].next = Some(item2_idx);
-    }
-
-    // Insert item after a given position
-    fn insert_after(&mut self, new_item_idx: usize, after_idx: Option<usize>) {
-        if let Some(idx) = after_idx {
-            self.link_two_items(idx, new_item_idx);
-        } else {
-            // Insert at the beginning of the list
-            self.items[new_item_idx].prev = None;
-            self.items[new_item_idx].next = self.first;
-
-            if let Some(first_idx) = self.first {
-                self.items[first_idx].prev = Some(new_item_idx);
-            }
-
-            self.first = Some(new_item_idx);
-
-            if self.last.is_none() {
-                self.last = Some(new_item_idx);
-            }
+            self.nodes[it].weight
         }
     }
 
-    // Insert item before a given position
-    fn insert_before(&mut self, new_item_idx: usize, before_idx: Option<usize>) {
-        if let Some(idx) = before_idx {
-            // Get the previous item
-            let prev_idx = self.items[idx].prev;
-
-            self.items[new_item_idx].next = Some(idx);
-            self.items[new_item_idx].prev = prev_idx;
-            self.items[idx].prev = Some(new_item_idx);
-
-            if let Some(prev) = prev_idx {
-                self.items[prev].next = Some(new_item_idx);
-            } else {
-                // This was the first item
-                self.first = Some(new_item_idx);
-            }
-        } else {
-            // Insert at the end of the list
-            self.items[new_item_idx].next = None;
-            self.items[new_item_idx].prev = self.last;
-
-            if let Some(last_idx) = self.last {
-                self.items[last_idx].next = Some(new_item_idx);
-            }
-
-            self.last = Some(new_item_idx);
-
-            if self.first.is_none() {
-                self.first = Some(new_item_idx);
+    /// 建初始树（StormLib `HuffTree::BuildTree`）。
+    fn build_tree(&mut self, data_type: u8) -> bool {
+        self.items_by_byte = [NIL; 0x102];
+        let mut max_weight = 0u32;
+        let dt = (data_type & 0x0F) as usize;
+        if dt >= DATA_DISTRIBUTIONS.len() {
+            return false;
+        }
+        let table = DATA_DISTRIBUTIONS[dt];
+        for i in 0..0x100usize {
+            if table[i] != 0 {
+                let it = self.create_item(i as u16, table[i] as u32, true);
+                self.items_by_byte[i] = it;
+                max_weight = self.fixup_by_weight(it, max_weight);
             }
         }
-    }
+        // 两个终止项：0x100 = 流结束，0x101 = NYT
+        self.items_by_byte[0x100] = self.create_item(0x100, 1, false);
+        self.items_by_byte[0x101] = self.create_item(0x101, 1, false);
 
-    // Create a new item and add it to the list
-    fn create_new_item(
-        &mut self,
-        decompressed_value: u32,
-        weight: u32,
-        insert_after: bool,
-    ) -> usize {
-        let new_idx = self.items.len();
-        self.items
-            .push(HuffmanItem::new(decompressed_value, weight));
-
-        // For the initial list, just append to the end
-        // The fixup function will move it to the correct position
-        if self.first.is_none() {
-            self.first = Some(new_idx);
-            self.last = Some(new_idx);
-        } else if insert_after {
-            self.insert_after(new_idx, self.last);
-        } else {
-            self.insert_before(new_idx, self.first);
-        }
-
-        new_idx
-    }
-
-    // Find item with weight >= given weight
-    fn find_higher_or_equal_item(&self, start_idx: Option<usize>, weight: u32) -> Option<usize> {
-        let mut current = start_idx;
-
-        while let Some(idx) = current {
-            if self.items[idx].weight >= weight {
-                return Some(idx);
-            }
-            current = self.items[idx].prev;
-        }
-
-        None
-    }
-
-    // Fix item position by weight (insertion sort)
-    fn fixup_item_pos_by_weight(&mut self, item_idx: usize, mut max_weight: u32) -> u32 {
-        let item_weight = self.items[item_idx].weight;
-
-        // If this item's weight is less than max_weight, we need to move it
-        if item_weight < max_weight {
-            // Find the item with weight >= this item's weight, searching backwards from last
-            if let Some(higher_idx) = self.find_higher_or_equal_item(self.last, item_weight) {
-                // Remove item from its current position
-                self.remove_item_from_list(item_idx);
-
-                // Insert after the found item (LinkTwoItems behavior)
-                self.insert_after(item_idx, Some(higher_idx));
-            }
-        } else {
-            // This is the new maximum weight
-            max_weight = item_weight;
-        }
-
-        max_weight
-    }
-
-    // Remove item from linked list (but keep in items array)
-    fn remove_item_from_list(&mut self, item_idx: usize) {
-        let prev = self.items[item_idx].prev;
-        let next = self.items[item_idx].next;
-
-        if let Some(prev_idx) = prev {
-            self.items[prev_idx].next = next;
-        } else {
-            // This was the first item
-            self.first = next;
-        }
-
-        if let Some(next_idx) = next {
-            self.items[next_idx].prev = prev;
-        } else {
-            // This was the last item
-            self.last = prev;
-        }
-
-        self.items[item_idx].prev = None;
-        self.items[item_idx].next = None;
-    }
-
-    fn build_tree(&mut self, compression_type: u32) -> Result<()> {
-        // Clear all items
-        self.items.clear();
-        self.items_by_byte = [None; 0x102];
-        self.first = LIST_HEAD;
-        self.last = LIST_HEAD;
-
-        // Ensure compression type is valid
-        let comp_type = (compression_type & 0x0F) as usize;
-        if comp_type >= WEIGHT_TABLES.len() {
-            return Err(Error::compression("Invalid Huffman compression type"));
-        }
-
-        let weight_table = WEIGHT_TABLES[comp_type];
-
-        // Build the linear list of entries that is sorted by byte weight
-        // First pass: create all items
-        for (i, &weight) in weight_table.iter().enumerate().take(0x100) {
-            if weight != 0 {
-                let item_idx = self.create_new_item(i as u32, weight as u32, true);
-                self.items_by_byte[i] = Some(item_idx);
-            }
-        }
-
-        // Insert termination entries
-        let end_idx = self.create_new_item(0x100, 1, true);
-        self.items_by_byte[0x100] = Some(end_idx);
-
-        let eof_idx = self.create_new_item(0x101, 1, true);
-        self.items_by_byte[0x101] = Some(eof_idx);
-
-        // Now sort the entire list by weight using insertion sort
-        // Build a temporary sorted list
-        let mut sorted_items: Vec<(usize, u32)> = Vec::new();
-        let mut curr = self.first;
-        while let Some(idx) = curr {
-            sorted_items.push((idx, self.items[idx].weight));
-            curr = self.items[idx].next;
-        }
-
-        // Sort by weight (DESCENDING - highest weight first)
-        // This matches StormLib's organization where pLast points to lowest weight
-        sorted_items.sort_by_key(|&(_, weight)| std::cmp::Reverse(weight));
-
-        // Rebuild the linked list in sorted order
-        self.first = None;
-        self.last = None;
-
-        for &(idx, _) in &sorted_items {
-            // Clear existing links
-            self.items[idx].prev = None;
-            self.items[idx].next = None;
-
-            // Add to the end of the new list
-            if self.first.is_none() {
-                self.first = Some(idx);
-                self.last = Some(idx);
-            } else {
-                self.items[idx].prev = self.last;
-                if let Some(last_idx) = self.last {
-                    self.items[last_idx].next = Some(idx);
-                }
-                self.last = Some(idx);
-            }
-        }
-
-        log::debug!("Built initial list with {} leaf nodes", self.items.len());
-
-        // Debug: Print the linked list order
-        if log::log_enabled!(log::Level::Trace) {
-            log::trace!("Initial linked list (first -> last):");
-            let mut curr = self.first;
-            let mut count = 0;
-            while let Some(idx) = curr {
-                if count < 5 || count >= self.items.len() - 5 {
-                    log::trace!(
-                        "  [{}] idx={}, value=0x{:02X}, weight={}",
-                        count,
-                        idx,
-                        self.items[idx].decompressed_value,
-                        self.items[idx].weight
-                    );
-                } else if count == 5 {
-                    log::trace!("  ...");
-                }
-                curr = self.items[idx].next;
-                count += 1;
-            }
-        }
-
-        // Now we need to build the tree
-        // IMPORTANT: After reviewing StormLib more carefully:
-        // - The list is sorted DESCENDING (highest weight first, lowest weight last)
-        // - pLast points to the LOWEST weight node
-        // - We start from pLast and use pPrev to go towards higher weights
-        // - This way we pair the lowest weight nodes first (correct for Huffman)
-        let mut child_lo = self.last;
-        let mut internal_nodes = 0;
-        // Max weight is at the beginning of the list (descending order)
-        let mut max_weight = if let Some(first_idx) = self.first {
-            self.items[first_idx].weight
-        } else {
-            0
-        };
-
-        // Work as long as both children are valid
-        while let Some(lo_idx) = child_lo {
-            // Get the previous child (pPrev points to higher weight in descending list)
-            let child_hi = self.items[lo_idx].prev;
-            if child_hi.is_none() {
-                log::debug!(
-                    "Tree building stopped: no more pairs (created {internal_nodes} internal nodes)"
-                );
-                break; // Can't create a parent with only one child
-            }
-            let hi_idx = child_hi.unwrap();
-
-            log::trace!(
-                "Building parent for children: lo={} (w={}), hi={} (w={})",
-                lo_idx,
-                self.items[lo_idx].weight,
-                hi_idx,
-                self.items[hi_idx].weight
-            );
-
-            // Create new parent item for the children
-            let parent_weight = self.items[hi_idx].weight + self.items[lo_idx].weight;
-            let parent_idx = self.create_new_item(0xFFFFFFFFu32, parent_weight, true);
-            internal_nodes += 1;
-
-            // Link both child items to their new parent
-            self.items[lo_idx].parent = Some(parent_idx);
-            self.items[hi_idx].parent = Some(parent_idx);
-            self.items[parent_idx].child_lo = Some(lo_idx);
-
-            // IMPORTANT: Save the next child BEFORE fixup
-            // In StormLib: pChildLo = pChildHi->pPrev
-            let next_child = self.items[hi_idx].prev;
-
-            // Fixup the item's position by its weight
-            max_weight = self.fixup_item_pos_by_weight(parent_idx, max_weight);
-
-            // Continue from where we left off
-            // In StormLib, they just continue with pChildHi->pPrev
-            // The paired nodes are effectively out of consideration because they have parents
-            child_lo = next_child;
-
-            log::trace!("Next iteration will start from: {child_lo:?}");
-        }
-
-        log::debug!(
-            "Tree building complete: {} total items ({} leaf + {} internal)",
-            self.items.len(),
-            self.items.len() - internal_nodes,
-            internal_nodes
-        );
-
-        // Initialize the MinValidValue to 1, which invalidates all quick-link items
-        self.min_valid_value = 1;
-        Ok(())
-    }
-
-    fn decode_one_byte(&mut self, reader: &mut BitReader<'_>) -> Result<u32> {
-        // Try quick links first
-        let item_link_index = reader.peek_7_bits().unwrap_or(0) as usize;
-        let has_item_link = item_link_index < LINK_ITEM_COUNT;
-
-        // Check if quick link is valid
-        let mut item_idx = if has_item_link
-            && self.quick_links[item_link_index].valid_value >= self.min_valid_value
-        {
-            // If that item needs less than 7 bits, we can get decompressed value directly
-            if self.quick_links[item_link_index].valid_bits <= 7 {
-                reader.skip_bits(self.quick_links[item_link_index].valid_bits);
-                return Ok(self.quick_links[item_link_index].decompressed_value);
-            }
-
-            // Otherwise skip 7 bits and use the stored item
-            reader.skip_bits(7);
-            self.quick_links[item_link_index].item_index
-        } else {
-            // Start from the root (first item)
-            self.first
-        };
-
-        // Check if we have a valid starting point
-        if item_idx.is_none() {
-            return Err(Error::compression("Empty Huffman tree"));
-        }
-
-        let mut item_link: Option<usize> = None;
-        let mut bit_count = 0;
-
-        // Step down the tree until we find a terminal item
-        while let Some(idx) = item_idx {
-            let item = &self.items[idx];
-
-            // If this is a leaf node (no children), we found our value
-            if item.child_lo.is_none() {
+        let mut child_lo = self.nodes[self.head].prev;
+        while child_lo != self.head {
+            let child_hi = self.nodes[child_lo].prev;
+            if child_hi == self.head {
                 break;
             }
+            let w = self.nodes[child_hi].weight + self.nodes[child_lo].weight;
+            let parent = self.create_item(0, w, true);
+            self.nodes[child_lo].parent = parent;
+            self.nodes[child_hi].parent = parent;
+            self.nodes[parent].child_lo = child_lo;
+            max_weight = self.fixup_by_weight(parent, max_weight);
+            child_lo = self.nodes[child_hi].prev;
+        }
+        true
+    }
 
-            // Get next bit to decide which child to traverse
-            let bit_value = reader.get_bit()?;
-            bit_count += 1;
+    /// 权重 +1 并沿父链重平衡（StormLib `HuffTree::IncWeightsAndRebalance`）。
+    fn inc_weights_and_rebalance(&mut self, start: NodeId) {
+        let mut item = start;
+        while item != NIL {
+            self.nodes[item].weight += 1;
+            let prev = self.nodes[item].prev;
+            let higher = self.find_higher_or_equal(prev, self.nodes[item].weight);
+            let child_hi = self.nodes[higher].next;
+            if child_hi != item {
+                self.remove(child_hi);
+                self.link_two(item, child_hi);
+                self.remove(item);
+                self.link_two(higher, item);
+                // 交换父子关系
+                let child_lo = self.nodes[self.nodes[child_hi].parent].child_lo;
+                let mut parent = self.nodes[item].parent;
+                if self.nodes[parent].child_lo == item {
+                    self.nodes[parent].child_lo = child_hi;
+                }
+                if child_lo == child_hi {
+                    let hp = self.nodes[child_hi].parent;
+                    self.nodes[hp].child_lo = item;
+                }
+                parent = self.nodes[item].parent;
+                self.nodes[item].parent = self.nodes[child_hi].parent;
+                self.nodes[child_hi].parent = parent;
+            }
+            item = self.nodes[item].parent;
+        }
+    }
 
-            // In StormLib:
-            // If bit is 1: go to pItem->pChildLo->pPrev (higher weight child)
-            // If bit is 0: go to pItem->pChildLo (lower weight child)
-            let child_lo_idx = item.child_lo.unwrap();
-            item_idx = if bit_value != 0 {
-                // Get the previous sibling of child_lo (higher weight)
-                self.items[child_lo_idx].prev
-            } else {
-                // Get child_lo directly (lower weight)
-                Some(child_lo_idx)
+    /// NYT：插入一个新分支（StormLib `HuffTree::InsertNewBranchAndRebalance`）。
+    fn insert_new_branch_and_rebalance(&mut self, value1: u16, value2: u16) -> bool {
+        let last_item = self.nodes[self.head].prev;
+        if last_item == self.head {
+            return false;
+        }
+        let last_weight = self.nodes[last_item].weight;
+        let child_hi = self.create_item(value1, last_weight, false);
+        self.nodes[child_hi].parent = last_item;
+        self.items_by_byte[value1 as usize] = child_hi;
+        let child_lo = self.create_item(value2, 0, false);
+        self.nodes[child_lo].parent = last_item;
+        self.nodes[last_item].child_lo = child_lo;
+        self.items_by_byte[value2 as usize] = child_lo;
+        self.inc_weights_and_rebalance(child_lo);
+        true
+    }
+
+    /// 解一个符号；失败返回 `HUFF_DECOMPRESS_ERROR`。
+    fn decode_one_byte(&mut self, bs: &mut BitStream<'_>) -> u16 {
+        let mut item = self.nodes[self.head].next; // 从根开始
+        if item == self.head {
+            return HUFF_DECOMPRESS_ERROR;
+        }
+        while self.nodes[item].child_lo != NIL {
+            let Some(bit) = bs.get1bit() else {
+                return HUFF_DECOMPRESS_ERROR;
             };
-
-            // Remember item for quick link at depth 7
-            if bit_count == 7 {
-                item_link = item_idx;
+            item = if bit == 1 {
+                self.nodes[self.nodes[item].child_lo].prev
+            } else {
+                self.nodes[item].child_lo
+            };
+            if item == NIL || item == self.head {
+                return HUFF_DECOMPRESS_ERROR;
             }
         }
+        self.nodes[item].value
+    }
 
-        // We should have a valid item now
-        let final_idx =
-            item_idx.ok_or_else(|| Error::compression("Invalid Huffman tree traversal"))?;
-        let decompressed_value = self.items[final_idx].decompressed_value;
-
-        // Update quick link if needed
-        if has_item_link && self.quick_links[item_link_index].valid_value < self.min_valid_value {
-            if bit_count > 7 {
-                // Store pointer to tree item for faster access
-                self.quick_links[item_link_index].valid_value = self.min_valid_value;
-                self.quick_links[item_link_index].valid_bits = bit_count;
-                self.quick_links[item_link_index].item_index = item_link;
-            } else if bit_count > 0 {
-                // Store decompressed value directly
-                let mut index = item_link_index;
-                if bit_count < 7 {
-                    index &= (0xFFFFFFFFu32 >> (32 - bit_count)) as usize;
+    /// 完整解压一扇区（StormLib `HuffTree::Decompress`）。
+    fn decompress(&mut self, bs: &mut BitStream<'_>, out_len: usize) -> Option<Vec<u8>> {
+        let mut out = Vec::with_capacity(out_len);
+        let data_type = bs.get8bits()?;
+        let is_sparse = data_type == DATA_TYPE_SPARSE;
+        if !self.build_tree(data_type) {
+            return None;
+        }
+        loop {
+            let mut value = self.decode_one_byte(bs);
+            if value == HUFF_END_OF_STREAM {
+                break;
+            }
+            if value == HUFF_DECOMPRESS_ERROR {
+                return None;
+            }
+            if value == HUFF_NYT {
+                // 新字节：紧随其后 8 位是原始值，插入树中
+                let raw = bs.get8bits()? as u16;
+                let tail = self.nodes[self.head].prev;
+                let tail_value = self.nodes[tail].value;
+                if !self.insert_new_branch_and_rebalance(tail_value, raw) {
+                    return None;
                 }
-
-                while index < LINK_ITEM_COUNT {
-                    self.quick_links[index].valid_value = self.min_valid_value;
-                    self.quick_links[index].valid_bits = bit_count;
-                    self.quick_links[index].decompressed_value = decompressed_value;
-                    index += 1 << bit_count;
+                if !is_sparse {
+                    let idx = self.items_by_byte[raw as usize];
+                    self.inc_weights_and_rebalance(idx);
+                }
+                value = raw;
+            }
+            if out.len() >= out_len {
+                break;
+            }
+            out.push((value & 0xFF) as u8);
+            if is_sparse {
+                let idx = self.items_by_byte[value as usize];
+                if idx != NIL {
+                    self.inc_weights_and_rebalance(idx);
                 }
             }
         }
-
-        Ok(decompressed_value)
+        Some(out)
     }
 }
 
-/// Huffman decompression function following StormLib's algorithm
+/// Huffman 解压：`data` 已剥掉压缩掩码字节，`expected_size` 是期望输出上限。
 pub(crate) fn decompress(data: &[u8], expected_size: usize) -> Result<Vec<u8>> {
     if data.is_empty() {
         return Ok(Vec::new());
     }
-
-    log::debug!(
-        "Huffman decompress input: {} bytes, expected: {}, first 16 bytes: {:02X?}",
-        data.len(),
-        expected_size,
-        &data[..std::cmp::min(16, data.len())]
-    );
-
-    let mut reader = BitReader::new(data);
-    let mut output = Vec::with_capacity(expected_size);
-
-    // Get compression type from the first byte
-    let compression_type = reader.get_8_bits()?;
-
-    log::debug!("Huffman compression type: 0x{compression_type:02X}");
-
-    // Build Huffman tree
-    let mut tree = HuffmanTree::new();
-    tree.build_tree(compression_type)?;
-
-    log::debug!("Huffman tree built with {} items", tree.items.len());
-
-    // Decompress data
-    let mut decoded_count = 0;
-    loop {
-        let decoded_value = tree.decode_one_byte(&mut reader)?;
-        decoded_count += 1;
-
-        log::trace!("Huffman decoded byte {decoded_count}: value=0x{decoded_value:03X}");
-
-        // Check for end of stream marker
-        if decoded_value == 0x100 {
-            log::debug!("Huffman hit end marker after {decoded_count} symbols");
-            break;
-        }
-
-        // Check for error
-        if decoded_value == HUFF_DECOMPRESS_ERROR {
-            return Err(Error::compression("Huffman decompression error"));
-        }
-
-        // Handle tree modification marker
-        if decoded_value == 0x101 {
-            // Read the next byte directly
-            let next_byte = reader.get_8_bits()?;
-            output.push(next_byte as u8);
-            // Tree modification would happen here in full implementation
-            continue;
-        }
-
-        // Regular data byte
-        if decoded_value > 255 {
-            return Err(Error::compression("Invalid Huffman decoded value"));
-        }
-
-        output.push(decoded_value as u8);
-
-        // Stop if we've reached expected size
-        if output.len() >= expected_size {
-            break;
-        }
-    }
-
-    log::debug!(
-        "Huffman decompress output: {} bytes, first 16 bytes: {:02X?}",
-        output.len(),
-        &output[..std::cmp::min(16, output.len())]
-    );
-
-    Ok(output)
+    let mut bs = BitStream::new(data);
+    let mut tree = HuffTree::new();
+    tree.decompress(&mut bs, expected_size)
+        .ok_or_else(|| Error::compression("Huffman decompression failed"))
 }
 
-/// Huffman compression stub - not needed for reading MPQ archives
+/// Huffman 压缩（未实现）。
+///
+/// **诚实边界**：本仓库只在**读取**归档时需要 Huffman；写归档从不产生
+/// Huffman 扇区（StormLib 编码器亦为可选项）。上游同样未实现（原样保留）。
 pub(crate) fn compress(_data: &[u8]) -> Result<Vec<u8>> {
-    // Compression is not implemented as it's not needed for reading MPQ archives
     Err(Error::compression(
-        "Huffman compression not implemented - only decompression is available",
+        "Huffman compression is not implemented (only decompression is required for reading archives)",
     ))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_huffman_empty_data() {
-        assert!(decompress(&[], 0).is_ok());
-    }
-
-    #[test]
-    fn test_bit_reader() {
-        let data = vec![0b10101100, 0b11110000];
-        let mut reader = BitReader::new(&data);
-
-        // Read bits one by one (LSB first)
-        assert_eq!(reader.get_bit().unwrap(), 0); // bit 0
-        assert_eq!(reader.get_bit().unwrap(), 0); // bit 1
-        assert_eq!(reader.get_bit().unwrap(), 1); // bit 2
-        assert_eq!(reader.get_bit().unwrap(), 1); // bit 3
-        assert_eq!(reader.get_bit().unwrap(), 0); // bit 4
-        assert_eq!(reader.get_bit().unwrap(), 1); // bit 5
-        assert_eq!(reader.get_bit().unwrap(), 0); // bit 6
-        assert_eq!(reader.get_bit().unwrap(), 1); // bit 7
-    }
 }

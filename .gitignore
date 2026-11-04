@@ -52,3 +52,5 @@ _msg.txt
 # 产物由 scripts/build-wasm.ps1 生成到 public/wasm-pkg（该目录**要提交**，
 # 因为浏览器部署直接消费它，且体积仅 ~282KB）。
 wasm/target/
+wasm/vendor/wow-mpq/target/
+wasm/vendor/wow-mpq/Cargo.lock

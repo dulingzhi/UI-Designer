@@ -124,7 +124,7 @@
 - `wasm/src/blp_decode.rs`（自实现，语义钉住 `blp-0.1.37`）+ `wasm/src/mpq_read.rs`（自实现字节流归档读取器）。
 - TS 侧：`wasmBridge.ts`（惰性加载 + 缓存 + 失败重试）、`wasmMpq.ts`（`MpqFns` 的 WASM 实现）、`rustBridge.ts` 的 `decodeBLPToRGBA`/`parseMDX` 加双通道、`mpqManager.ts` 构造默认值 `defaultMpqFns(tauriMpqFns)`。
 
-**为何 vendor（`wasm/vendor/wow-mpq/`）**：上游 `wow-mpq 0.3.2` 强制链接 rusqlite/rayon/rsa/tempfile/bzip2-sys，**无法编译到 wasm32**。裁剪为只读子集：保留 header/tables(hash+block)/crypto/compression/error/debug；删除 archive(硬绑 `std::fs::File`)/builder/modification/database/parallel/patch_chain/signature/compare/path/io/rebuild/special_files/HET-BET/bzip2。`compression` 对 bzip2 返回明确错误（WC3 的 MPQ 不用它）。
+**为何 vendor**：上游 `wow-mpq 0.3.2` 强制链接 rusqlite/rayon/rsa/tempfile/bzip2-sys，**无法编译到 wasm32**。裁成只读子集：保留 header/tables(hash+block)/crypto/compression/error/debug；删 archive(`std::fs::File`)/builder/modification/database/parallel/patch_chain/signature/compare/path/io/rebuild/special_files/HET-BET/bzip2（bzip2 返回明确错误）。
 
 **核心缺陷（本轮抓到并修复）**：MPQ **文件解密键必须用 basename 而非完整路径**。
 实证：`UI\FrameDef\Glue\MainMenu.fdf`（5 扇区）用完整路径推出的扇区偏移表是乱码 `[1368675992,…]`，用 basename 推出 `[24,1064,1793,2727,3538,4335]`（严格单调、末项 == compressed_size）。与参考实现 openwar3 一致（mdx-m3-viewer `MpqCrypto.computeFileKey` 取 `name.substring(lastIndexOf('\\')+1)`）。
@@ -134,17 +134,34 @@
 
 **三方对拍（war3.mpq 全量 10611 文件，真值 = openwar3 参考实现 sha256）**：
 | 类别 | 一致 | 不一致 |
-|---|---|---|
+|---|------|------|
 | BLP | 3935 | **0** |
 | MDX | 2048 | **0** |
 | FDF | 71 | **0** |
+| **wav** | **2695** | **0**（r254 修复后） |
 | mp3/jpg/tga/txt/html/slk/w3m… | 全部 | 0 |
-| **wav** | 2 | 2693 |
-**诚实上报**：`.wav` 差异源于 Huffman+ADPCM 音频编解码与参考实现不同（上游 wow-mpq 自身也有 2896 个文件与参考不一致）。**不影响 UI 设计器能力**（纹理/模型/FDF 全部 100% 一致），不硬凑。
-「上游对但被测错」= **0**（即本实现从未比上游差）。
+**r254 前** wav 曾是 2/2695；已定位并修复（见下节）。**全量 10609 个可读文件现全部与参考逐字节一致，0 不一致。**
 
-**构建**：`pwsh -File scripts/build-wasm.ps1`（cargo build → wasm-bindgen → wasm-opt -Os）。
-不直接用 `wasm-pack build`：本机 wasm-pack 0.14 在 "Installing wasm-bindgen..." 会挂起（重新 cargo install CLI）；脚本改为直接调用预置的 wasm-bindgen/wasm-opt，产物等价且可复现。`wasm/target/`（1.8GB）已 gitignore；`public/wasm-pkg/`（282KB）入库供浏览器部署直接消费。
+**WAV Huffman 缺陷（r254 定位并修复，P1）**：
+上游 `wow-mpq` 的 `huffman.rs` 是**静态树**实现，而 MPQ 实际用的是 **FGK 自适应**
+（Fallen-Gallager-Knuth：NYT 符号读原始字节后插新分支 + 每符号沿父链 `incWeightsAndRebalance`）。
+静态树首个字节即走偏，war3.mpq 的 WC3 音频扇区（`mask=0x41` = `HUFFMAN|ADPCM_MONO`）输出退化成常量 `0x4E`(78)，
+ADPCM 随即报 `Invalid ADPCM bit shift value: 78`，`decompress_multiple` 的 `unwrap_or_else(|_| vec![0u8; expected])`
+把失败**静默补零** → **每个 wav 除首扇区（ZLIB）外全为静音**。
+
+定位方法（关键）：**逐层隔离**。先证「扇区 0 ZLIB 正确、扇区 ≥1 全 FAIL」→ 再证「参考 Huffman 输出 + 我方 ADPCM
+= 参考 PCM 逐字节一致」→ 排除 ADPCM/MPQ 读取/解密键，**缺陷单点在 Huffman**。
+
+修复：按 StormLib `huff.cpp`（Zezula, MIT）在 Rust 侧重写 `huffman.rs`（9 张权重表原样保留），
+新增双向链表 + NYT 插入 + 权重重平衡。**对拍**：单文件 sha256 一致；全量 wav 2695/2695；全量 10609/10609。
+
+**回归守卫**：`huffman_regression.rs`（`#[cfg(test)]`，4 测；夹具 = 扇区 1 的 1296B + 参考中间数据 2099B + 参考 PCM 4096B，
+断言 sha256 相等 + 「输出不得为常量」退化检测）。vendored crate 测试**不随**主 `cargo test`，需
+`cd wasm/vendor/wow-mpq && cargo test`（53 passed）。
+
+
+**构建**：`pwsh -File scripts/build-wasm.ps1`（cargo build → wasm-bindgen → wasm-opt -Os）。不用 `wasm-pack build`：
+本机 0.14 在 "Installing wasm-bindgen..." 挂起。`wasm/target/` 已 gitignore；`public/wasm-pkg/`（272KB）入库。
 
 **测试**：`wasmBridge.test.ts`（10）+ `wasmMpq.test.ts`（25）+ `rustBridge.test.ts` 新增 4（双通道）→ 基线 2323→**2360**，覆盖 100×4。
 可测性设计：`WasmLoaderDeps` / `__setDynamicImporter` 是刻意留的注入缝隙（真实 wasm 在 vitest 下无法实例化），但**分派/缓存/失败重试/降级逻辑全部被真实执行**，无 v8-ignore。
