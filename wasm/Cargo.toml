@@ -1,0 +1,32 @@
+[package]
+name = "wc3ui-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WC3 UI Designer 浏览器端解析内核（BLP/MDX/MPQ 的 WASM 绑定）"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+byteorder = "1.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 纯 Rust JPEG 解码（BLP1 的 JPEG 变体）。不引入 image 全格式，避免 turbojpeg C 依赖。
+jpeg-decoder = { version = "0.3", default-features = false }
+
+# MPQ：使用 vendor 下的 wow-mpq **裁剪副本**（只保留读取所需的低层模块）。
+# 上游 0.3.2 强制链接 rusqlite / rayon / rsa / tempfile / bzip2-sys，
+# 无法编译到 wasm32-unknown-unknown；裁剪细节见 vendor/wow-mpq/Cargo.toml 顶部注释。
+wow-mpq = { path = "vendor/wow-mpq" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# 说明：mdx_parser.rs 通过 #[path] 直接引用 src-tauri 下的同一份源码，
+# 避免逻辑分叉（两侧永不漂移）。

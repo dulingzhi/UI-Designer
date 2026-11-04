@@ -17,6 +17,7 @@ import {
   type DataSource,
   type MpqFns,
 } from './dataSource';
+import { defaultMpqFns } from './wasmMpq';
 
 /** 基于 Tauri `invoke` 的 Rust 后端实现（默认）。单测可注入内存实现。 */
 export const tauriMpqFns: MpqFns = {
@@ -92,7 +93,8 @@ export class MPQManager {
   private pathJoin: (base: string, name: string) => Promise<string>;
 
   constructor(
-    fns: MpqFns = tauriMpqFns,
+    // 浏览器运行时自动切到 WASM 实现（桌面/测试仍拿同一个 tauriMpqFns 引用，逐字节不变）。
+    fns: MpqFns = defaultMpqFns(tauriMpqFns),
     pathJoin: (base: string, name: string) => Promise<string> = join,
   ) {
     this.fns = fns;

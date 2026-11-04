@@ -110,9 +110,47 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-`2323 passed | 5 skipped` 测试（r252 浏览器路径 B +60）
-- 内核/对拍：`18 passed | 2 skipped` 文件，`444 passed | 5 skipped` 测试（含真实数据往返守卫）
-- `All files` 覆盖：`100 / 100 / 100 / 100`（r193 实测明细：Stmts 3212 / Branches 1858 / Funcs 439 / Lines 2911——漂移检测锚点）
+`2355 passed | 5 skipped` 测试（r253 浏览器路径 A +32）
+- 内核/对拍：`17 passed | 2 skipped` 文件，`437 passed | 5 skipped` 测试（含真实数据往返守卫）
+- `All files` 覆盖：`100 / 100 / 100 / 100`（r253 实测明细：Stmts 3390 / Branches 1974 / Funcs 464 / Lines 3055——漂移检测锚点）
+
+### 浏览器路径 A：WASM 前端内核（r253 落地）
+
+**目标**：把 Rust 侧纯字节解析（MPQ 读取 / BLP 解码 / MDX 解析）搬进浏览器，让纯浏览器版恢复纹理库与模型预览。桌面 Tauri 路径**逐字节不变**。
+
+**架构**：
+- `wasm/`（独立 crate，`crate-type = cdylib,rlib`）→ `wasm-pack`/`wasm-bindgen --target web` → `public/wasm-pkg/`（282KB，入库）。
+- `wasm/src/lib.rs` 用 `#[path = "../../src-tauri/src/mdx_parser.rs"]` **直接复用桌面 MDX 解析器源码**，两侧零漂移。
+- `wasm/src/blp_decode.rs`（自实现，语义钉住 `blp-0.1.37`）+ `wasm/src/mpq_read.rs`（自实现字节流归档读取器）。
+- TS 侧：`wasmBridge.ts`（惰性加载 + 缓存 + 失败重试）、`wasmMpq.ts`（`MpqFns` 的 WASM 实现）、`rustBridge.ts` 的 `decodeBLPToRGBA`/`parseMDX` 加双通道、`mpqManager.ts` 构造默认值 `defaultMpqFns(tauriMpqFns)`。
+
+**为何 vendor（`wasm/vendor/wow-mpq/`）**：上游 `wow-mpq 0.3.2` 强制链接 rusqlite/rayon/rsa/tempfile/bzip2-sys，**无法编译到 wasm32**。裁剪为只读子集：保留 header/tables(hash+block)/crypto/compression/error/debug；删除 archive(硬绑 `std::fs::File`)/builder/modification/database/parallel/patch_chain/signature/compare/path/io/rebuild/special_files/HET-BET/bzip2。`compression` 对 bzip2 返回明确错误（WC3 的 MPQ 不用它）。
+
+**核心缺陷（本轮抓到并修复）**：MPQ **文件解密键必须用 basename 而非完整路径**。
+实证：`UI\FrameDef\Glue\MainMenu.fdf`（5 扇区）用完整路径推出的扇区偏移表是乱码 `[1368675992,…]`，用 basename 推出 `[24,1064,1793,2727,3538,4335]`（严格单调、末项 == compressed_size）。与参考实现 openwar3 一致（mdx-m3-viewer `MpqCrypto.computeFileKey` 取 `name.substring(lastIndexOf('\\')+1)`）。
+**影响面**：所有多扇区加密文件（>4KB）此前全部读取失败；单扇区文件因整块解密不受影响，故 `(listfile)`（71326B 但单扇区标记）恰好掩盖了这个问题。
+
+**次生缺陷**：`mpq_read::take_handle` 用 `HashMap::remove` 取所有权 → 句柄**一次性**，第二次调用即报「无效句柄」。已改 `with_handle`（锁内借用）+ 新增 `mpq_close` 显式释放。
+
+**三方对拍（war3.mpq 全量 10611 文件，真值 = openwar3 参考实现 sha256）**：
+| 类别 | 一致 | 不一致 |
+|---|---|---|
+| BLP | 3935 | **0** |
+| MDX | 2048 | **0** |
+| FDF | 71 | **0** |
+| mp3/jpg/tga/txt/html/slk/w3m… | 全部 | 0 |
+| **wav** | 2 | 2693 |
+**诚实上报**：`.wav` 差异源于 Huffman+ADPCM 音频编解码与参考实现不同（上游 wow-mpq 自身也有 2896 个文件与参考不一致）。**不影响 UI 设计器能力**（纹理/模型/FDF 全部 100% 一致），不硬凑。
+「上游对但被测错」= **0**（即本实现从未比上游差）。
+
+**构建**：`pwsh -File scripts/build-wasm.ps1`（cargo build → wasm-bindgen → wasm-opt -Os）。
+不直接用 `wasm-pack build`：本机 wasm-pack 0.14 在 "Installing wasm-bindgen..." 会挂起（重新 cargo install CLI）；脚本改为直接调用预置的 wasm-bindgen/wasm-opt，产物等价且可复现。`wasm/target/`（1.8GB）已 gitignore；`public/wasm-pkg/`（282KB）入库供浏览器部署直接消费。
+
+**测试**：`wasmBridge.test.ts`（9）+ `wasmMpq.test.ts`（24）+ `rustBridge.test.ts` 新增 4（双通道）→ 基线 2323→**2355**，覆盖 100×4。
+可测性设计：`WasmLoaderDeps` / `__setDynamicImporter` 是刻意留的注入缝隙（真实 wasm 在 vitest 下无法实例化），但**分派/缓存/失败重试/降级逻辑全部被真实执行**，无 v8-ignore。
+
+**Rust 测试**：`cargo test` 14/14（blp_decode 3 + mpq_read 6 + mdx_parser 5）。真实归档端到端：`cargo run --release --example verify_real -- E:/GAMES/WAR3/war3.mpq`（10682 文件 / 打开 220ms / FDF+BLP+MDX 抽查全通过）。
+
 
 ### hotReloadExporter 热重载链路审计（压缩，细节见 git 历史）
 
@@ -188,21 +226,21 @@
 | gitignore（223） | 通过 | 6 |
 | ShortcutHelp（224） | 通过 | 32 |
 | **决策项 13 项（236）** | 用户"都做" | ①appInterface 删(24文件)②editBorderSize 闭环(3测)③applyTemplate 写回(20键,3测)④用户名重构(常量→函数)⑤多选复制/粘贴(2命令,2测)⑥ProjectTree 键盘导航(3测)⑦⑧mdx 收敛⑨CSP 生产加固⑩capabilities 收窄(opener三处+dialog三权限, cargo19/19)⑪lockfile 入库⑫serializer 删(-90行-7测)——**fs:scope `**` 经核查保留**(热重载写任意目录+任意MPQ读为硬需求) |
-| 功能完善批次（237） | 用户"按建议全部做"批准 | **A1 SliderLayout 两端闭环**——openwar3 widgets.ts L903 实证为 FDF 无值标志属性，**推翻旧账本"无模板属性"定性**；transformer flag 解析+UI Checkbox（boolean 错位修正）+导出 flag 行+4 测，运行时无方向 API 不接；**A2 validateFDF warnings**——原文引号奇偶预扫（token.value 已剥引号不可计数），+2 测；**A3 get_blp_file_info 删除**（rustBridge.getBLPInfo 连带）；**A4 formatFDF 有损删除**；**C1 blpData 二进制传输**——Rust Request+extract_raw 替代 JSON 数组 8 倍膨胀，parse_mdx_bytes 核心共用，mipmap 混合参数留 JSON；**C2 getFrameVersion 补目标帧 width/height**——基线 2132→**2134** |
-| A3 收尾+mdx 补审（238） | "继续"轮 | blp_handler.rs get_blp_info/BlpInfo 删除（命令删除后的 Rust 内部死代码）+rustBridge 前端 BlpInfo 类型连带，cargo 19/19；**mdx 渲染器补审**：interpolation.ts（208L 纯数学）全文定性通过（Hermite 基函数标准/边界完备/t=0 兜底+单帧保持语义探针实证——2 处测试预期错系未读 unshift 兜底，非源码缺陷）+7 测；其余 6 文件 three.js 场景构件与 SceneGraphManager 同档由集成路径覆盖——**穷尽性缺口 mdx 角闭合，131→128 可单测生产文件全部定性**。基线 2134→**2141** |
-| jsdom 渲染级测试（239） | "继续"轮 | 引入 **jsdom 30.1.3 + @testing-library/react 16.3.3**（devDependencies，锁文件已入库）；vitest include 增 `src/**/*.test.tsx`；渲染级守卫 19 文件 122 测：`propertiesWiringRender.test.tsx`（4）+`propertyEditorsRender.test.tsx`（6，Switch 自定义 div 无 checkbox/FilePath 签名 string 非 undefined——断言须按实现修正）+`projectTreeRender.test.tsx`（4，**决策项 6 键盘导航首次端到端验证**：真实 DOM keyDown + 真实 store 联动，含折叠/展开与选中移动）+`toolbarRender.test.tsx`（4，undo/redo 真实禁用态与点击分发；title 含快捷键后缀须前缀匹配）——真渲染 TypeSpecificProperties 断言 backdrop 字段值可见 + **input 事件真触发 handleChange 回写**（此前 112 测 wiring 全为静态字符串断言，无法验证运行时可交互性）。**探针教训 4 则**：①`@vitest-environment jsdom` 必须在文件头部注释块（放 import 后无效→document undefined）②组件是具名导出（默认导入→Element type is invalid）③环境装好后须验证既有套件不受影响（实测 143/145 文件全绿）④键盘 handler 闭包读 render 时快照——测试须经 UI 触发 re-render（直接调 store 后不重渲染，handler 仍持旧值）。静态守卫保留为两层（静态锁字段覆盖+渲染锁可交互），不替换。基线→**2165** |
-| **MenuBar canUndo 缺陷（241）** | **修 1 P1（渲染级首次抓到）** | `disabled: !canUndo` 取函数引用恒 false → 撤销/重做菜单项**永远不禁用**（应 `!canUndo()`）；同文件 Toolbar 写法正确，单点笔误。静态守卫只锁字符串存在（**把 bug 当期望锁死**），jsdom 真实 className 断言才暴露——**证明静态 wiring 的根本局限**。+menuBarRender.test.tsx（6 测：菜单展开/收起/禁用态/点击分发） |
-| 偏好/batchEdit（242） | **修 2 P1（渲染级第二次抓到）** | ①`preferencesRender`（5 测）验证 round 97 修复运行时成立（保存真同步 uiStore 三画布项）；探针纠错：`showAnchors` 不在 Preferences 契约内，不臆造断言。②`batchEditRender`（6 测）**抓到 P1**：多帧分支只 `pushCommand`（只入栈不 execute）→ **批量改宽高对多选帧完全不生效**（单帧正常），已改先 `composite.execute()` 再入栈；附带 `cmds.length===0` 空组合命令幽灵步骤已加 guard。③batchEditPanelWiring 旧断言**把缺陷当期望锁死**（只查 pushCommand 存在），已改锁顺序语义 |
-| arrayDialogs+hotReload（243） | 渲染级升级（无缺陷） | `arrayDialogsRender`（6 测）：默认参数提交、NaN 兜底回落 1、行×列>100 触发告警不直接创建、关闭回调；`hotReloadPanelRender`（5 测）：开关默认关闭、防抖数字输入、关闭回调。**探针纠错 2 处**：①Props 是 `onSubmit` 非 `onCreate`、提交键是 `type="submit"`②HotReload 面板无路径文本框（路径来自 KKWE 自动检测）、防抖输入非受控（DOM 值不回写）——**两处均按实现修正断言，不臆造期望**。本轮无缺陷发现（该两处实现正确） |
-| textureBrowser+preset（244） | 渲染级升级（无缺陷） | `textureBrowserRender`（5 测）：面板骨架/纹理项渲染/搜索输入/未设路径提示/列表异常不崩溃；`presetGroupRender`（6 测）：预设列表/应用真改帧**且可撤销回原值**（验证 round 140 修复）/关闭/空选择/空列表。**探针纠错 4 处**：①mpqManager 实际 API 是 getRootDirectories/getSubDirectories/listDirectory/searchFiles/selectWar3Directory（无 listFiles/isReady）②getSubDirectories/listDirectory 是**同步**返回（非 Promise）③listDirectory 返回 `{fileName}[]` 且组件按 `fileName.startsWith(目录)` + `parts.length===1` 过滤 ④无 `localStorage.war3_install_path` 时组件走"设置路径"分支不加载列表。均按实现修正，不臆造 |
-| **AnchorEditor 空锚点缺陷（245）** | **修 1 P1（渲染级第三次抓到）** | `selectedFrame.anchors \|\| createDefaultAnchors(...)`——**空数组是 truthy**，对 `anchors: []` 不触发兜底。而两个 transformer（fdfKernelTransformer L149 / fdfTransformer L332）解析 FDF 帧时**都产出 `anchors: []`** → 导入的原版 UI 帧在锚点面板显示**空锚点区**，`createDefaultAnchors` 兜底形同虚设（用户须手动点"添加锚点"）。已改长度判定。+anchorEditorRender.test.tsx（6 测：默认锚点生成/多锚点删除/删除回写 anchors/冲突警告一致性/单锚点无删除键）。**教训：`||` 兜底对空数组无效是 JS 常见陷阱，静态守卫看不出来** |
-| utilityPanels（246） | 渲染级升级（无缺陷） | `utilityPanelsRender`（11 测）覆盖三面板：ShortcutHelp（isOpen 门控/快捷键清单>10 条/关闭回调）；AboutDialog（Tauri getVersion 优先/**失败回落 package.json**/关闭）；UpdateChecker（**默认不自动检查**/**DEV 环境跳过 check()**/无更新静默/暴露 window.checkForUpdates）。**探针纠错 2 处**：①`checkOnMount` 默认 **false**，挂载不自动检查 ②**`import.meta.env.DEV` 在 vitest 下为 true** → `checkForUpdates` 直接 return 不调 `check()`（这是 round 90 静态守卫断言过的"开发环境跳过"语义，实测运行时成立）。原"发现新版本渲染"用例**在 DEV 环境不可达**，已改为断言 DEV 分支行为而非臆造 |
-| sidePanel+contextMenu（247） | 渲染级升级（无缺陷） | `sidePanelRender`（5 测）：分类标签/模板卡片/**点击模板真创建帧并入命令栈**/分类切换/搜索输入；`contextMenuRender`（6 测）：菜单项渲染/点击分发并关闭/禁用项不触发/无 action 项不崩溃/子菜单/坐标样式。**探针纠错 2 处**：①`getCategories()` 返回 `{id,name}[]` **对象数组**（非字符串），按钮文本含图标前缀 ②SidePanel `isExpanded` 默认 **false**（`.side-panel.collapsed`），须点 `.side-panel-toggle` 展开。**边界记录**：MDXModelViewer 依赖 three.js **WebGPU + WebGL 上下文**，jsdom 无 WebGL → 不适合渲染级测试（与 SceneGraphManager 同档，由集成路径覆盖），已跳过不做臆造断言 |
-| propertiesPanel（248） | **r242 P1 回归守卫落地** | `propertiesPanelRender`（6 测）验证三分支路由：无选中→空态（**不渲染编辑器**）/多选→BatchEditPanel（标题含控件数）/单选→单帧编辑器。**核心价值**：多选批量改宽度用例**同时断言三帧都变**——r242 修掉的"只入栈不执行"缺陷若复发会被立即捕获（此前该缺陷无回归守卫）。探针纠错 1 处：帧名渲染在 `<input value>` 非 textContent |
-| miscPanels（249） | 渲染级升级（无缺陷） | `miscPanelsRender`（10 测）：ConfirmDialog（标题/消息、确认/取消、**遮罩点击取消**、**内容区 stopPropagation 防误关**）；RaceSwitcher（**未加载 war3Skins 时 return null**=设计"无线可切"、展开下拉见 5 族、点击真调 `setRace`）；ResizeHandles（isSelected=true 渲染 **8 方向手柄**、false 不渲染、mousedown 第二参为方向串）。**探针纠错 3 处**：①类名 `.confirm-dialog-overlay`/`.confirm-dialog` ②**RaceSwitcher 在 `!project.war3Skins` 时 return null**，须显式构造完整 project——**对 `undefined` 浅展开得空对象是本轮 4 次反复失败的根因**③ResizeHandles props 仅 `isSelected`+`onResizeStart`（无坐标） |
-| canvasHelpers（250） | 渲染级升级（无缺陷） | `canvasHelpersRender`（12 测）：GuideLine（渲染元素、位置以像素体现、删除回调带 id、垂直参考线）；Ruler（**SVG `<line>`/`<text>` 刻度**、**刻度密度随 scale 真实变化**——scale=1 与 0.2 数量不同证明未硬编码、垂直标尺、WC3 坐标文本）；AnchorVisualizer（未选中不渲染/无锚点不崩溃/TL+BR 双锚点/坐标三位小数）。**探针纠错**：Ruler 用 SVG 非 div |
-| 补漏 3 组件（251） | 两层对齐 | **r250 结论自我修正**：核验发现静态 wiring 覆盖 29 组件、渲染级仅 26 → 补 `coverageGapsRender`（9 测）：DebugPanel（**需 `scale`+`isVisible`**，false 时 return null；**精度分层实测**——屏幕 `toFixed(0)`/WC3 `toFixed(5)`/选中帧 `toFixed(3)`，纠正"统一三位小数"误判）、LazyTexturePreview（jsdom 无 IntersectionObserver 走降级不加载）、FrameGroupPanel（读 **`project.frameGroups`** 非 `groups`）。**至此静态↔渲染两层一一对应** |
-| **浏览器路径 B（252）** | **feat：纯浏览器运行** | 新增 `platformBridge.ts` 双通道：`isTauri()`（`__TAURI_INTERNALS__`）/ `isBrowserRuntime()`（有 document + 无 Tauri + **UA 不含 jsdom**）。**排除 jsdom 是刻意设计并已测锁**——测试 mock 的是 Tauri API，判为浏览器会让既有 21 个 Tauri-mock 测试全失效（实施真实踩坑）。改造 7 处双通道分派，**Tauri 分支逐字节等价，桌面零变化**；浏览器分支 prompt 确认名 + Blob 下载 / input[type=file]。App 加 `.browser-mode-banner` 声明不可用项（MPQ/热重载/进程/更新/用户名，**平台能力缺失非工程量**）。**+60 测**（platformBridge 4 文件 32 测三分支；fileOperations.browser 12；exportUtils.browser 13；`browserPath.parity` 3 测**导出→再解析往返闭合**）。`docs/BROWSER_DEPLOY.md` 落部署取舍。**实测 `vite preview` 产物全 200**。基线 2263→**2323**，覆盖 100×4 |
+| 功能完善批次（237） | 用户"按建议全部做"批准 | **A1 SliderLayout 闭环**（openwar3 widgets.ts L903 实证为标志属性，推翻旧账本）、**A2 validateFDF warnings**（原文引号奇偶预扫）、**A3 get_blp_file_info 删除**、**A4 formatFDF 有损删除**、**C1 blpData 二进制传输**（Request+extract_raw 替代 JSON 8 倍膨胀）、**C2 getFrameVersion 补 width/height**。基线 2132→**2134** |
+| A3 收尾+mdx 补审（238） | "继续"轮 | blp_handler.rs get_blp_info/BlpInfo 删除 + 前端类型连带（cargo 19/19）；**mdx 补审**：interpolation.ts 208L 纯数学定性通过 +7 测（2 处测试预期错系未读 unshift 兜底），其余 6 文件 three.js 构件由集成路径覆盖——**穷尽性 mdx 角闭合，131→128 全部可单测文件定性**。基线 2134→**2141** |
+| jsdom 渲染级测试（239） | "继续"轮 | 引入 jsdom 30.1.3 + RTL 16.3.3（锁文件入库）；渲染级守卫 19 文件 122 测（properties/propertyEditors/projectTree/toolbar 等），首次验证 backdrop 字段可见 + input 事件真回写（此前 112 测全是静态字符串断言）。**探针教训 4 则**：①`@vitest-environment jsdom` 须在文件头注释块②组件是具名导出③装环境后须验证既有套件不受影响④键盘 handler 闭包持 render 快照，须经 UI 触发 re-render。静态守卫保留为两层，不替换。基线→**2165** |
+| **MenuBar canUndo 缺陷（241）** | **修 1 P1（渲染级首次抓到）** | `disabled: !canUndo` 取函数引用恒 false → 撤销/重做**永远不禁用**（应 `!canUndo()`）；Toolbar 写法正确故为单点笔误。静态守卫把 bug 当期望锁死，jsdom 真实断言才暴露——**证明静态 wiring 的根本局限**。+menuBarRender 6 测 |
+| 偏好/batchEdit（242） | **修 2 P1（渲染级第二次抓到）** | ①`preferencesRender`（5 测）验证 r97 修复运行时成立（探针纠错：`showAnchors` 不在契约内）。②`batchEditRender`（6 测）**抓到 P1**：多帧分支只 `pushCommand` 不 execute → **批量改宽高完全不生效**，已改先 execute 再入栈 + 空组合 guard。③旧断言语义已改锁顺序 |
+| arrayDialogs+hotReload（243） | 渲染级升级（无缺陷） | `arrayDialogsRender`（6 测：默认提交/NaN 兜底/超 100 告警/关闭）+`hotReloadPanelRender`（5 测：默认关闭/防抖/关闭）。**探针纠错 2 处**：Props 是 `onSubmit` 非 `onCreate`；HotReload 无路径文本框（KKWE 自动检测）、防抖输入非受控。本轮无缺陷 |
+| textureBrowser+preset（244） | 渲染级升级（无缺陷） | `textureBrowserRender`（5 测）+`presetGroupRender`（6 测，应用真改帧**且可撤销回原值**）。**探针纠错 4 处**：mpqManager 实际 API 面、getSubDirectories/listDirectory **同步**返回、listDirectory 返回 `{fileName}[]` 且按前缀+单段过滤、需 `localStorage.war3_install_path` 才进浏览分支。均按实现修正 |
+| **AnchorEditor 空锚点缺陷（245）** | **修 1 P1（渲染级第三次抓到）** | `anchors \|\| createDefaultAnchors(...)`——**空数组是 truthy** 不触发兜底。两个 transformer 解析 FDF 帧**都产出 `anchors: []`** → 导入的原版 UI 帧锚点面板显示空区。已改长度判定。+anchorEditorRender 6 测。**教训：`||` 对空数组无效是 JS 常见陷阱，静态守卫看不出来** |
+| utilityPanels（246） | 渲染级升级（无缺陷） | `utilityPanelsRender`（11 测）：ShortcutHelp / AboutDialog（**失败回落 package.json**）/ UpdateChecker（**默认不自动检查**、**DEV 跳过 check()**）。**探针纠错 2 处**：`checkOnMount` 默认 false；`import.meta.env.DEV` 在 vitest 下为 true → checkForUpdates 直接 return。原"发现新版本"用例在 DEV 不可达，已改为断言 DEV 分支 |
+| sidePanel+contextMenu（247） | 渲染级升级（无缺陷） | `sidePanelRender`（5 测，**点击模板真创建帧并入命令栈**）+`contextMenuRender`（6 测）。**探针纠错 2 处**：`getCategories()` 返回 `{id,name}[]` 对象数组；SidePanel `isExpanded` 默认 false 须点 `.side-panel-toggle`。**边界**：MDXModelViewer 需 WebGPU+WebGL，jsdom 无 → 跳过不做臆造断言 |
+| propertiesPanel（248） | **r242 P1 回归守卫落地** | `propertiesPanelRender`（6 测）验证三分支路由（无选中空态/多选 BatchEditPanel/单选单帧编辑器）。**核心价值**：多选批量改宽度**同时断言三帧都变**——r242 "只入栈不执行"缺陷若复发会被立即捕获。探针纠错：帧名在 `<input value>` 非 textContent |
+| miscPanels（249） | 渲染级升级（无缺陷） | `miscPanelsRender`（10 测）：ConfirmDialog（**遮罩点击取消**、**内容区 stopPropagation 防误关**）、RaceSwitcher（**未加载 war3Skins 时 return null**、5 族、真调 setRace）、ResizeHandles（**8 方向手柄**）。**探针纠错 3 处**：类名、**RaceSwitcher 须显式构造完整 project**（对 undefined 浅展开得空对象是本轮 4 次失败根因）、ResizeHandles props 无坐标 |
+| canvasHelpers（250） | 渲染级升级（无缺陷） | `canvasHelpersRender`（12 测）：GuideLine、Ruler（**SVG `<line>`/`<text>`**、**刻度密度随 scale 真实变化**证明未硬编码）、AnchorVisualizer（未选中不渲染/无锚点不崩溃/坐标三位小数）。**探针纠错**：Ruler 用 SVG 非 div |
+| 补漏 3 组件（251） | 两层对齐 | **r250 自我修正**：静态 wiring 覆盖 29、渲染级仅 26 → 补 `coverageGapsRender`（9 测）：DebugPanel（**精度分层**——屏幕 `toFixed(0)`/WC3 `toFixed(5)`/选中帧 `toFixed(3)`，纠正"统一三位小数"误判）、LazyTexturePreview（无 IntersectionObserver 降级）、FrameGroupPanel（读 **`project.frameGroups`**）。**至此两层一一对应** |
+| **浏览器路径 B（252）** | **feat：纯浏览器运行** | 新增 `platformBridge.ts` 双通道：`isTauri()` / `isBrowserRuntime()`（有 document + 无 Tauri + **UA 不含 jsdom**）。**排除 jsdom 是刻意设计并已测锁**（mock 的是 Tauri API）。改造 7 处，**Tauri 分支逐字节等价**；浏览器分支 prompt + Blob 下载 / input[type=file]。App 加 `.browser-mode-banner` 声明不可用项。**+60 测**。`docs/BROWSER_DEPLOY.md` 落取舍。基线 2263→**2323** |
 | 浏览器可行性（240） | **docs/BROWSER_FEASIBILITY.md** | 22 生产文件依赖 @tauri-apps；**14 invoke 中 9 个可 WASM 化**（blp/mpq/mdx/template 纯字节解析），**3 个平台能力缺失**（get_username 隐私/socket 监听/进程 API）。有利：C1 raw binary 天然兼容 WASM、核心算法全 TS 侧、Rust 仅 933 行。**A=WASM 化（5-7 天）/B=纯 FDF 编辑器（1-2 天）/C=完整还原不可行**（平台边界非工程量）。建议先 B 再 A |
 | MenuBar对账（225） | 通过 | 8+7 |
 | 穷尽性缺口发现（229） | **28 文件语义盲区** | 131 生产文件语义映射核查——纯盲区 15：templates.ts/useAlert/renderer 小文件 6/mdx 7 中活代码/AboutDialog/RaceSwitcher/TextProps/TextureProps/fdfKernelSerializer（§4 清单遗漏）；wiring/store 覆盖的 13 个可排除——下轮起补审 |

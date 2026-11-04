@@ -1,0 +1,39 @@
+# 浏览器（WASM）子集：本目录是 crates.io `wow-mpq 0.3.2` 的**裁剪副本**（只读用途）。
+#
+# 裁剪理由（实证，非推测）：
+#   - 上游 `archive`/`builder`/`modification`/`database`/`parallel`/`patch_chain`/
+#     `path`/`io`/`rebuild`/`compare`/`single_archive_parallel`/`special_files`/
+#     `signature` 全部硬绑 `std::fs` / `rusqlite` / `rayon` / `rsa` / `tempfile`，
+#     无法编译到 `wasm32-unknown-unknown`，浏览器端**只读字节流**也用不到。
+#   - 只保留读取 MPQ 所需的最小集合：
+#     header / tables(hash+block) / crypto / compression / error / debug。
+#   - `bzip2` crate 依赖 C 版 `bzip2-sys`，同样无法编译到 wasm；故
+#     `algorithms/bzip2.rs` 一并删除，`compress`/`decompress` 对该方法返回明确错误。
+#     （WC3 的 war3.mpq 不使用 bzip2——其扇区只有 ZLIB / PKWARE-implode / 未压缩。）
+#   - HET/BET 表（WoW 4.x 专用）未保留；WoW cache 版本之外的经典 V1/V2/V3 表足够覆盖 WC3。
+#
+# 上游 license: MIT OR Apache-2.0。
+[package]
+name = "wow-mpq"
+version = "0.3.2"
+edition = "2024"
+rust-version = "1.86"
+license = "MIT OR Apache-2.0"
+description = "MPQ archive reader (browser/WASM subset of wow-mpq)"
+publish = false
+
+[lib]
+name = "wow_mpq"
+path = "src/lib.rs"
+
+[features]
+default = []
+
+[dependencies]
+byteorder = "1.5"
+thiserror = "2.0"
+log = "0.4"
+flate2 = "1.1"
+pklib = "0.1"
+implode = "0.1.1"
+lzma-rs = "0.3"

@@ -1,5 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { isBrowserRuntime } from './platformBridge';
+import { loadWasmModule } from './wasmBridge';
+
 /**
  * BLP 图像数据（RGBA 格式）
  */
@@ -72,8 +75,26 @@ export async function decodeBLPToPNG(blpData: Uint8Array): Promise<string> {
 
 /**
  * 解码 BLP 文件为 RGBA 数据
+ *
+ * 双通道（路径 A）：浏览器运行时走 WASM 内核（与桌面共用同一份解码语义），
+ * 桌面/测试维持原 `invoke` 调用**逐字节不变**；WASM 不可用或抛错时回落 Tauri。
  */
 export async function decodeBLPToRGBA(blpData: Uint8Array): Promise<BlpImageData> {
+  if (isBrowserRuntime()) {
+    const mod = await loadWasmModule();
+    if (mod) {
+      const img = mod.decode_blp_to_rgba(blpData);
+      try {
+        return {
+          width: img.width,
+          height: img.height,
+          data: Array.from(img.data()),
+        };
+      } finally {
+        img.free();
+      }
+    }
+  }
   return invoke<BlpImageData>('decode_blp_to_rgba', blpData);
 }
 
@@ -92,8 +113,15 @@ export async function decodeBLPMipmap(blpData: Uint8Array, level: number): Promi
 
 /**
  * 解析 MDX 文件
+ *
+ * 双通道（路径 A）：浏览器运行时走 WASM 内核（与桌面 `#[path]` 共用同一份
+ * `mdx_parser.rs` 源码，零漂移）；桌面/测试维持原 `invoke` 调用。
  */
 export async function parseMDX(mdxData: Uint8Array): Promise<MdxModel> {
+  if (isBrowserRuntime()) {
+    const mod = await loadWasmModule();
+    if (mod) return JSON.parse(mod.parse_mdx_file(mdxData)) as MdxModel;
+  }
   const jsonStr = await invoke<string>('parse_mdx_file', mdxData);
   return JSON.parse(jsonStr);
 }
