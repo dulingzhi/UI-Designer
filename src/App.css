@@ -83,3 +83,17 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: #5a7fa7;
 }
+
+/* 浏览器路径 B：无 Tauri 运行时的能力提示条（不可用功能如实声明，避免静默失败） */
+.browser-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8a6d3b;
+  background: #fcf8e3;
+  border-bottom: 1px solid #faebcc;
+  flex: 0 0 auto;
+}

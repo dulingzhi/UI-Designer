@@ -1,6 +1,7 @@
 import React from 'react';
 // 决策项 4：启动即解析系统用户名，消除热重载默认路径的个人硬编码回落
 import { invoke } from '@tauri-apps/api/core';
+import { isBrowserRuntime } from './utils/platformBridge';
 import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { MenuBar } from './components/MenuBar';
@@ -301,6 +302,14 @@ function AppContent() {
         onDeleteRequest={handleDeleteRequest}
       />
       <Toolbar currentFilePath={currentFilePath} setCurrentFilePath={setCurrentFilePath} />
+
+      {/* 浏览器路径 B：无 Tauri 时明确提示哪些功能不可用，避免"点了没反应"的困惑 */}
+      {isBrowserRuntime() && (
+        <div className="browser-mode-banner" role="status">
+          🌐 浏览器模式：FDF 导入导出与可视化编辑可用；MPQ 纹理库、热重载、启动 War3、
+          更新检查需桌面版（不可用项点击会提示）。
+        </div>
+      )}
       <div className={`app-content ${showDebugPanel ? '' : 'no-status-bar'}`}>
         {showProjectTree && <ProjectTree onClose={() => setShowProjectTree(false)} onDeleteRequest={handleDeleteRequest} />}
         <Canvas ref={canvasRef as any} />

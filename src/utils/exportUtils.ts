@@ -1,6 +1,11 @@
 import { ProjectData, FrameData, FrameType } from '../types';
 import { save } from '@tauri-apps/plugin-dialog';
-import { writeTextFile } from '@tauri-apps/plugin-fs';
+import {
+  isBrowserRuntime,
+  downloadText,
+  downloadBlob,
+  writeTextFileUniversal,
+} from './platformBridge';
 import { FDFExporterEnhanced } from './fdfExporter';
 import { escapeJassString } from './codegen/identifiers';
 
@@ -33,6 +38,21 @@ export async function exportToFDF(
 ): Promise<void> {
   try {
     // 打开保存对话框
+    // 浏览器：prompt 确认文件名 → Blob 下载（无原生保存对话框）
+    if (isBrowserRuntime()) {
+      const name = (typeof window !== 'undefined' && window.prompt)
+        ? window.prompt('导出 FDF 文件名', 'ui-design.fdf')
+        : 'ui-design.fdf';
+      if (!name) return;
+      const fdfContent = enhanced
+        ? generateFDFContentEnhanced(project)
+        : generateFDFContent(project);
+      downloadText(name, fdfContent);
+      if (onShowAlert) {
+        onShowAlert({ title: '成功', message: `导出 FDF 成功！${enhanced ? '（增强模式）' : ''}`, type: 'info' });
+      }
+      return;
+    }
     const path = await save({
       filters: [{
         name: 'Frame Definition File',
@@ -49,7 +69,7 @@ export async function exportToFDF(
       : generateFDFContent(project);
 
     // 写入文件
-    await writeTextFile(path, fdfContent);
+    await writeTextFileUniversal(path, fdfContent);
 
     if (onShowAlert) {
       onShowAlert({ title: '成功', message: `导出 FDF 成功！${enhanced ? '（增强模式）' : ''}`, type: 'info' });
@@ -75,6 +95,16 @@ export async function exportToJSON(
   onShowAlert?: (options: { title: string; message: string; type: 'info' | 'warning' | 'danger' }) => void
 ): Promise<void> {
   try {
+    // 浏览器：prompt 确认文件名 → Blob 下载
+    if (isBrowserRuntime()) {
+      const name = (typeof window !== 'undefined' && window.prompt)
+        ? window.prompt('导出 JSON 文件名', 'ui-design.json')
+        : 'ui-design.json';
+      if (!name) return;
+      const jsonContent = JSON.stringify(project, null, 2);
+      downloadText(name, jsonContent, 'application/json');
+      return;
+    }
     const path = await save({
       filters: [{
         name: 'JSON File',
@@ -86,7 +116,7 @@ export async function exportToJSON(
     if (!path) return;
 
     const jsonContent = JSON.stringify(project, null, 2);
-    await writeTextFile(path, jsonContent);
+    await writeTextFileUniversal(path, jsonContent);
 
     if (onShowAlert) {
       onShowAlert({ title: '成功', message: '导出 JSON 成功！', type: 'info' });
@@ -507,6 +537,26 @@ export async function exportToPNG(
   }
 
   try {
+    // 浏览器：prompt 确认文件名 → canvas.toBlob → Blob 下载
+    if (isBrowserRuntime()) {
+      const name = (typeof window !== 'undefined' && window.prompt)
+        ? window.prompt('导出 PNG 文件名', 'ui-preview.png')
+        : 'ui-preview.png';
+      if (!name) return;
+      canvasElement.toBlob((blob) => {
+        if (!blob) {
+          if (onShowAlert) {
+            onShowAlert({ title: '错误', message: '生成图片失败', type: 'danger' });
+          }
+          return;
+        }
+        downloadBlob(name, blob);
+        if (onShowAlert) {
+          onShowAlert({ title: '成功', message: '导出 PNG 成功！', type: 'info' });
+        }
+      }, 'image/png');
+      return;
+    }
     const path = await save({
       filters: [{
         name: 'PNG Image',

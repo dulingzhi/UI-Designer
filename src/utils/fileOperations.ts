@@ -1,5 +1,12 @@
 import { save, open } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
+import {
+  isBrowserRuntime,
+  pickFileBrowser,
+  readFileAsText,
+  downloadText,
+  readTextFileUniversal,
+  writeTextFileUniversal,
+} from './platformBridge';
 import { ProjectData, FrameData } from '../types';
 import { createDefaultAnchors } from './anchorUtils';
 import { parseFDF } from './fdf';  // 使用新的统一入口
@@ -105,6 +112,16 @@ export async function saveProject(project: ProjectData, filePath?: string): Prom
     
     // 如果没有提供路径，打开保存对话框
     if (!path) {
+      // 浏览器：无原生对话框，prompt 让用户确认文件名后下载
+      if (isBrowserRuntime()) {
+        const name = (typeof window !== 'undefined' && window.prompt)
+          ? window.prompt('保存项目文件名', 'myproject.w3ui')
+          : 'myproject.w3ui';
+        if (!name) return null;
+        const json = JSON.stringify(project, null, 2);
+        downloadText(name, json, 'application/json');
+        return name;
+      }
       path = await save({
         filters: [{
           name: 'WC3 UI Project',
@@ -120,7 +137,7 @@ export async function saveProject(project: ProjectData, filePath?: string): Prom
     const jsonData = JSON.stringify(project, null, 2);
     
     // 写入文件
-    await writeTextFile(path, jsonData);
+    await writeTextFileUniversal(path, jsonData);
     
     return path;
   } catch (error) {
@@ -133,6 +150,15 @@ export async function saveProject(project: ProjectData, filePath?: string): Prom
 export async function loadProject(): Promise<{ project: ProjectData; path: string } | null> {
   try {
     // 打开文件对话框
+    // 浏览器：<input type=file> 选 .w3ui，直接读文本解析（无路径语义）
+    if (isBrowserRuntime()) {
+      const file = await pickFileBrowser('.w3ui,.json');
+      if (!file) return null;
+      const jsonData = await readFileAsText(file);
+      let project = JSON.parse(jsonData) as ProjectData;
+      project = migrateProjectData(project);
+      return { project, path: file.name };
+    }
     const path = await open({
       filters: [{
         name: 'WC3 UI Project',
@@ -154,7 +180,7 @@ export async function loadProject(): Promise<{ project: ProjectData; path: strin
 export async function loadProjectFromPath(path: string): Promise<{ project: ProjectData; path: string } | null> {
   try {
     // 读取文件内容
-    const jsonData = await readTextFile(path);
+    const jsonData = await readTextFileUniversal(path);
     
     // 解析 JSON
     let project = JSON.parse(jsonData) as ProjectData;
@@ -178,6 +204,12 @@ export async function exportCode(code: string, language: 'jass' | 'lua' | 'ts'):
       ts: ['ts']
     };
     
+    // 浏览器：直接下载，无需对话框
+    if (isBrowserRuntime()) {
+      const filename = `ui_export.${extensions[language][0]}`;
+      downloadText(filename, code);
+      return filename;
+    }
     const path = await save({
       filters: [{
         name: `${language.toUpperCase()} File`,
@@ -188,7 +220,7 @@ export async function exportCode(code: string, language: 'jass' | 'lua' | 'ts'):
     
     if (!path) return null;
     
-    await writeTextFile(path, code);
+    await writeTextFileUniversal(path, code);
     
     return path;
   } catch (error) {
@@ -203,6 +235,13 @@ export async function exportCode(code: string, language: 'jass' | 'lua' | 'ts'):
 export async function importFromFDF(): Promise<FrameData[] | null> {
   try {
     // 打开FDF文件选择对话框
+    // 浏览器：File API 选 .fdf，直接读文本（无路径语义）
+    if (isBrowserRuntime()) {
+      const file = await pickFileBrowser('.fdf,.toc,.txt');
+      if (!file) return null;
+      const fdfContent = await readFileAsText(file);
+      return parseFDF(fdfContent, { useKernelLayout: true });
+    }
     const path = await open({
       filters: [{
         name: 'Frame Definition File',
@@ -214,7 +253,7 @@ export async function importFromFDF(): Promise<FrameData[] | null> {
     if (!path || Array.isArray(path)) return null;
     
     // 读取FDF文件内容
-    const fdfContent = await readTextFile(path);
+    const fdfContent = await readTextFileUniversal(path);
     
     // 解析FDF为FrameData数组 —— 走内核声明式 layout（root 锚点定位 + 内核解子树）。
     // 渲染器 SceneGraphManager 被动消费这些 x/y/width/height（同一 WC3 世界坐标），
