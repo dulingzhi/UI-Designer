@@ -10,9 +10,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 
 const mockListFiles = vi.fn(() => Promise.resolve([]));
+const mockLoadBrowserArchives = vi.fn(() => Promise.resolve([] as string[]));
+const mockListBrowserArchives = vi.fn(() => [] as string[]);
 
 // 探针实证：组件实际调用 getRootDirectories / getSubDirectories / listDirectory /
 // searchFiles / selectWar3Directory / setWar3Path，共 6 个（此前的 listFiles/isReady 不存在）
+// r255 新增浏览器分支：loadBrowserArchives / listBrowserArchives
 vi.mock('../utils/mpqManager', () => ({
   mpqManager: {
     getRootDirectories: () => [] as string[],
@@ -21,8 +24,17 @@ vi.mock('../utils/mpqManager', () => ({
     searchFiles: (...a: unknown[]) => mockListFiles(...a),
     selectWar3Directory: vi.fn(() => Promise.resolve('C:\\War3')),
     setWar3Path: vi.fn(() => Promise.resolve()),
+    loadBrowserArchives: () => mockLoadBrowserArchives(),
+    listBrowserArchives: () => mockListBrowserArchives(),
   },
 }));
+
+// 桌面/浏览器判定可切换（默认桌面，保持既有 5 个用例语义不变）
+const mockIsBrowserRuntime = vi.hoisted(() => vi.fn(() => false));
+vi.mock('../utils/platformBridge', async (orig) => {
+  const real = await (orig as () => Promise<Record<string, unknown>>)();
+  return { ...real, isBrowserRuntime: mockIsBrowserRuntime };
+});
 vi.mock('../utils/textureLoader', () => ({
   textureLoader: {
     loadTexture: vi.fn(() => Promise.resolve({ dataUrl: 'blob:mock', width: 1, height: 1 })),
@@ -51,6 +63,9 @@ beforeEach(() => {
   });
   vi.clearAllMocks();
   mockListFiles.mockReturnValue([]);
+  mockIsBrowserRuntime.mockReturnValue(false);
+  mockLoadBrowserArchives.mockReturnValue(Promise.resolve([]));
+  mockListBrowserArchives.mockReturnValue([]);
 });
 
 describe('WC3TextureBrowser 渲染级测试', () => {
@@ -119,5 +134,52 @@ describe('WC3TextureBrowser 渲染级测试', () => {
     await waitFor(() => {
       expect(container.innerHTML.length).toBeGreaterThan(20);
     });
+  });
+});
+
+describe('WC3TextureBrowser 浏览器模式（r255：MPQ 由 WASM 内核提供）', () => {
+  beforeEach(() => {
+    mockIsBrowserRuntime.mockReturnValue(true);
+    // 浏览器没有安装路径概念：即使 localStorage 里残留桌面路径也不该被使用
+    store = { war3_install_path: 'C:\\War3' };
+  });
+
+  it('未载入任何档案时提示"选择 MPQ 文件"而非"设置安装路径"', async () => {
+    mockListBrowserArchives.mockReturnValue([]);
+    const { container } = render(<WC3TextureBrowser currentPath="" onSelect={vi.fn()} />);
+    await waitFor(() => {
+      expect(container.textContent).toMatch(/MPQ/i);
+    });
+    // 不应再出现桌面专属的"安装路径"文案
+    expect(container.textContent).not.toMatch(/安装路径/);
+  });
+
+  it('点击"选择 MPQ 文件"调用 loadBrowserArchives，并刷新档案列表', async () => {
+    mockListBrowserArchives.mockReturnValue([]);
+    mockLoadBrowserArchives.mockResolvedValue(['War3.mpq']);
+    const { container } = render(<WC3TextureBrowser currentPath="" onSelect={vi.fn()} />);
+    await waitFor(() => expect(container.textContent).toMatch(/MPQ/i));
+
+    const btn = Array.from(container.querySelectorAll('button')).find((b) =>
+      (b.textContent || '').includes('选择 MPQ 文件'),
+    ) as HTMLButtonElement | undefined;
+    expect(btn, '应有"选择 MPQ 文件"按钮').toBeTruthy();
+
+    // 选中后 listBrowserArchives 返回新档案，组件应把它显示出来
+    mockListBrowserArchives.mockReturnValue(['War3.mpq']);
+    fireEvent.click(btn!);
+    await waitFor(() => {
+      expect(mockLoadBrowserArchives).toHaveBeenCalled();
+    });
+  });
+
+  it('已载入档案时直接展示列表，不弹设置对话框', async () => {
+    mockListBrowserArchives.mockReturnValue(['War3.mpq']);
+    const { container } = render(<WC3TextureBrowser currentPath="" onSelect={vi.fn()} />);
+    await waitFor(() => {
+      expect(container.innerHTML.length).toBeGreaterThan(50);
+    });
+    // 已载入 → 不应出现"请选择 MPQ 文件"的对话框标题
+    expect(container.textContent).not.toMatch(/浏览器无法访问安装目录/);
   });
 });

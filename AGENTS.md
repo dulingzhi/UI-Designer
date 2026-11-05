@@ -110,9 +110,9 @@
 4. **类型检查**：`npx tsc --noEmit`。**源码（src，非 `*.test.ts`）必须 0 报错**。测试文件的既有松散类型报错可暂缓，但新增代码不得引入新的错误。`npm run build`（= `tsc -p tsconfig.build.json && vite build`）用 build 专用配置排除测试文件——r120 修复生产构建被 95 个测试侧报错阻塞的问题（此前 build 从未绿过）；主 chunk 1.87MB 警告为代码分割优化项不阻塞。r122 已分割：three(566KB)/react(12KB) 独立 vendor 分包，主 chunk 降至 1.29MB（-31%，vendor 长缓存）；业务 chunk 强耦合不再细分。
 
 最新全量基线：
-`2360 passed | 5 skipped` 测试（r253 浏览器路径 A +32）
+`2377 passed | 5 skipped` 测试（r255 浏览器 MPQ 接线 +17）
 - 内核/对拍：`17 passed | 2 skipped` 文件，`437 passed | 5 skipped` 测试（含真实数据往返守卫）
-- `All files` 覆盖：`100 / 100 / 100 / 100`（r253 实测明细：Stmts 3390 / Branches 1974 / Funcs 464 / Lines 3055——漂移检测锚点）
+- `All files` 覆盖：`100 / 100 / 100 / 100`（r255 实测明细：Stmts 3420 / Branches 1984 / Funcs 470 / Lines 3083——漂移检测锚点）
 
 ### 浏览器路径 A：WASM 前端内核（r253 落地）
 
@@ -149,7 +149,7 @@
 ADPCM 随即报 `Invalid ADPCM bit shift value: 78`，`decompress_multiple` 的 `unwrap_or_else(|_| vec![0u8; expected])`
 把失败**静默补零** → **每个 wav 除首扇区（ZLIB）外全为静音**。
 
-定位方法（关键）：**逐层隔离**。先证「扇区 0 ZLIB 正确、扇区 ≥1 全 FAIL」→ 再证「参考 Huffman 输出 + 我方 ADPCM
+定位方法：**逐层隔离**——先证「扇区 0 ZLIB 正确、扇区 ≥1 全 FAIL」→ 再证「参考 Huffman 输出 + 我方 ADPCM
 = 参考 PCM 逐字节一致」→ 排除 ADPCM/MPQ 读取/解密键，**缺陷单点在 Huffman**。
 
 修复：按 StormLib `huff.cpp`（Zezula, MIT）在 Rust 侧重写 `huffman.rs`（9 张权重表原样保留），
@@ -168,6 +168,22 @@ ADPCM 随即报 `Invalid ADPCM bit shift value: 78`，`decompress_multiple` 的 
 
 **Rust 测试**：`cargo test` 14/14（blp_decode 3 + mpq_read 6 + mdx_parser 5）。真实归档端到端：`cargo run --release --example verify_real -- E:/GAMES/WAR3/war3.mpq`（10682 文件 / 打开 220ms / FDF+BLP+MDX 抽查全通过）。
 
+
+### 浏览器 MPQ 产品接线（r255 落地）
+
+**问题**：r253/r254 把 WASM 内核做对并验证了，但 `pickMpqArchives` **零产品消费者**——
+浏览器用户根本无从加载 MPQ，banner 还把"MPQ 纹理库"列为桌面专属。能力存在、入口缺失。
+
+**接线（4 处）**：`wasmMpq` 加 `orderedBrowserArchives()`（标准优先级 + 大小写不敏感 + 非标准名按字母序，
+保证确定性）与 `browserDataSource()`（复用 `LayeredDataSource`，空载入返回空层栈而非抛错）；
+`MPQManager.getDataSource()` 加浏览器分支、`unloadAll()` 跳过 Tauri invoke；
+新增 `loadBrowserArchives()`（选文件 → 灌 `fileListCache` → 标记 loaded → **置空 cachedDataSource**；
+支持分批添加）；`WC3TextureBrowser` 对话框按运行时分流（浏览器"选 MPQ 文件"，桌面原流程不变）。
+
+**测试**（+17）：`wasmMpq` 31 + `mpqManager` 65（浏览器 6 条）+ `textureBrowserRender` 8（浏览器 3 条）。
+**端到端**（真实 war3.mpq）：10682 文件 → `UI\Widgets\` 5 子目录 → BLP 128x64 → FDF sha256 一致 → 搜索 13 命中。
+
+**诚实边界**：浏览器仍需逐个选文件，且内存要容纳整个 MPQ（war3.mpq ≈430MB）——平台约束非工程量。
 
 ### hotReloadExporter 热重载链路审计（压缩，细节见 git 历史）
 
@@ -200,7 +216,7 @@ ADPCM 随即报 `Invalid ADPCM bit shift value: 78`，`decompress_multiple` 的 
 | fdfIncludeResolver.ts | **删死代码** | Node-only+零引用；191 行+14 测 |
 | fdfExporter 剩余面+fdfTemplates | 通过+1 边界 | FT 0-28 全覆盖；继承 visited 防护；applyTemplate 边界（产品决策） |
 | fdfImport.test mock 补齐 | test 侧修复 | mock templateManager 缺 loadTemplatesFromFile 致 tsc 测试侧 2 报错（生产无碍）；补 mock 后清零 |
-| 命令层 src/commands（9 文件全类） | 通过+1 边界 | 20 命令类全部有测试实例化（Frame 10/Align 3/AlignToCanvas/Size/ZIndex/Duplicate 2/Array 2）——无缺口。ZIndexCommand 语义：moveUp/Down 找相邻 z、边界 no-op 不写、bringToFront max+1/sendToBack min-1、undo/redo 存 old/new。**边界**：no-op 命令（已最高层再上移）仍入栈并清空 redo 栈——commandStore"新 execute 清 redo"设计语义的自然结果（类比 git empty commit），UX 细节记录不改。13 条 console.log 在用户操作路径非渲染热路径，保留 |
+| 命令层 src/commands（9 文件全类） | 通过+1 边界 | 20 命令类全部有测试实例化——无缺口。ZIndexCommand 语义：moveUp/Down 找相邻 z、边界 no-op、bringToFront max+1/sendToBack min-1、undo/redo 存 old/new。**边界**：no-op 命令仍入栈并清空 redo（commandStore 设计语义自然结果），记录不改。 |
 | BackdropEdge+useTextureLoader | **删死链** | 组件零渲染点；hook 孤儿；canvasHelpersWiring 随删 |
 | constants.ts+App.tsx 接线 | 通过 | 消费 11 处；无硬编码绕过（5760 穷举锁） |
 | mpq_io+tcp_server | **修 1** | bind 失败 is_running 卡 true 已修；cargo 19/19 |
@@ -245,7 +261,7 @@ ADPCM 随即报 `Invalid ADPCM bit shift value: 78`，`decompress_multiple` 的 
 | **决策项 13 项（236）** | 用户"都做" | ①appInterface 删(24文件)②editBorderSize 闭环(3测)③applyTemplate 写回(20键,3测)④用户名重构(常量→函数)⑤多选复制/粘贴(2命令,2测)⑥ProjectTree 键盘导航(3测)⑦⑧mdx 收敛⑨CSP 生产加固⑩capabilities 收窄(opener三处+dialog三权限, cargo19/19)⑪lockfile 入库⑫serializer 删(-90行-7测)——**fs:scope `**` 经核查保留**(热重载写任意目录+任意MPQ读为硬需求) |
 | 功能完善批次（237） | 用户"按建议全部做"批准 | **A1 SliderLayout 闭环**（openwar3 widgets.ts L903 实证为标志属性，推翻旧账本）、**A2 validateFDF warnings**（原文引号奇偶预扫）、**A3 get_blp_file_info 删除**、**A4 formatFDF 有损删除**、**C1 blpData 二进制传输**（Request+extract_raw 替代 JSON 8 倍膨胀）、**C2 getFrameVersion 补 width/height**。基线 2132→**2134** |
 | A3 收尾+mdx 补审（238） | "继续"轮 | blp_handler.rs get_blp_info/BlpInfo 删除 + 前端类型连带（cargo 19/19）；**mdx 补审**：interpolation.ts 208L 纯数学定性通过 +7 测（2 处测试预期错系未读 unshift 兜底），其余 6 文件 three.js 构件由集成路径覆盖——**穷尽性 mdx 角闭合，131→128 全部可单测文件定性**。基线 2134→**2141** |
-| jsdom 渲染级测试（239） | "继续"轮 | 引入 jsdom 30.1.3 + RTL 16.3.3（锁文件入库）；渲染级守卫 19 文件 122 测（properties/propertyEditors/projectTree/toolbar 等），首次验证 backdrop 字段可见 + input 事件真回写（此前 112 测全是静态字符串断言）。**探针教训 4 则**：①`@vitest-environment jsdom` 须在文件头注释块②组件是具名导出③装环境后须验证既有套件不受影响④键盘 handler 闭包持 render 快照，须经 UI 触发 re-render。静态守卫保留为两层，不替换。基线→**2165** |
+| jsdom 渲染级测试（239） | "继续"轮 | 引入 jsdom 30.1.3 + RTL 16.3.3；渲染级守卫 19 文件 122 测，首次验证 backdrop 可见 + input 真回写（此前 112 测全是静态断言）。**教训 4 则**：环境注释须在文件头／具名导出／装环境后须回归既有套件／键盘 handler 持 render 快照须经 UI 触发。基线→**2165** |
 | **MenuBar canUndo 缺陷（241）** | **修 1 P1（渲染级首次抓到）** | `disabled: !canUndo` 取函数引用恒 false → 撤销/重做**永远不禁用**（应 `!canUndo()`）；Toolbar 写法正确故为单点笔误。静态守卫把 bug 当期望锁死，jsdom 真实断言才暴露——**证明静态 wiring 的根本局限**。+menuBarRender 6 测 |
 | 偏好/batchEdit（242） | **修 2 P1（渲染级第二次抓到）** | ①`preferencesRender`（5 测）验证 r97 修复运行时成立（探针纠错：`showAnchors` 不在契约内）。②`batchEditRender`（6 测）**抓到 P1**：多帧分支只 `pushCommand` 不 execute → **批量改宽高完全不生效**，已改先 execute 再入栈 + 空组合 guard。③旧断言语义已改锁顺序 |
 | arrayDialogs+hotReload（243） | 渲染级升级（无缺陷） | `arrayDialogsRender`（6 测：默认提交/NaN 兜底/超 100 告警/关闭）+`hotReloadPanelRender`（5 测：默认关闭/防抖/关闭）。**探针纠错 2 处**：Props 是 `onSubmit` 非 `onCreate`；HotReload 无路径文本框（KKWE 自动检测）、防抖输入非受控。本轮无缺陷 |

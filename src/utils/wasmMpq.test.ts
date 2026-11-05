@@ -27,11 +27,14 @@ vi.mock('./platformBridge', () => ({
 import {
   __resetBrowserArchives,
   __setBrowserArchive,
+  browserDataSource,
   defaultMpqFns,
   listBrowserArchives,
+  orderedBrowserArchives,
   pickMpqArchives,
   wasmMpqFns,
 } from './wasmMpq';
+import { LayeredDataSource } from './dataSource';
 
 /** 造一个只会返回固定内容的最小 wasm 模块替身。 */
 function fakeWasm(overrides: Record<string, unknown> = {}) {
@@ -255,5 +258,63 @@ describe('defaultMpqFns', () => {
   it('桌面/测试 → 原 Tauri 实现（逐字节不变）', () => {
     mocks.isBrowserRuntime.mockReturnValue(false);
     expect(defaultMpqFns(tauri)).toBe(tauri);
+  });
+});
+
+describe('orderedBrowserArchives', () => {
+  it('按标准优先级排序（War3 < War3x < War3xLocal < War3Patch）', () => {
+    __setBrowserArchive('War3Patch.mpq', new Uint8Array([1]));
+    __setBrowserArchive('War3.mpq', new Uint8Array([2]));
+    __setBrowserArchive('War3x.mpq', new Uint8Array([3]));
+    expect(orderedBrowserArchives()).toEqual(['War3.mpq', 'War3x.mpq', 'War3Patch.mpq']);
+  });
+
+  it('大小写不敏感地匹配标准名，并保留用户原始文件名', () => {
+    __setBrowserArchive('war3.mpq', new Uint8Array([1]));
+    __setBrowserArchive('WAR3X.MPQ', new Uint8Array([2]));
+    expect(orderedBrowserArchives()).toEqual(['war3.mpq', 'WAR3X.MPQ']);
+  });
+
+  it('非标准命名的档案排在其后（按名字，结果确定）', () => {
+    __setBrowserArchive('Zeta.mpq', new Uint8Array([1]));
+    __setBrowserArchive('War3.mpq', new Uint8Array([2]));
+    __setBrowserArchive('Alpha.mpq', new Uint8Array([3]));
+    expect(orderedBrowserArchives()).toEqual(['War3.mpq', 'Alpha.mpq', 'Zeta.mpq']);
+  });
+
+  it('未载入任何档案 → 空数组', () => {
+    expect(orderedBrowserArchives()).toEqual([]);
+  });
+});
+
+describe('browserDataSource', () => {
+  it('未载入档案 → 空层栈：exists=false / read=null / list=[]', async () => {
+    const ds = browserDataSource();
+    expect(await ds.exists('UI\\a.blp')).toBe(false);
+    expect(await ds.read('UI\\a.blp')).toBeNull();
+    expect(ds.list()).toEqual([]);
+  });
+
+  it('已载入档案 → 层栈按高优先在前，且读到内容', async () => {
+    __setBrowserArchive('War3.mpq', new Uint8Array([1]));
+    __setBrowserArchive('War3Patch.mpq', new Uint8Array([2]));
+    const ds = browserDataSource() as LayeredDataSource;
+    const labels = ds.layersList.map((l) => l.label);
+    // War3Patch 优先级更高，应排在 index 0
+    expect(labels).toEqual(['War3Patch.mpq', 'War3.mpq']);
+
+    mocks.loadWasmModule.mockResolvedValue(fakeWasm());
+    expect(await ds.read('a.fdf')).not.toBeNull();
+  });
+
+  it('高优先层命中时不再问低优先层（覆盖语义）', async () => {
+    __setBrowserArchive('War3.mpq', new Uint8Array([1]));
+    __setBrowserArchive('War3Patch.mpq', new Uint8Array([2]));
+    const mod = fakeWasm();
+    mocks.loadWasmModule.mockResolvedValue(mod);
+    const ds = browserDataSource();
+    await ds.read('a.fdf');
+    // 首个命中即返回：只应打开一次句柄
+    expect(mod.mpq_open).toHaveBeenCalledTimes(1);
   });
 });

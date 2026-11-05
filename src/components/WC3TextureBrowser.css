@@ -881,3 +881,22 @@
   color: #888;
   font-size: 12px;
 }
+
+/* 浏览器模式：已选 MPQ 档案列表（r255） */
+.browser-archive-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.browser-archive-list li {
+  padding: 3px 0;
+  font-family: monospace;
+  font-size: 12px;
+  color: #9cdcfe;
+}

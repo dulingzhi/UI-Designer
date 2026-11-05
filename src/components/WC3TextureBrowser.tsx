@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { mpqManager } from '../utils/mpqManager';
 import { textureLoader } from '../utils/textureLoader';
+import { isBrowserRuntime } from '../utils/platformBridge';
 import { LazyTexturePreview } from './LazyTexturePreview';
 import './WC3TextureBrowser.css';
 
@@ -37,6 +38,9 @@ export const WC3TextureBrowser: React.FC<WC3TextureBrowserProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [war3Path, setWar3Path] = useState<string>('');
   const [showPathSetting, setShowPathSetting] = useState(false);
+  // 浏览器模式：无文件系统目录，改为用户选择的 MPQ 文件（WASM 内核解析）。
+  const isBrowser = isBrowserRuntime();
+  const [browserArchives, setBrowserArchives] = useState<string[]>([]);
   const [directoryTree, setDirectoryTree] = useState<DirectoryNode[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageName, setPreviewImageName] = useState<string>('');
@@ -47,6 +51,13 @@ export const WC3TextureBrowser: React.FC<WC3TextureBrowserProps> = ({
 
   // 检查 War3 路径是否已设置
   useEffect(() => {
+    // 浏览器模式：没有"安装路径"概念，已选档案从内存读取；未选则提示选择文件。
+    if (isBrowser) {
+      const loaded = mpqManager.listBrowserArchives();
+      setBrowserArchives(loaded);
+      if (loaded.length === 0) setShowPathSetting(true);
+      return;
+    }
     const savedPath = localStorage.getItem('war3_install_path');
     console.log('[WC3TextureBrowser] 初始化 - 保存的路径:', savedPath);
     if (savedPath) {
@@ -484,49 +495,84 @@ export const WC3TextureBrowser: React.FC<WC3TextureBrowserProps> = ({
         {showPathSetting && (
           <div className="path-setting-overlay" onClick={() => setShowPathSetting(false)}>
             <div className="path-setting-dialog" onClick={(e) => e.stopPropagation()}>
-              <h4>设置 Warcraft 3 安装路径</h4>
-              <div className="path-input-group">
-                <input
-                  type="text"
-                  value={war3Path}
-                  onChange={(e) => setWar3Path(e.target.value)}
-                  placeholder="例如: C:\Program Files\Warcraft III"
-                  readOnly
-                />
-                <button onClick={async () => {
-                  const selectedPath = await mpqManager.selectWar3Directory();
-                  if (selectedPath) {
-                    setWar3Path(selectedPath);
-                    await mpqManager.setWar3Path(selectedPath);
-                    localStorage.setItem('war3_install_path', selectedPath);
-                    // 重新构建目录树
-                    await buildDirectoryTree();
-                  }
-                }}>
-                  浏览...
-                </button>
-              </div>
-              <div className="dialog-actions">
-                <button 
-                  className="btn-primary"
-                  onClick={async () => {
-                    if (war3Path) {
-                      await mpqManager.setWar3Path(war3Path);
-                      localStorage.setItem('war3_install_path', war3Path);
-                      setShowPathSetting(false);
-                      // 重新构建目录树
-                      await buildDirectoryTree();
-                    }
-                  }}
-                  disabled={!war3Path}
-                >
-                  确定
-                </button>
-                <button onClick={() => setShowPathSetting(false)}>取消</button>
-              </div>
-              <p className="path-hint">
-                请选择包含 war3.exe 的 Warcraft 3 安装目录
-              </p>
+              {isBrowser ? (
+                <>
+                  <h4>选择 Warcraft 3 的 MPQ 档案</h4>
+                  <p className="path-hint">
+                    浏览器无法访问安装目录，请直接选择 MPQ 文件（通常 3~4 个）。
+                    可重复点击逐个添加；后添加的档案优先级更高。
+                  </p>
+                  {browserArchives.length > 0 && (
+                    <ul className="browser-archive-list">
+                      {browserArchives.map((n) => (
+                        <li key={n}>{n}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="dialog-actions">
+                    <button
+                      className="btn-primary"
+                      onClick={async () => {
+                        const added = await mpqManager.loadBrowserArchives();
+                        setBrowserArchives(mpqManager.listBrowserArchives());
+                        if (added.length > 0) {
+                          setShowPathSetting(false);
+                          await buildDirectoryTree();
+                        }
+                      }}
+                    >
+                      选择 MPQ 文件...
+                    </button>
+                    <button onClick={() => setShowPathSetting(false)}>关闭</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h4>设置 Warcraft 3 安装路径</h4>
+                  <div className="path-input-group">
+                    <input
+                      type="text"
+                      value={war3Path}
+                      onChange={(e) => setWar3Path(e.target.value)}
+                      placeholder="例如: C:\Program Files\Warcraft III"
+                      readOnly
+                    />
+                    <button onClick={async () => {
+                      const selectedPath = await mpqManager.selectWar3Directory();
+                      if (selectedPath) {
+                        setWar3Path(selectedPath);
+                        await mpqManager.setWar3Path(selectedPath);
+                        localStorage.setItem('war3_install_path', selectedPath);
+                        // 重新构建目录树
+                        await buildDirectoryTree();
+                      }
+                    }}>
+                      浏览...
+                    </button>
+                  </div>
+                  <div className="dialog-actions">
+                    <button
+                      className="btn-primary"
+                      onClick={async () => {
+                        if (war3Path) {
+                          await mpqManager.setWar3Path(war3Path);
+                          localStorage.setItem('war3_install_path', war3Path);
+                          setShowPathSetting(false);
+                          // 重新构建目录树
+                          await buildDirectoryTree();
+                        }
+                      }}
+                      disabled={!war3Path}
+                    >
+                      确定
+                    </button>
+                    <button onClick={() => setShowPathSetting(false)}>取消</button>
+                  </div>
+                  <p className="path-hint">
+                    请选择包含 war3.exe 的 Warcraft 3 安装目录
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}

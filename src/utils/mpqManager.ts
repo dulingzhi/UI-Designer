@@ -17,7 +17,14 @@ import {
   type DataSource,
   type MpqFns,
 } from './dataSource';
-import { defaultMpqFns } from './wasmMpq';
+import {
+  defaultMpqFns,
+  browserDataSource,
+  pickMpqArchives,
+  wasmMpqFns,
+  listBrowserArchives as listBrowserArchivesImpl,
+} from './wasmMpq';
+import { isBrowserRuntime } from './platformBridge';
 
 /** 基于 Tauri `invoke` 的 Rust 后端实现（默认）。单测可注入内存实现。 */
 export const tauriMpqFns: MpqFns = {
@@ -104,8 +111,13 @@ export class MPQManager {
   /**
    * 当前已加载档案（低优先在前，War3 < War3x < War3xLocal < War3Patch）的
    * 多层 DataSource 视图（高优先在前）。未加载任何档案时返回空栈。
+   *
+   * 浏览器分支：没有文件系统路径，改由用户选中的**内存档案**构建（`wasmMpq`）。
    */
   getDataSource(): DataSource {
+    if (isBrowserRuntime()) {
+      return browserDataSource();
+    }
     // 低优先在最底层：按 War3 → ... → War3Patch 顺序，后加载覆盖前。
     const order = [
       'War3.mpq',
@@ -214,6 +226,47 @@ export class MPQManager {
       console.error('[MPQManager] 选择目录失败:', error);
       throw error;
     }
+  }
+
+  /**
+   * 浏览器侧加载入口：让用户逐个选择 MPQ 文件，读进内存交给 WASM 内核。
+   *
+   * 与桌面 `setWar3Path` 的差别：浏览器拿不到目录，只能选文件；因此这里
+   * **不覆盖**已载入的档案（用户可分批加 War3 → War3x → …），最后统一
+   * 重建缓存与数据源。返回本次新载入的档案名。
+   */
+  async loadBrowserArchives(): Promise<string[]> {
+    const picked = await pickMpqArchives();
+    if (picked.length === 0) return [];
+
+    // 把新档案的文件清单灌进 fileListCache，使 searchFiles/listDirectory 可用
+    // （它们读的是这个缓存，桌面侧由 loadArchive 填充）。
+    for (const name of picked) {
+      const files = await wasmMpqFns.listFiles(name);
+      for (const f of files) {
+        this.fileListCache.set(f.name.toLowerCase(), {
+          fileName: f.name,
+          archiveName: name,
+          size: f.size,
+        });
+      }
+      this.archives.set(name, {
+        name,
+        // 浏览器没有真实路径；用档案名占位（DataSource 只透传，不解析）。
+        path: name,
+        files,
+        fileCount: files.length,
+        loaded: true,
+      });
+    }
+    // 档案集合变了，必须让下一轮 getCachedDataSource 重建层栈。
+    this.cachedDataSource = null;
+    return picked;
+  }
+
+  /** 浏览器侧：当前已载入内存的档案名（桌面返回空，桌面用 getStatus）。 */
+  listBrowserArchives(): string[] {
+    return isBrowserRuntime() ? listBrowserArchivesImpl() : [];
   }
   
   /**
@@ -624,10 +677,12 @@ export class MPQManager {
     this.fileListCache.clear();
     this.cachedDataSource = null;
     
-    // 清理 Rust 后端的缓存
-    invoke('clear_mpq_cache').catch(err => {
-      console.warn('[MPQManager] 清理后端缓存失败:', err);
-    });
+    // 清理 Rust 后端的缓存（浏览器无 Tauri，invoke 不存在 → 跳过，不当作失败）
+    if (!isBrowserRuntime()) {
+      invoke('clear_mpq_cache').catch(err => {
+        console.warn('[MPQManager] 清理后端缓存失败:', err);
+      });
+    }
     
     console.log(`[MPQManager] 所有 MPQ 档案已卸载 (清除了 ${archiveCount} 个档案, ${fileCount} 个文件)`);
   }

@@ -9,14 +9,13 @@
  * ## 诚实边界
  * - 浏览器不能遍历安装目录：需用户逐个选 MPQ（`War3.mpq` / `War3x.mpq` / …）。
  * - WASM 侧只读经典 hash/block 表（V1/V2/V3），V4 的 HET/BET 与 patch 文件不支持。
- * - 逐字节对拍（war3.mpq 全量）：BLP 3935/3935、MDX 2048/2048、FDF 71/71 与参考实现
- *   openwar3 完全一致；`.wav`（Huffman+ADPCM 音频）与参考存在差异，属音频编解码，
- *   不影响 UI 设计器的纹理/模型/FDF 能力。
+ * - 逐字节对拍（war3.mpq 全量 10609 文件）：**全部 0 不一致**——BLP 3935、wav 2695、
+ *   MDX 2048、FDF 71 等逐字节等同参考实现 openwar3（r254 修复 Huffman 后）。
  */
 
 import { isBrowserRuntime, pickFileBrowser } from './platformBridge';
 import { loadWasmModule, type WasmModule } from './wasmBridge';
-import type { MpqFns, MpqFsFile } from './dataSource';
+import { LayeredDataSource, MpqDataSource, type DataSource, type MpqFns, type MpqFsFile } from './dataSource';
 
 /** 浏览器已载入内存的 MPQ 档案（键为档案名，如 `War3.mpq`）。 */
 interface BrowserArchive {
@@ -151,3 +150,41 @@ export const wasmMpqFns: MpqFns = {
 export function defaultMpqFns(tauriFns: MpqFns): MpqFns {
   return isBrowserRuntime() ? wasmMpqFns : tauriFns;
 }
+
+/** 浏览器侧标准档案优先级（与 `MPQManager` 的 `WAR3_127_MPQS` 一致）。 */
+const BROWSER_ARCHIVE_ORDER = ['War3.mpq', 'War3x.mpq', 'War3xLocal.mpq', 'War3Patch.mpq'] as const;
+
+/** 已载入的档案名按优先级排序（同优先级按名字，保证结果稳定）。 */
+export function orderedBrowserArchives(): string[] {
+  const loaded = listBrowserArchives();
+  const byLower = new Map(loaded.map((n) => [n.toLowerCase(), n]));
+  const ordered: string[] = [];
+  for (const want of BROWSER_ARCHIVE_ORDER) {
+    const hit = byLower.get(want.toLowerCase());
+    if (hit) {
+      ordered.push(hit);
+      byLower.delete(want.toLowerCase());
+    }
+  }
+  // 用户可能载入了非标准命名的档案：按名字排序追加，保持确定性
+  ordered.push(...Array.from(byLower.values()).sort());
+  return ordered;
+}
+
+/**
+ * 用**已载入内存**的浏览器档案构建多层 `DataSource`（高优先在前）。
+ *
+ * 语义与 `MPQManager.getDataSource()` 对齐：低优先在前加载、高优先覆盖，
+ * 因此这里反转后交给 `LayeredDataSource`。
+ *
+ * 未载入任何档案时返回空层栈（`DataSource` 语义：`exists=false` / `read=null`），
+ * 而不是抛错——纹理浏览器在"还没选文件"时应当优雅显示空列表。
+ */
+export function browserDataSource(): DataSource {
+  const ordered = orderedBrowserArchives();
+  const layers = ordered
+    .map((name) => new MpqDataSource({ name, path: name }, wasmMpqFns))
+    .reverse();
+  return new LayeredDataSource(layers);
+}
+

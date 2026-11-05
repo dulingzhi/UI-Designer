@@ -846,3 +846,123 @@ describe('initializeMPQ / readWC3File', () => {
     expect(await readWC3File('a.txt')).not.toBeNull();
   });
 });
+
+describe('浏览器模式：loadBrowserArchives / getDataSource 分支', () => {
+  // 通过 mock wasmMpq 的浏览器入口，验证 MPQManager 的浏览器接线。
+  const wasmMocks = vi.hoisted(() => ({
+    pickMpqArchives: vi.fn(),
+    wasmMpqFns: {
+      readFile: vi.fn(),
+      listFiles: vi.fn(),
+      hasFile: vi.fn(),
+    },
+    browserDataSource: vi.fn(),
+  }));
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock('./wasmMpq', () => ({
+      defaultMpqFns: (t: unknown) => t,
+      browserDataSource: wasmMocks.browserDataSource,
+      pickMpqArchives: wasmMocks.pickMpqArchives,
+      wasmMpqFns: wasmMocks.wasmMpqFns,
+      listBrowserArchives: () => ['War3.mpq'],
+    }));
+    vi.doMock('./platformBridge', async (orig) => {
+      const real = await (orig as () => Promise<Record<string, unknown>>)();
+      return { ...real, isBrowserRuntime: () => true };
+    });
+    wasmMocks.pickMpqArchives.mockReset();
+    wasmMocks.browserDataSource.mockReset();
+    wasmMocks.wasmMpqFns.listFiles.mockReset();
+  });
+
+  afterEach(() => {
+    vi.doUnmock('./wasmMpq');
+    vi.doUnmock('./platformBridge');
+  });
+
+  it('用户取消选择 → 返回空数组，不写缓存', async () => {
+    wasmMocks.pickMpqArchives.mockResolvedValue([]);
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+    expect(await m.loadBrowserArchives()).toEqual([]);
+    expect(m.getStatus().archivesLoaded).toBe(0);
+  });
+
+  it('选中档案 → 灌入文件清单、标记 loaded，并清掉缓存的 DataSource', async () => {
+    wasmMocks.pickMpqArchives.mockResolvedValue(['War3.mpq']);
+    wasmMocks.wasmMpqFns.listFiles.mockResolvedValue([
+      { name: 'UI\\A.blp', size: 10 },
+      { name: 'UI\\B.blp', size: 20 },
+    ]);
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+
+    // 先建立一次缓存；断言 loadBrowserArchives 之后**重建**了它
+    // （否则新档案不会进入层栈）。这里数 browserDataSource 的调用次数，
+    // 因为 mock 返回 undefined，用对象身份无法区分前后。
+    wasmMocks.browserDataSource.mockClear();
+    m.getCachedDataSource();
+    expect(wasmMocks.browserDataSource).toHaveBeenCalledTimes(1);
+
+    const added = await m.loadBrowserArchives();
+
+    expect(added).toEqual(['War3.mpq']);
+    expect(m.getStatus().archivesLoaded).toBe(1);
+    expect(m.getStatus().totalFiles).toBe(2);
+    // 缓存已失效 → 再次取用会重建（第 2 次调用）
+    m.getCachedDataSource();
+    expect(wasmMocks.browserDataSource).toHaveBeenCalledTimes(2);
+  });
+
+  it('可分批添加：第二次选择累加而非覆盖', async () => {
+    wasmMocks.wasmMpqFns.listFiles.mockResolvedValue([{ name: 'X.blp', size: 1 }]);
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+
+    wasmMocks.pickMpqArchives.mockResolvedValue(['War3.mpq']);
+    await m.loadBrowserArchives();
+    wasmMocks.pickMpqArchives.mockResolvedValue(['War3x.mpq']);
+    await m.loadBrowserArchives();
+
+    expect(m.getStatus().archivesLoaded).toBe(2);
+    const names = m.getStatus().archives.map((a) => a.name).sort();
+    expect(names).toEqual(['War3.mpq', 'War3x.mpq']);
+  });
+
+  it('getDataSource 在浏览器模式走 browserDataSource', async () => {
+    const fakeDs = { label: 'fake' };
+    wasmMocks.browserDataSource.mockReturnValue(fakeDs);
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+    expect(m.getDataSource()).toBe(fakeDs);
+    expect(wasmMocks.browserDataSource).toHaveBeenCalled();
+  });
+
+  it('listBrowserArchives 在浏览器模式返回已载入档案名', async () => {
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+    expect(m.listBrowserArchives()).toEqual(['War3.mpq']);
+  });
+
+  it('listBrowserArchives 在桌面模式返回空数组（桌面用 getStatus 查档案）', async () => {
+    // 切回桌面判定：浏览器档案概念不适用，必须返回空而不是误报
+    vi.doMock('./platformBridge', async (orig) => {
+      const real = await (orig as () => Promise<Record<string, unknown>>)();
+      return { ...real, isBrowserRuntime: () => false };
+    });
+    vi.resetModules();
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+    expect(m.listBrowserArchives()).toEqual([]);
+  });
+
+  it('unloadAll 在浏览器模式不调 Tauri invoke（避免无谓警告）', async () => {
+    coreMocks.invoke.mockClear();
+    const { MPQManager: M } = await import('./mpqManager');
+    const m = new M(makeFns());
+    m.unloadAll();
+    expect(coreMocks.invoke).not.toHaveBeenCalledWith('clear_mpq_cache');
+  });
+});
