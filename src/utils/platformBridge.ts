@@ -112,6 +112,76 @@ export function pickFileBrowser(accept = '.fdf,.w3ui,.txt,.json,.toc'): Promise<
   });
 }
 
+/**
+ * 弹出**目录**选择框，返回目录内全部文件（取消返回 `null`）。
+ *
+ * ## 为什么可以选目录
+ * 浏览器不允许**自动遍历**任意路径，但**允许用户主动选择一个目录**
+ * 并把其中文件交给页面——这是标准能力，不需要特殊权限：
+ * - 首选 File System Access API 的 `showDirectoryPicker()`（Chrome/Edge）；
+ * - 不可用时回落到 `<input webkitdirectory>`（Chrome/Edge/Firefox/Safari 均支持）。
+ *
+ * 两条路径都返回 `File[]`；`webkitdirectory` 还带相对路径
+ * （`webkitRelativePath`），便于按子目录筛选。
+ */
+export async function pickDirectoryBrowser(): Promise<File[] | null> {
+  if (typeof document === 'undefined') return null;
+
+  // 优先 File System Access API：用户体验更好（原生目录对话框，可记住上次位置）
+  const w = window as unknown as {
+    showDirectoryPicker?: () => Promise<{ values?: () => AsyncIterable<unknown> }>;
+  };
+  if (typeof w.showDirectoryPicker === 'function') {
+    try {
+      const dir = await w.showDirectoryPicker();
+      // 仅取一层文件（MPQ 都在安装根目录）。递归会拖入 Data/ 等大量无关文件。
+      const files: File[] = [];
+      const entries = dir.values?.();
+      if (entries) {
+        for await (const entry of entries) {
+          const e = entry as { kind?: string; getFile?: () => Promise<File> };
+          if (e.kind === 'file' && typeof e.getFile === 'function') {
+            files.push(await e.getFile());
+          }
+        }
+      }
+      return files;
+    } catch (err) {
+      // AbortError = 用户取消；其它错误（权限策略等）回落到 input 方案
+      if ((err as { name?: string })?.name === 'AbortError') return null;
+    }
+  }
+
+  // 回落：<input webkitdirectory>
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    // 非标准属性：控制"选择目录"，TS 的 DOM 类型未收录，故走属性赋值
+    (input as unknown as { webkitdirectory: boolean }).webkitdirectory = true;
+    (input as unknown as { directory: boolean }).directory = true; // 旧版 Safari
+    input.style.display = 'none';
+    input.multiple = true;
+    let settled = false;
+    const done = (files: File[] | null) => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      resolve(files);
+    };
+    input.onchange = () => {
+      const list = input.files;
+      done(list && list.length > 0 ? Array.from(list) : null);
+    };
+    const onFocus = () =>
+      setTimeout(() => {
+        if (!settled && (!input.files || input.files.length === 0)) done(null);
+      }, 800);
+    window.addEventListener('focus', onFocus, { once: true });
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
 /** 从浏览器 File 读取文本。 */
 export async function readFileAsText(file: File): Promise<string> {
   return file.text();

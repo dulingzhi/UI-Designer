@@ -144,26 +144,29 @@ describe('WC3TextureBrowser 浏览器模式（r255：MPQ 由 WASM 内核提供�
     store = { war3_install_path: 'C:\\War3' };
   });
 
-  it('未载入任何档案时提示"选择 MPQ 文件"而非"设置安装路径"', async () => {
+  it('未载入任何档案时提示"选择安装目录"而非桌面专属的"设置安装路径"', async () => {
     mockListBrowserArchives.mockReturnValue([]);
     const { container } = render(<WC3TextureBrowser currentPath="" onSelect={vi.fn()} />);
     await waitFor(() => {
-      expect(container.textContent).toMatch(/MPQ/i);
+      expect(container.textContent).toMatch(/目录/i);
     });
-    // 不应再出现桌面专属的"安装路径"文案
-    expect(container.textContent).not.toMatch(/安装路径/);
+    // 浏览器侧文案应是"选择 Warcraft 3 安装目录"，不是桌面那句"设置 … 安装路径"
+    expect(container.textContent).toMatch(/选择 Warcraft 3 安装目录/);
+    expect(container.textContent).not.toMatch(/设置 Warcraft 3 安装路径/);
+    // 且明确说明会自动载入哪些标准档案（消除"要选哪些文件"的困惑）
+    expect(container.textContent).toMatch(/War3\.mpq/);
   });
 
-  it('点击"选择 MPQ 文件"调用 loadBrowserArchives，并刷新档案列表', async () => {
+  it('点击"选择目录"调用 loadBrowserArchives，并刷新档案列表', async () => {
     mockListBrowserArchives.mockReturnValue([]);
     mockLoadBrowserArchives.mockResolvedValue(['War3.mpq']);
     const { container } = render(<WC3TextureBrowser currentPath="" onSelect={vi.fn()} />);
-    await waitFor(() => expect(container.textContent).toMatch(/MPQ/i));
+    await waitFor(() => expect(container.textContent).toMatch(/目录/i));
 
     const btn = Array.from(container.querySelectorAll('button')).find((b) =>
-      (b.textContent || '').includes('选择 MPQ 文件'),
+      (b.textContent || '').includes('选择目录'),
     ) as HTMLButtonElement | undefined;
-    expect(btn, '应有"选择 MPQ 文件"按钮').toBeTruthy();
+    expect(btn, '应有"选择目录"按钮').toBeTruthy();
 
     // 选中后 listBrowserArchives 返回新档案，组件应把它显示出来
     mockListBrowserArchives.mockReturnValue(['War3.mpq']);
@@ -179,7 +182,7 @@ describe('WC3TextureBrowser 浏览器模式（r255：MPQ 由 WASM 内核提供�
     await waitFor(() => {
       expect(container.innerHTML.length).toBeGreaterThan(50);
     });
-    // 已载入 → 不应出现"请选择 MPQ 文件"的对话框标题
-    expect(container.textContent).not.toMatch(/浏览器无法访问安装目录/);
+    // 已载入 → 不应出现目录选择对话框的引导文案
+    expect(container.textContent).not.toMatch(/会自动载入其中的/);
   });
 });

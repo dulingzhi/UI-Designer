@@ -13,7 +13,7 @@
  *   MDX 2048、FDF 71 等逐字节等同参考实现 openwar3（r254 修复 Huffman 后）。
  */
 
-import { isBrowserRuntime, pickFileBrowser } from './platformBridge';
+import { isBrowserRuntime, pickDirectoryBrowser } from './platformBridge';
 import { loadWasmModule, type WasmModule } from './wasmBridge';
 import { LayeredDataSource, MpqDataSource, type DataSource, type MpqFns, type MpqFsFile } from './dataSource';
 
@@ -47,18 +47,56 @@ export function listBrowserArchives(): string[] {
 }
 
 /**
- * 在浏览器中选择一个 MPQ 档案并读入内存。
+ * 浏览器侧标准档案名（与 `MPQManager` 的 `WAR3_127_MPQS` 一致）。
+ * 这里提前声明，供目录筛选使用。
+ */
+const STANDARD_ARCHIVES = ['War3.mpq', 'War3x.mpq', 'War3xLocal.mpq', 'War3Patch.mpq'] as const;
+
+/** 是否为需要读入的档案文件（按扩展名，大小写不敏感）。 */
+function isMpqFile(name: string): boolean {
+  return name.toLowerCase().endsWith('.mpq');
+}
+
+/**
+ * 在浏览器中**选择 Warcraft 3 安装目录**，自动读入其中的 MPQ 档案。
  *
- * 返回成功载入的档案名数组（未选则空数组）。档案通常只有 3~4 个，
- * 由 UI 重复调用逐个添加（`<input multiple>` 在部分浏览器被禁用）。
+ * ## 与"逐个选文件"的差别
+ * 用户只需选一次目录（原生目录对话框），程序自动挑出标准 MPQ
+ * （`War3.mpq` / `War3x.mpq` / `War3xLocal.mpq` / `War3Patch.mpq`）。
+ * 若目录里没有标准名（如自定义/改名档案），则回落到"载入目录中所有 .mpq"，
+ * 避免用户以为"选了没反应"。
+ *
+ * ## 返回
+ * 本次新载入的档案名；用户取消返回空数组。
+ *
+ * ## 诚实边界
+ * `showDirectoryPicker()` 只能读到**一层**文件（不递归子目录）——
+ * 这对 WC3 安装目录足够（MPQ 都在根下），且能避免把 `Data/` 等无关大文件拖进内存。
  */
 export async function pickMpqArchives(): Promise<string[]> {
   if (typeof document === 'undefined') return [];
-  const file = await pickFileBrowser('.mpq,.MPQ');
-  if (!file) return [];
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  archives.set(file.name, { file, bytes, handle: null });
-  return [file.name];
+  const files = await pickDirectoryBrowser();
+  if (!files || files.length === 0) return [];
+
+  // 先按标准名匹配；一个都没匹配上再回落到"全部 .mpq"
+  const lowerToFile = new Map(files.map((f) => [f.name.toLowerCase(), f]));
+  let targets: File[] = [];
+  for (const want of STANDARD_ARCHIVES) {
+    const hit = lowerToFile.get(want.toLowerCase());
+    if (hit) targets.push(hit);
+  }
+  if (targets.length === 0) {
+    targets = files.filter((f) => isMpqFile(f.name));
+  }
+  if (targets.length === 0) return [];
+
+  const loaded: string[] = [];
+  for (const file of targets) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    archives.set(file.name, { file, bytes, handle: null });
+    loaded.push(file.name);
+  }
+  return loaded;
 }
 
 /**
@@ -151,15 +189,12 @@ export function defaultMpqFns(tauriFns: MpqFns): MpqFns {
   return isBrowserRuntime() ? wasmMpqFns : tauriFns;
 }
 
-/** 浏览器侧标准档案优先级（与 `MPQManager` 的 `WAR3_127_MPQS` 一致）。 */
-const BROWSER_ARCHIVE_ORDER = ['War3.mpq', 'War3x.mpq', 'War3xLocal.mpq', 'War3Patch.mpq'] as const;
-
-/** 已载入的档案名按优先级排序（同优先级按名字，保证结果稳定）。 */
+/** 已载入的档案名按标准优先级排序（同优先级按名字，保证结果稳定）。 */
 export function orderedBrowserArchives(): string[] {
   const loaded = listBrowserArchives();
   const byLower = new Map(loaded.map((n) => [n.toLowerCase(), n]));
   const ordered: string[] = [];
-  for (const want of BROWSER_ARCHIVE_ORDER) {
+  for (const want of STANDARD_ARCHIVES) {
     const hit = byLower.get(want.toLowerCase());
     if (hit) {
       ordered.push(hit);

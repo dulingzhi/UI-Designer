@@ -15,13 +15,13 @@ import type { MpqFns } from './dataSource';
 const mocks = vi.hoisted(() => ({
   loadWasmModule: vi.fn(),
   isBrowserRuntime: vi.fn(),
-  pickFileBrowser: vi.fn(),
+  pickDirectoryBrowser: vi.fn(),
 }));
 
 vi.mock('./wasmBridge', () => ({ loadWasmModule: mocks.loadWasmModule }));
 vi.mock('./platformBridge', () => ({
   isBrowserRuntime: mocks.isBrowserRuntime,
-  pickFileBrowser: mocks.pickFileBrowser,
+  pickDirectoryBrowser: mocks.pickDirectoryBrowser,
 }));
 
 import {
@@ -52,7 +52,7 @@ beforeEach(() => {
   __resetBrowserArchives();
   mocks.loadWasmModule.mockReset();
   mocks.isBrowserRuntime.mockReset();
-  mocks.pickFileBrowser.mockReset();
+  mocks.pickDirectoryBrowser.mockReset();
 });
 
 describe('档案登记', () => {
@@ -209,35 +209,97 @@ describe('hasFile', () => {
   });
 });
 
-describe('pickMpqArchives', () => {
-  it('无 document 环境 → 空数组（node）', async () => {
+describe('pickMpqArchives（目录选择）', () => {
+  /** 造一个 File 替身：只需要 name + arrayBuffer。 */
+  function mkFile(name: string, bytes = [4, 5, 6]): File {
+    return {
+      name,
+      arrayBuffer: async () => new Uint8Array(bytes).buffer,
+    } as unknown as File;
+  }
+
+  it('无 document 环境 → 空数组（node），且不调用目录选择', async () => {
     // vitest 默认环境无 document
     expect(await pickMpqArchives()).toEqual([]);
-    expect(mocks.pickFileBrowser).not.toHaveBeenCalled();
+    expect(mocks.pickDirectoryBrowser).not.toHaveBeenCalled();
   });
 
-  it('有 document 但用户取消 → 空数组', async () => {
+  it('用户取消 → 空数组', async () => {
     vi.stubGlobal('document', { createElement: vi.fn(() => ({ click: vi.fn() })) });
     try {
-      mocks.pickFileBrowser.mockResolvedValue(null);
+      mocks.pickDirectoryBrowser.mockResolvedValue(null);
       expect(await pickMpqArchives()).toEqual([]);
-      expect(mocks.pickFileBrowser).toHaveBeenCalledWith('.mpq,.MPQ');
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it('选中文件 → 读入内存并登记，返回档案名', async () => {
+  it('目录为空（未选中任何文件）→ 空数组', async () => {
     vi.stubGlobal('document', { createElement: vi.fn(() => ({ click: vi.fn() })) });
     try {
-      const file = { name: 'War3.mpq', arrayBuffer: async () => new Uint8Array([4, 5, 6]).buffer };
-      mocks.pickFileBrowser.mockResolvedValue(file);
+      mocks.pickDirectoryBrowser.mockResolvedValue([]);
+      expect(await pickMpqArchives()).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('目录含标准 MPQ → 只载入这 4 个，忽略无关文件（大小写不敏感）', async () => {
+    vi.stubGlobal('document', { createElement: vi.fn(() => ({ click: vi.fn() })) });
+    try {
+      mocks.pickDirectoryBrowser.mockResolvedValue([
+        mkFile('WAR3.MPQ'),
+        mkFile('war3x.mpq'),
+        mkFile('War3xLocal.mpq'),
+        mkFile('war3patch.MPQ'),
+        mkFile('war3.exe'),          // 无关
+        mkFile('Data', [1]),          // 子目录（webkdirectory 会给目录项，但无扩展名）
+        mkFile('readme.txt'),         // 无关
+      ]);
       const picked = await pickMpqArchives();
-      expect(picked).toEqual(['War3.mpq']);
-      expect(listBrowserArchives()).toEqual(['War3.mpq']);
-      // 登记后可直接读取（句柄惰性打开）
+      // 返回的是目录里的**原始文件名**
+      expect(picked).toEqual(['WAR3.MPQ', 'war3x.mpq', 'War3xLocal.mpq', 'war3patch.MPQ']);
+      expect(listBrowserArchives().length).toBe(4);
+      // 无关文件未登记
+      expect(listBrowserArchives()).not.toContain('war3.exe');
+      expect(listBrowserArchives()).not.toContain('readme.txt');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('载入后可直接读取（句柄惰性打开）', async () => {
+    vi.stubGlobal('document', { createElement: vi.fn(() => ({ click: vi.fn() })) });
+    try {
+      mocks.pickDirectoryBrowser.mockResolvedValue([mkFile('War3.mpq')]);
+      expect(await pickMpqArchives()).toEqual(['War3.mpq']);
       mocks.loadWasmModule.mockResolvedValue(fakeWasm());
       expect(await wasmMpqFns.readFile('War3.mpq', 'a.fdf')).not.toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('目录无标准名 → 回落载入全部 .mpq（避免"选了没反应"）', async () => {
+    vi.stubGlobal('document', { createElement: vi.fn(() => ({ click: vi.fn() })) });
+    try {
+      mocks.pickDirectoryBrowser.mockResolvedValue([
+        mkFile('MyCustom.mpq'),
+        mkFile('Backup.MPQ'),
+        mkFile('war3.exe'),
+      ]);
+      expect(await pickMpqArchives()).toEqual(['MyCustom.mpq', 'Backup.MPQ']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('目录里一个 .mpq 都没有 → 空数组，不登记', async () => {
+    vi.stubGlobal('document', { createElement: vi.fn(() => ({ click: vi.fn() })) });
+    try {
+      mocks.pickDirectoryBrowser.mockResolvedValue([mkFile('war3.exe'), mkFile('a.txt')]);
+      expect(await pickMpqArchives()).toEqual([]);
+      expect(listBrowserArchives()).toEqual([]);
     } finally {
       vi.unstubAllGlobals();
     }

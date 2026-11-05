@@ -497,10 +497,11 @@ export const WC3TextureBrowser: React.FC<WC3TextureBrowserProps> = ({
             <div className="path-setting-dialog" onClick={(e) => e.stopPropagation()}>
               {isBrowser ? (
                 <>
-                  <h4>选择 Warcraft 3 的 MPQ 档案</h4>
+                  <h4>选择 Warcraft 3 安装目录</h4>
                   <p className="path-hint">
-                    浏览器无法访问安装目录，请直接选择 MPQ 文件（通常 3~4 个）。
-                    可重复点击逐个添加；后添加的档案优先级更高。
+                    选择包含 war3.exe 的**目录**即可，会自动载入其中的
+                    War3.mpq / War3x.mpq / War3xLocal.mpq / War3Patch.mpq。
+                    可重复选择以追加（后选的档案优先级更高）。
                   </p>
                   {browserArchives.length > 0 && (
                     <ul className="browser-archive-list">
@@ -521,7 +522,7 @@ export const WC3TextureBrowser: React.FC<WC3TextureBrowserProps> = ({
                         }
                       }}
                     >
-                      选择 MPQ 文件...
+                      选择目录...
                     </button>
                     <button onClick={() => setShowPathSetting(false)}>关闭</button>
                   </div>

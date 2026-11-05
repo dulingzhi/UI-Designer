@@ -304,11 +304,11 @@ function AppContent() {
       <Toolbar currentFilePath={currentFilePath} setCurrentFilePath={setCurrentFilePath} />
 
       {/* 浏览器路径 B/A：无 Tauri 时明确提示能力边界，避免"点了没反应"的困惑。
-          r255 起 MPQ 纹理库由 WASM 内核支持（用户在纹理浏览器中选择 MPQ 文件），
-          故不再列为不可用项。 */}
+          r255 起 MPQ 纹理库由 WASM 内核支持（用户在纹理浏览器中**选择 War3 安装目录**，
+          自动载入其中的 MPQ），故不再列为不可用项。 */}
       {isBrowserRuntime() && (
         <div className="browser-mode-banner" role="status">
-          🌐 浏览器模式：FDF 导入导出、可视化编辑、MPQ 纹理库可用（需在纹理浏览器中选择 MPQ 文件）；
+          🌐 浏览器模式：FDF 导入导出、可视化编辑、MPQ 纹理库可用（需在纹理浏览器中选择 War3 安装目录）；
           热重载、启动 War3、更新检查需桌面版（不可用项点击会提示）。
         </div>
       )}
