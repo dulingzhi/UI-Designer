@@ -58,9 +58,14 @@ pub fn parse_mdx_json(mdx_data: &[u8]) -> Result<String, String> {
 }
 
 /// 打开 MPQ 归档（字节流），返回句柄 ID。前端持有 ID 复用之。
+///
+/// 取 `Vec<u8>`（而非 `&[u8]`）：wasm-bindgen 会把 JS 的 `Uint8Array`
+/// **搬进** wasm 线性内存并交出所有权，于是可以直接把它交给 `Archive`，
+/// 不再额外复制一份。前端打开成功后应主动丢弃自己的 `bytes`，
+/// 否则内存里会同时存在 JS 与 wasm 各一份。
 #[wasm_bindgen]
-pub fn mpq_open(archive: &[u8]) -> Result<u32, JsValue> {
-    mpq_read::open(archive).map_err(|e| JsValue::from_str(&e))
+pub fn mpq_open(archive: Vec<u8>) -> Result<u32, JsValue> {
+    mpq_read::open_owned(archive).map_err(|e| JsValue::from_str(&e))
 }
 
 /// 列出归档内全部文件名（JSON 数组字符串）。

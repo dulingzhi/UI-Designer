@@ -80,9 +80,19 @@ pub fn close(handle: u32) -> Result<(), String> {
 // 公开入口
 // ---------------------------------------------------------------------------
 
-/// 打开归档，返回句柄 ID。
+/// 打开归档（借用形式；内部会取一次所有权）。
 pub fn open(data: &[u8]) -> Result<u32, String> {
-    let mut cursor = Cursor::new(data.to_vec());
+    open_owned(data.to_vec())
+}
+
+/// 打开归档并**接管**字节所有权（零额外拷贝）。
+///
+/// wasm-bindgen 的 `Vec<u8>` 参数会把 JS 的 `Uint8Array` 搬进 wasm 线性内存并交出所有权，
+/// 因此这里可以直接把 `Vec` 塞进 `Archive`，不再 `to_vec()` 复制第二份。
+/// 配合前端在打开后丢弃自己那份 `bytes`，总占用可降到 **约 1×**。
+pub fn open_owned(data: Vec<u8>) -> Result<u32, String> {
+    // 只读借用，不拷贝：`Cursor<&[u8]>` 满足 `Read + Seek`。
+    let mut cursor = Cursor::new(data.as_slice());
     let (archive_offset, _user_data, header) =
         find_header(&mut cursor).map_err(|e| format!("MPQ 头定位失败: {:?}", e))?;
 
@@ -130,7 +140,7 @@ pub fn open(data: &[u8]) -> Result<u32, String> {
         .insert(
             id,
             Archive {
-                data: data.to_vec(),
+                data,
                 archive_offset,
                 hash_table,
                 block_table,

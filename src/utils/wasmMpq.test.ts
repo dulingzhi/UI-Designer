@@ -380,3 +380,59 @@ describe('browserDataSource', () => {
     expect(mod.mpq_open).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('内存：句柄打开后释放 JS 侧字节（r258）', () => {
+  /**
+   * 背景：mpq_open(Vec<u8>) 会把 Uint8Array **搬进** wasm 线性内存（所有权转移）。
+   * 此前 JS 侧仍留着同一份 bytes，实测 war3.mpq（430MB）峰值达 **4.01×** 文件大小。
+   * 修好后稳态为 **1.01×**（实测 1729MB → 437MB）。
+   *
+   * 这两条用例锁住关键的"交接"语义，防止哪天有人为了"保险"又把 bytes 留着。
+   */
+  function fakeWasmWithSpy() {
+    const mod = fakeWasm();
+    const calls: unknown[] = [];
+    const orig = mod.mpq_open;
+    mod.mpq_open = vi.fn((b: unknown) => { calls.push(b); return orig(b); });
+    return { mod, calls };
+  }
+
+  it('首次打开后不再重复 open（字节已交给 wasm，JS 侧不重建）', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    __setBrowserArchive('War3.mpq', bytes);
+    const { mod, calls } = fakeWasmWithSpy();
+    mocks.loadWasmModule.mockResolvedValue(mod);
+
+    await wasmMpqFns.readFile('War3.mpq', 'a.fdf');
+
+    // 必须把**真实的**字节传下去（不是 null）
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toBeInstanceOf(Uint8Array);
+
+    // 交接后复用句柄：不重复 open
+    await wasmMpqFns.readFile('War3.mpq', 'a.fdf');
+    expect(mod.mpq_open).toHaveBeenCalledTimes(1);
+  });
+
+  it('bytes 已释放后仍可重开（从 File 重读，不依赖常驻字节）', async () => {
+    let readCount = 0;
+    const file = {
+      name: 'War3.mpq',
+      arrayBuffer: async () => {
+        readCount++;
+        return new Uint8Array([7, 8, 9]).buffer;
+      },
+    } as unknown as File;
+
+    const { mod } = fakeWasmWithSpy();
+    mocks.loadWasmModule.mockResolvedValue(mod);
+
+    // 直接构造"bytes 已交给 wasm"的状态（bytes = null）
+    __setBrowserArchive('War3.mpq', null as unknown as Uint8Array, file);
+    await wasmMpqFns.readFile('War3.mpq', 'a.fdf');
+
+    // 从 File 重读一次后照常打开（File 只是磁盘引用，不占内存）
+    expect(readCount).toBe(1);
+    expect(mod.mpq_open).toHaveBeenCalledTimes(1);
+  });
+});

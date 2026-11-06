@@ -116,6 +116,11 @@ export function mpq_list(handle) {
 
 /**
  * 打开 MPQ 归档（字节流），返回句柄 ID。前端持有 ID 复用之。
+ *
+ * 取 `Vec<u8>`（而非 `&[u8]`）：wasm-bindgen 会把 JS 的 `Uint8Array`
+ * **搬进** wasm 线性内存并交出所有权，于是可以直接把它交给 `Archive`，
+ * 不再额外复制一份。前端打开成功后应主动丢弃自己的 `bytes`，
+ * 否则内存里会同时存在 JS 与 wasm 各一份。
  * @param {Uint8Array | number[]} archive
  * @returns {number}
  */
