@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ConfirmDialog } from './ConfirmDialog';
+import { isBrowserRuntime } from '../utils/platformBridge';
 
 interface UpdateCheckerProps {
   onUpdateAvailable?: (version: string) => void;
@@ -24,6 +25,18 @@ export function UpdateChecker({ onUpdateAvailable, checkOnMount = false }: Updat
   const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
 
   const checkForUpdates = async (showNoUpdateMessage = false) => {
+    // 浏览器模式：`@tauri-apps/plugin-updater` 的 check() 会去读
+    // window.__TAURI_INTERNALS__.invoke，浏览器里不存在 → TypeError。
+    // 必须显式拦住，给用户可读的说明，而不是把异常抛到控制台。
+    if (isBrowserRuntime()) {
+      console.log('[UpdateChecker] 浏览器模式，跳过更新检查');
+      if (showNoUpdateMessage) {
+        setErrorMessage('浏览器版不支持自动更新，请使用桌面版获取新版本。');
+        setShowErrorDialog(true);
+      }
+      return;
+    }
+
     // 开发环境下跳过更新检查
     if (isDevelopment) {
       console.log('[UpdateChecker] 开发环境，跳过更新检查');

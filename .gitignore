@@ -54,3 +54,4 @@ _msg.txt
 wasm/target/
 wasm/vendor/wow-mpq/target/
 wasm/vendor/wow-mpq/Cargo.lock
+_shots/

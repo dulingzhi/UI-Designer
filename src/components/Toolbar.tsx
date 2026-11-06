@@ -16,6 +16,7 @@ import { useAlert } from '../hooks/useAlert';
 import { WC3TextureBrowser } from './WC3TextureBrowser';
 import { RaceSwitcher } from './RaceSwitcher';
 import { detectKKWE, launchMapWithKKWE, type KKWEInfo } from '../utils/kkweDetector';
+import { isBrowserRuntime } from '../utils/platformBridge';
 import { getHotReloadExporter } from '../utils/hotReloadExporter';
 import { war3ProcessManager } from '../utils/war3ProcessManager';
 import {
@@ -144,7 +145,24 @@ export const Toolbar: React.FC<ToolbarProps> = ({ currentFilePath, setCurrentFil
  // 启动War3测试
   const handleLaunchWar3 = async () => {
     if (isLaunching) return;
-    
+
+    // 浏览器模式无法启动进程（无进程 API / 无 Tauri invoke）。
+    // 必须在**最前面**拦截：否则会先走到热重载配置检查，弹出
+    // 「未找到热重载配置」——把"平台不支持"误导成"你少配了一项"，
+    // 而热重载在浏览器里同样永远不可用，用户会白折腾一轮。
+    // （r257 实测发现：banner 承诺"不可用项点击会提示"，此前并未兑现。）
+    if (isBrowserRuntime()) {
+      showAlert({
+        title: '浏览器模式不支持',
+        message:
+          '启动 War3 需要调用本地进程 API，浏览器无法提供。\n\n' +
+          '请使用桌面版（Tauri）进行游戏内测试；\n' +
+          '浏览器版仍可完成编辑、FDF/JSON 导入导出与代码导出。',
+        type: 'info',
+      });
+      return;
+    }
+
     try {
       setIsLaunching(true);
       

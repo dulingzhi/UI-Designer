@@ -5,8 +5,8 @@
  * undo/redo 按钮的**真实禁用态**与点击分发（依赖 Tauri 模块全部 mock）。
  */
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(() => Promise.resolve('user')) }));
 vi.mock('../utils/kkweDetector', () => ({
@@ -30,6 +30,12 @@ vi.mock('../utils/fileOperations', () => ({
   exportCode: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('../utils/codeExport', () => ({ exportProject: vi.fn(() => '') }));
+// r257：Toolbar 现按运行时分流（浏览器拦截"启动 War3"）——默认桌面，保持既有用例语义
+const mockIsBrowserRuntime = vi.hoisted(() => vi.fn(() => false));
+vi.mock('../utils/platformBridge', async (orig) => {
+  const real = await (orig as () => Promise<Record<string, unknown>>)();
+  return { ...real, isBrowserRuntime: mockIsBrowserRuntime };
+});
 
 import { Toolbar } from './Toolbar';
 import { useCommandStore } from '../store/commandStore';
@@ -38,6 +44,7 @@ import { useUIStore } from '../store/uiStore';
 import { FrameType } from '../types';
 
 beforeEach(() => {
+  mockIsBrowserRuntime.mockReturnValue(false);
   vi.stubGlobal('localStorage', {
     getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn(),
   });
@@ -71,6 +78,10 @@ function btnByTitle(container: HTMLElement, titlePrefix: string): HTMLButtonElem
   return el;
 }
 
+afterEach(() => {
+  cleanup();
+});
+
 describe('Toolbar 渲染级测试', () => {
   it('渲染出工具按钮', () => {
     const { container } = render(<Toolbar currentFilePath={null} setCurrentFilePath={vi.fn()} />);
@@ -101,5 +112,56 @@ describe('Toolbar 渲染级测试', () => {
     const { container } = render(<Toolbar currentFilePath={null} setCurrentFilePath={vi.fn()} />);
     const importBtn = Array.from(container.querySelectorAll('button')).find(b => b.title);
     expect(importBtn).toBeTruthy();
+  });
+});
+
+describe('Toolbar 浏览器模式（r257：不可用项必须给正确提示）', () => {
+  beforeEach(() => {
+    mockIsBrowserRuntime.mockReturnValue(true);
+  });
+
+  it('点「启动 War3」提示"浏览器模式不支持"，而不是"未找到热重载配置"', async () => {
+    const { container } = render(<Toolbar currentFilePath={null} setCurrentFilePath={vi.fn()} />);
+    const btn = btnByTitle(container, '启动 War3');
+    fireEvent.click(btn);
+
+    // 弹窗应立刻出现，且文案指向**平台限制**
+    await vi.waitFor(() => {
+      const dlg = container.ownerDocument.querySelector('.confirm-dialog');
+      expect(dlg, '应弹出提示对话框').toBeTruthy();
+      const text = (dlg!.textContent || '');
+      expect(text).toContain('浏览器模式不支持');
+      expect(text).toContain('桌面版');
+      // 关键回归：绝不能把"平台不支持"说成"你少配了热重载"
+      expect(text).not.toContain('未找到热重载配置');
+    });
+  });
+
+  it('浏览器模式下不会触碰 Tauri 进程 API（不抛 TypeError）', async () => {
+    const { war3ProcessManager } = await import('../utils/war3ProcessManager');
+    const getPid = vi.mocked(war3ProcessManager.getCurrentPid);
+    getPid.mockClear();
+
+    const { container } = render(<Toolbar currentFilePath={null} setCurrentFilePath={vi.fn()} />);
+    fireEvent.click(btnByTitle(container, '启动 War3'));
+
+    await vi.waitFor(() => {
+      expect(container.ownerDocument.querySelector('.confirm-dialog')).toBeTruthy();
+    });
+    // 进程管理在浏览器里毫无意义：必须在进入前就 return
+    expect(getPid).not.toHaveBeenCalled();
+  });
+
+  it('桌面模式仍走原流程（不被浏览器拦截误伤）', async () => {
+    mockIsBrowserRuntime.mockReturnValue(false);
+    const { container } = render(<Toolbar currentFilePath={null} setCurrentFilePath={vi.fn()} />);
+    fireEvent.click(btnByTitle(container, '启动 War3'));
+
+    // 桌面下不会出现"浏览器模式不支持"
+    await vi.waitFor(() => {
+      const dlg = container.ownerDocument.querySelector('.confirm-dialog');
+      const text = dlg ? dlg.textContent || '' : '';
+      expect(text).not.toContain('浏览器模式不支持');
+    });
   });
 });

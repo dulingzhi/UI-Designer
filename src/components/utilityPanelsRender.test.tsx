@@ -11,6 +11,12 @@ import { render, fireEvent, waitFor } from '@testing-library/react';
 vi.mock('@tauri-apps/api/app', () => ({ getVersion: vi.fn(() => Promise.resolve('0.1.1')) }));
 vi.mock('@tauri-apps/plugin-updater', () => ({ check: vi.fn(() => Promise.resolve(null)) }));
 vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn(() => Promise.resolve()) }));
+// r257：UpdateChecker 现在显式拦截浏览器模式（此前浏览器点"检查更新"会抛 TypeError）
+const mockIsBrowserRuntime = vi.hoisted(() => vi.fn(() => false));
+vi.mock('../utils/platformBridge', async (orig) => {
+  const real = await (orig as () => Promise<Record<string, unknown>>)();
+  return { ...real, isBrowserRuntime: mockIsBrowserRuntime };
+});
 
 import { ShortcutHelp } from './ShortcutHelp';
 import { AboutDialog } from './AboutDialog';
@@ -80,6 +86,7 @@ describe('AboutDialog 渲染级测试', () => {
 describe('UpdateChecker 渲染级测试', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsBrowserRuntime.mockReturnValue(false);
   });
 
   it('默认不自动检查（checkOnMount 默认 false）', async () => {
@@ -108,5 +115,31 @@ describe('UpdateChecker 渲染级测试', () => {
     render(<UpdateChecker />);
     await new Promise(r => setTimeout(r, 100));
     expect(typeof (window as unknown as { checkForUpdates?: unknown }).checkForUpdates).toBe('function');
+  });
+});
+
+describe('UpdateChecker 浏览器模式（r257：不再抛 TypeError）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsBrowserRuntime.mockReturnValue(true);
+  });
+
+  it('浏览器下不调用 updater.check()，并给出可读说明', async () => {
+    const updaterMod = await import('@tauri-apps/plugin-updater');
+    render(<UpdateChecker />);
+    await new Promise(r => setTimeout(r, 100));
+
+    const fn = (window as unknown as { checkForUpdates?: (b?: boolean) => Promise<void> }).checkForUpdates;
+    expect(typeof fn).toBe('function');
+    // 显式要求提示（等价用户点"检查更新"）
+    await fn!(true);
+    await new Promise(r => setTimeout(r, 100));
+
+    // 关键：绝不能去碰 Tauri updater（浏览器里它读 __TAURI_INTERNALS__ 会抛 TypeError）
+    expect(updaterMod.check).not.toHaveBeenCalled();
+
+    // 用户能看到解释，而不是控制台里一个 TypeError
+    const text = document.body.textContent || '';
+    expect(text).toMatch(/浏览器版不支持自动更新|浏览器模式/);
   });
 });
